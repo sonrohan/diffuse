@@ -56,16 +56,17 @@ struct PRHeaderBar: View {
                 Button {
                     Task { await state.reRunAnalysis() }
                 } label: {
-                    Label("Re-run", systemImage: "arrow.clockwise")
+                    Label("Analyze latest", systemImage: "arrow.triangle.2.circlepath")
                         .font(.system(size: 12))
                 }
                 .buttonStyle(.bordered)
-                .disabled(state.isLoadingAnalysis)
+                .disabled(state.isLoadingAnalysis || state.isAnalyzing)
+                .help("Refresh workspace state, then analyze the current branch and working tree")
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 
 
@@ -85,6 +86,314 @@ struct PRHeaderBar: View {
 }
 
 // MARK: - Review Map Panel
+
+struct AnalysisNavigationRail: View {
+    @Environment(AppState.self) private var state
+    let details: AnalysisDetails
+
+    var prioritySignals: [RiskHighlight] {
+        details.riskHighlights
+            .filter { $0.severity >= .medium }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            RailSectionHeader(title: "View", count: nil)
+
+            AllChangesNavRow(
+                fileCount: details.files.count,
+                signalCount: details.riskHighlights.count,
+                isSelected: state.selectedBucketId == nil
+            ) {
+                state.selectAllChanges()
+            }
+
+            RailSectionHeader(
+                title: "Signals",
+                count: prioritySignals.count,
+                help: "Specific findings that may deserve attention, such as contract changes, data model shifts, or behavior-impacting edits."
+            )
+
+            if prioritySignals.isEmpty {
+                RailEmptyRow(icon: "checkmark.circle", text: "No priority signals")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(prioritySignals) { signal in
+                        SignalNavRow(signal: signal) {
+                            state.jumpToHighlight(signal)
+                        }
+                    }
+                }
+            }
+
+            RailSectionHeader(
+                title: "Areas",
+                count: details.changeBuckets.count,
+                help: "Files grouped by the kind of work they represent, so you can review related changes together."
+            )
+
+            if details.changeBuckets.isEmpty {
+                RailEmptyRow(icon: "tray", text: "No grouped areas")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(details.changeBuckets) { bucket in
+                        AreaNavRow(
+                            bucket: bucket,
+                            signalCount: details.riskHighlights.filter { $0.bucketId == bucket.id }.count,
+                            isSelected: state.selectedBucketId == bucket.id
+                        ) {
+                            state.selectBucket(bucket.id)
+                        }
+                    }
+                }
+            }
+
+            RailSectionHeader(
+                title: "Targets",
+                count: state.bucketTargets.count,
+                help: "Suggested review entry points for the currently selected view, ordered by where a human review is likely to be most useful."
+            )
+
+            if state.bucketTargets.isEmpty {
+                RailEmptyRow(icon: "checkmark.seal", text: "No selected-view targets")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(Array(state.bucketTargets.prefix(6).enumerated()), id: \.element.id) { index, target in
+                        TargetNavRow(target: target, index: index)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct RailSectionHeader: View {
+    let title: String
+    let count: Int?
+    var help: String? = nil
+
+    var body: some View {
+        HStack {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .kerning(0.5)
+            if let help {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.textTertiary)
+                    .help(help)
+            }
+            Spacer()
+            if let count {
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.textTertiary)
+            }
+        }
+        .padding(.horizontal, 2)
+        .padding(.top, 2)
+    }
+}
+
+struct AllChangesNavRow: View {
+    let fileCount: Int
+    let signalCount: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: "rectangle.stack")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("All Changes")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        Text("Unfiltered")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.accentBlue)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.accentBlue.opacity(0.10))
+                            .clipShape(Capsule())
+                    }
+                    Text("\(fileCount) files · \(signalCount) signals")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 8)
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
+    }
+}
+
+struct SignalNavRow: View {
+    let signal: RiskHighlight
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    signal.severity.badgeView
+                    Text(signal.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                        .textCase(.uppercase)
+                    Spacer()
+                }
+
+                Text(signal.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(2)
+
+                Text(signal.filePath + (signal.lineStart.map { ":L\($0)" } ?? ""))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.accentBlue)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+struct AreaNavRow: View {
+    let bucket: ChangeBucket
+    let signalCount: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: bucket.type.icon)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(bucket.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(2)
+
+                    Text("\(bucket.files.count) files · \(signalCount) signals")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
+    }
+}
+
+struct TargetNavRow: View {
+    @Environment(AppState.self) private var state
+    let target: ReviewTarget
+    let index: Int
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            if let fileId = target.changedFileId {
+                state.jumpToFile(fileId, hunkIndex: target.hunkIndex)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    target.severity.badgeView
+                    Text("#\(index + 1)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                    Spacer()
+                }
+                Text(target.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(2)
+                Text(target.filePath + (target.lineStart.map { ":L\($0)" } ?? ""))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .disabled(target.changedFileId == nil)
+        .onHover { isHovered = $0 }
+    }
+}
+
+struct RailEmptyRow: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(.textTertiary)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(.textTertiary)
+            Spacer()
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+    }
+}
 
 struct ReviewMapPanel: View {
     @Environment(AppState.self) private var state
@@ -463,7 +772,7 @@ struct ReviewTargetCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .padding(10)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
@@ -601,6 +910,6 @@ struct SelectedContextBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.bgSubtle)
     }
 }

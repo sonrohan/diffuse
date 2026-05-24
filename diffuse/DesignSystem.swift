@@ -16,16 +16,22 @@ extension Color {
     }
 
     // Backgrounds
-    static let bgCanvas = Color(.windowBackgroundColor)
-    static let bgSubtle = Color(NSColor.controlBackgroundColor)
+    static let bgCanvas = Color.dynamic(
+        light: NSColor(red: 0.985, green: 0.985, blue: 0.99, alpha: 1.0),
+        dark: NSColor(red: 0.075, green: 0.075, blue: 0.08, alpha: 1.0)
+    )
+    static let bgSubtle = Color.dynamic(
+        light: NSColor(red: 0.94, green: 0.945, blue: 0.955, alpha: 1.0),
+        dark: NSColor(red: 0.095, green: 0.095, blue: 0.105, alpha: 1.0)
+    )
     static let bgInset = Color(NSColor.underPageBackgroundColor)
     static let bgSidebar = Color.dynamic(
-        light: NSColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0),
-        dark: NSColor(red: 0.075, green: 0.075, blue: 0.08, alpha: 1.0)
+        light: NSColor(red: 0.95, green: 0.955, blue: 0.965, alpha: 1.0),
+        dark: NSColor(red: 0.13, green: 0.135, blue: 0.145, alpha: 1.0)
     )
     static let bgSidebarPanel = Color.dynamic(
         light: NSColor(red: 0.98, green: 0.985, blue: 0.995, alpha: 1.0),
-        dark: NSColor(red: 0.13, green: 0.135, blue: 0.145, alpha: 1.0)
+        dark: NSColor(red: 0.165, green: 0.17, blue: 0.18, alpha: 1.0)
     )
 
     // Text

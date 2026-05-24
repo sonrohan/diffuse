@@ -8,6 +8,7 @@ struct DiffViewerPanel: View {
 
     @State private var hideBoilerplate = false
     @State private var isFileSidebarCollapsed = false
+    @State private var compactFileTree = true
 
     var activeFile: ChangedFile? {
         guard let id = state.activeFileId else { return filteredFiles.first }
@@ -46,17 +47,27 @@ struct DiffViewerPanel: View {
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.bordered)
+
+                Button {
+                    compactFileTree.toggle()
+                } label: {
+                    Label(compactFileTree ? "Compact tree" : "Full tree",
+                          systemImage: compactFileTree ? "rectangle.compress.vertical" : "list.bullet.indent")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.bordered)
+                .help(compactFileTree ? "Fold single-child folder chains" : "Show every folder level")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .background(Color.bgSubtle)
 
             Divider()
 
             HStack(spacing: 0) {
                 // File list sidebar
                 if !isFileSidebarCollapsed {
-                    FileListSidebar(files: filteredFiles, activeFile: activeFile)
+                    FileListSidebar(files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree)
                     Divider()
                 }
 
@@ -73,7 +84,7 @@ struct DiffViewerPanel: View {
                             .foregroundColor(.textSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(NSColor.windowBackgroundColor))
+                    .background(Color.bgCanvas)
                 }
             }
         }
@@ -87,15 +98,26 @@ struct FileListSidebar: View {
     @Environment(AppState.self) private var state
     let files: [ChangedFile]
     let activeFile: ChangedFile?
+    let compactTree: Bool
+    @State private var collapsedFolders: Set<String> = []
+
+    var roots: [FileTreeNode] {
+        FileTreeNode.build(files: files)
+    }
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(files) { file in
-                    FileListItem(file: file, isActive: activeFile?.id == file.id)
-                        .onTapGesture {
-                            state.jumpToFile(file.id)
-                        }
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(roots) { node in
+                    FileTreeNodeView(
+                        node: node,
+                        depth: 0,
+                        activeFile: activeFile,
+                        collapsedFolders: $collapsedFolders,
+                        compactTree: compactTree
+                    ) { file in
+                        state.jumpToFile(file.id)
+                    }
                 }
 
                 if files.isEmpty {
@@ -108,13 +130,167 @@ struct FileListSidebar: View {
             }
         }
         .frame(width: 220)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.bgSubtle)
+    }
+}
+
+struct FileTreeNode: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let path: String
+    var files: [ChangedFile] = []
+    var children: [FileTreeNode] = []
+
+    var fileCount: Int {
+        files.count + children.reduce(0) { $0 + $1.fileCount }
+    }
+
+    var isSingleChildDirectoryChain: Bool {
+        files.isEmpty && children.count == 1
+    }
+
+    static func build(files: [ChangedFile]) -> [FileTreeNode] {
+        var root = MutableFileTreeNode(name: "", path: "")
+
+        for file in files.sorted(by: { $0.path.localizedStandardCompare($1.path) == .orderedAscending }) {
+            let parts = file.path.split(separator: "/").map(String.init)
+            guard !parts.isEmpty else { continue }
+            root.insert(file: file, folders: Array(parts.dropLast()))
+        }
+
+        return root.children.values
+            .map { $0.toImmutable() }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}
+
+private struct MutableFileTreeNode {
+    let name: String
+    let path: String
+    var files: [ChangedFile] = []
+    var children: [String: MutableFileTreeNode] = [:]
+
+    mutating func insert(file: ChangedFile, folders: [String]) {
+        guard let folder = folders.first else {
+            files.append(file)
+            files.sort { $0.filename.localizedStandardCompare($1.filename) == .orderedAscending }
+            return
+        }
+
+        let childPath = path.isEmpty ? folder : "\(path)/\(folder)"
+        if children[folder] == nil {
+            children[folder] = MutableFileTreeNode(name: folder, path: childPath)
+        }
+        children[folder]?.insert(file: file, folders: Array(folders.dropFirst()))
+    }
+
+    func toImmutable() -> FileTreeNode {
+        FileTreeNode(
+            id: path.isEmpty ? name : path,
+            name: name,
+            path: path,
+            files: files,
+            children: children.values
+                .map { $0.toImmutable() }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        )
+    }
+}
+
+struct FileTreeNodeView: View {
+    let node: FileTreeNode
+    let depth: Int
+    let activeFile: ChangedFile?
+    @Binding var collapsedFolders: Set<String>
+    let compactTree: Bool
+    let onSelectFile: (ChangedFile) -> Void
+
+    var displayedNode: FileTreeNode {
+        guard compactTree else { return node }
+        var current = node
+        var names = [current.name]
+        while current.isSingleChildDirectoryChain, let child = current.children.first {
+            current = child
+            names.append(current.name)
+        }
+        return FileTreeNode(
+            id: current.id,
+            name: names.joined(separator: "/"),
+            path: current.path,
+            files: current.files,
+            children: current.children
+        )
+    }
+
+    var body: some View {
+        let node = displayedNode
+        let isCollapsed = collapsedFolders.contains(node.id)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                if isCollapsed {
+                    collapsedFolders.remove(node.id)
+                } else {
+                    collapsedFolders.insert(node.id)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .frame(width: 10)
+
+                    Image(systemName: "folder")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.textSecondary)
+
+                    Text(node.name)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Spacer(minLength: 4)
+
+                    Text("\(node.fileCount)")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textTertiary)
+                }
+                .padding(.leading, CGFloat(min(depth, 4)) * 12 + 8)
+                .padding(.trailing, 8)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(node.path)
+
+            if !isCollapsed {
+                ForEach(node.files) { file in
+                    FileListItem(file: file, isActive: activeFile?.id == file.id, depth: depth + 1)
+                        .onTapGesture {
+                            onSelectFile(file)
+                        }
+                }
+
+                ForEach(node.children) { child in
+                    FileTreeNodeView(
+                        node: child,
+                        depth: depth + 1,
+                        activeFile: activeFile,
+                        collapsedFolders: $collapsedFolders,
+                        compactTree: compactTree,
+                        onSelectFile: onSelectFile
+                    )
+                }
+            }
+        }
     }
 }
 
 struct FileListItem: View {
     let file: ChangedFile
     let isActive: Bool
+    var depth: Int = 0
 
     var statusColor: Color {
         switch file.status {
@@ -139,7 +315,7 @@ struct FileListItem: View {
             Text(statusBadge)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(statusColor)
-                .frame(width: 14)
+                .frame(width: 16)
 
             Image(systemName: "doc.text")
                 .font(.system(size: 11))
@@ -155,7 +331,8 @@ struct FileListItem: View {
 
             classificationBadge(file.classification)
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
+        .padding(.trailing, 8)
         .padding(.vertical, 5)
         .background(isActive ? Color.accentBlue.opacity(0.08) : Color.clear)
         .overlay(alignment: .leading) {
@@ -164,6 +341,7 @@ struct FileListItem: View {
                 .frame(width: 2)
         }
         .contentShape(Rectangle())
+        .help(file.path)
     }
 
     @ViewBuilder
@@ -210,7 +388,7 @@ struct DiffContent: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(Color(NSColor.controlBackgroundColor))
+                    .background(Color.bgSubtle)
                     .sticky()
 
                     Divider()
@@ -251,7 +429,7 @@ struct DiffContent: View {
                 proxy.scrollTo("hunk-\(file.id)-0", anchor: .top)
             }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 }
 
@@ -263,6 +441,26 @@ struct HunkView: View {
     let fileId: UUID
     let isHighlighted: Bool
     @State private var isCollapsed = false
+
+    var diffLines: [NumberedDiffLine] {
+        var oldLine = hunk.oldStart
+        var newLine = hunk.newStart
+
+        return hunk.lines.map { rawLine in
+            let type = NumberedDiffLine.LineType(rawLine: rawLine)
+            let numbered = NumberedDiffLine(
+                rawLine: rawLine,
+                oldLineNumber: type.showsOldLine ? oldLine : nil,
+                newLineNumber: type.showsNewLine ? newLine : nil,
+                type: type
+            )
+
+            if type.advancesOldLine { oldLine += 1 }
+            if type.advancesNewLine { newLine += 1 }
+
+            return numbered
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -295,12 +493,12 @@ struct HunkView: View {
             // Hunk lines
             if !isCollapsed {
                 VStack(spacing: 0) {
-                    ForEach(Array(hunk.lines.enumerated()), id: \.offset) { lineIdx, line in
-                        DiffLine(line: line, lineNumber: hunk.newStart + lineIdx)
+                    ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
+                        DiffLine(line: line)
                     }
                 }
                 .font(.system(size: 12, design: .monospaced))
-                .background(Color(NSColor.windowBackgroundColor))
+                .background(Color.bgCanvas)
             }
         }
         .overlay(alignment: .leading) {
@@ -318,65 +516,119 @@ struct HunkView: View {
 
 // MARK: - Diff Line
 
-struct DiffLine: View {
-    let line: String
-    let lineNumber: Int
+struct NumberedDiffLine {
+    enum LineType {
+        case added, deleted, context, metadata
 
-    var lineType: LineType {
-        if line.hasPrefix("+") && !line.hasPrefix("+++") { return .added }
-        if line.hasPrefix("-") && !line.hasPrefix("---") { return .deleted }
-        return .context
+        init(rawLine: String) {
+            if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
+                self = .added
+            } else if rawLine.hasPrefix("-") && !rawLine.hasPrefix("---") {
+                self = .deleted
+            } else if rawLine.hasPrefix("\\") {
+                self = .metadata
+            } else {
+                self = .context
+            }
+        }
+
+        var showsOldLine: Bool {
+            switch self {
+            case .added, .metadata: false
+            case .deleted, .context: true
+            }
+        }
+
+        var showsNewLine: Bool {
+            switch self {
+            case .deleted, .metadata: false
+            case .added, .context: true
+            }
+        }
+
+        var advancesOldLine: Bool { showsOldLine }
+        var advancesNewLine: Bool { showsNewLine }
     }
 
-    enum LineType { case added, deleted, context }
+    let rawLine: String
+    let oldLineNumber: Int?
+    let newLineNumber: Int?
+    let type: LineType
+}
+
+struct DiffLine: View {
+    let line: NumberedDiffLine
 
     var bgColor: Color {
-        switch lineType {
+        switch line.type {
         case .added: Color.diffAddedBg
         case .deleted: Color.diffDeletedBg
-        case .context: Color.clear
+        case .context, .metadata: Color.clear
         }
     }
 
     var prefixColor: Color {
-        switch lineType {
+        switch line.type {
         case .added: Color.diffAddedFg
         case .deleted: Color.dangerColor
-        case .context: Color.textTertiary
+        case .context, .metadata: Color.textTertiary
         }
     }
 
     var prefix: String {
-        switch lineType {
+        switch line.type {
         case .added: "+"
         case .deleted: "−"
         case .context: " "
+        case .metadata: "\\"
         }
     }
 
     var lineContent: String {
-        guard !line.isEmpty else { return "" }
-        return String(line.dropFirst())
+        guard !line.rawLine.isEmpty else { return "" }
+        if line.type == .metadata { return String(line.rawLine.dropFirst()).trimmingCharacters(in: .whitespaces) }
+        return String(line.rawLine.dropFirst())
     }
 
     var body: some View {
         HStack(spacing: 0) {
+            LineNumberText(line.oldLineNumber)
+            LineNumberText(line.newLineNumber)
+
             // Prefix gutter
             Text(prefix)
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(prefixColor)
-                .frame(width: 20, alignment: .center)
-                .padding(.leading, 8)
+                .frame(width: 18, alignment: .center)
+                .background(Color.bgSubtle.opacity(0.65))
 
             // Line content
             Text(lineContent)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(lineType == .context ? Color.textPrimary.opacity(0.75) : .textPrimary)
+                .foregroundColor(line.type == .context ? Color.textPrimary.opacity(0.75) : line.type == .metadata ? .textTertiary : .textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 8)
                 .padding(.trailing, 12)
         }
         .frame(minHeight: 20)
         .background(bgColor)
+    }
+}
+
+struct LineNumberText: View {
+    let number: Int?
+
+    init(_ number: Int?) {
+        self.number = number
+    }
+
+    var body: some View {
+        Text(number.map(String.init) ?? "")
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundColor(.textTertiary)
+            .frame(width: 44, alignment: .trailing)
+            .padding(.trailing, 6)
+            .background(Color.bgSubtle.opacity(0.65))
     }
 }
 

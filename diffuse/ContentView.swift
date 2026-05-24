@@ -41,33 +41,32 @@ struct SidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack(spacing: 8) {
+            HStack(spacing: 9) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(LinearGradient(
-                            colors: [Color(red: 0.18, green: 0.51, blue: 0.97), Color(red: 0.43, green: 0.25, blue: 0.79)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 26, height: 26)
-                    Image(systemName: "arrow.triangle.pull")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.bgSidebarPanel)
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.borderDefault.opacity(0.8), lineWidth: 0.5)
+                        )
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.accentBlue)
                 }
                 Text("diffuse")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.textPrimary, .accentBlue], startPoint: .leading, endPoint: .trailing)
-                    )
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.textPrimary)
                 Spacer()
                 Button {
-                    Task { await state.load() }
+                    Task { await state.refreshWorkspace() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 11))
                         .foregroundColor(.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .help("Refresh")
+                .help("Refresh workspace state")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -123,6 +122,11 @@ struct SidebarView: View {
                                     Task {
                                         await state.renameWorkspace(id: repo.id, newName: newName)
                                     }
+                                },
+                                onToggleAutoAnalyze: { enabled in
+                                    Task {
+                                        await state.setWorkspaceAutoAnalyze(id: repo.id, enabled: enabled)
+                                    }
                                 }
                             )
                         }
@@ -149,111 +153,65 @@ struct SidebarView: View {
                             .padding(.horizontal, 12)
                             .padding(.top, 4)
 
-                            // Mode Selector Tab (Local vs Remote PRs)
-                            Picker("", selection: Bindable(state).sidebarMode) {
-                                Text("Local").tag(AppState.SidebarMode.local)
-                                Text("Remote PRs").tag(AppState.SidebarMode.remote)
-                            }
-                            .pickerStyle(.segmented)
+                            BranchOverviewCard(
+                                repoPath: selectedRepo.path,
+                                branch: state.selectedBranch ?? "main",
+                                summary: state.selectedBranchSummary,
+                                branches: state.localBranches
+                            )
                             .padding(.horizontal, 12)
                             
-                            if state.sidebarMode == .local {
-                                BranchOverviewCard(
-                                    repoPath: selectedRepo.path,
-                                    branch: state.selectedBranch ?? "main",
-                                    summary: state.selectedBranchSummary,
-                                    branches: state.localBranches
-                                )
-                                .padding(.horizontal, 12)
-                                
-                                // Commits Timeline
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text("COMMITS")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.textTertiary)
-                                            .kerning(0.5)
-                                        Spacer()
-                                        if state.isLoadingPRs || state.isLoadingAnalysis {
-                                            LoadingSpinner(size: 10)
-                                        }
+                            // Commits Timeline
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("COMMITS")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.textTertiary)
+                                        .kerning(0.5)
+                                    Spacer()
+                                    if state.isLoadingPRs || state.isLoadingAnalysis {
+                                        LoadingSpinner(size: 10)
                                     }
-                                    .padding(.horizontal, 12)
-                                    .padding(.top, 4)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.top, 4)
+                                
+                                VStack(spacing: 0) {
+                                    ChangeSummaryRow(
+                                        fileCount: state.analysisDetails?.files.count ?? 0,
+                                        isSelected: state.selectedCommitSha == nil
+                                    )
+                                    .onTapGesture {
+                                        Task { await state.selectCommit(nil) }
+                                    }
                                     
-                                    VStack(spacing: 0) {
-                                        // "All Changes" Row
-                                        ChangeSummaryRow(
-                                            fileCount: state.analysisDetails?.files.count ?? 0,
-                                            isSelected: state.selectedCommitSha == nil
+                                    ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
+                                        CommitListItem(
+                                            subject: commit.subject,
+                                            author: commit.author,
+                                            date: commit.date,
+                                            sha: String(commit.sha.prefix(7)),
+                                            isSelected: state.selectedCommitSha == commit.sha,
+                                            index: idx + 1
                                         )
                                         .onTapGesture {
-                                            Task { await state.selectCommit(nil) }
-                                        }
-                                        
-                                        // Individual commits
-                                        ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
-                                            CommitListItem(
-                                                subject: commit.subject,
-                                                author: commit.author,
-                                                date: commit.date,
-                                                sha: String(commit.sha.prefix(7)),
-                                                isSelected: state.selectedCommitSha == commit.sha,
-                                                index: idx + 1
-                                            )
-                                            .onTapGesture {
-                                                Task { await state.selectCommit(commit.sha) }
-                                            }
-                                        }
-                                        
-                                        if state.commits.isEmpty && !state.isLoadingPRs {
-                                            Text("No commits on branch.")
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.textTertiary)
-                                                .italic()
-                                                .padding(12)
-                                                .frame(maxWidth: .infinity, alignment: .center)
+                                            Task { await state.selectCommit(commit.sha) }
                                         }
                                     }
-                                    .background(Color.bgSidebarPanel)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
-                                    .padding(.horizontal, 12)
-                                }
-                            } else {
-                                // Remote PRs Mode List
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text("OPEN PULL REQUESTS")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.textTertiary)
-                                            .kerning(0.5)
-                                        Spacer()
-                                        if state.isLoadingPRs {
-                                            LoadingSpinner(size: 10)
-                                        }
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.top, 4)
                                     
-                                    VStack(spacing: 0) {
-                                        ForEach(state.remotePRs) { pr in
-                                            RemotePRListItem(pr: pr)
-                                        }
-                                        if state.remotePRs.isEmpty && !state.isLoadingPRs {
-                                            Text("No open remote PRs.")
-                                                .font(.system(size: 10))
-                                                .foregroundColor(.textTertiary)
-                                                .italic()
-                                                .padding(12)
-                                                .frame(maxWidth: .infinity, alignment: .center)
-                                        }
+                                    if state.commits.isEmpty && !state.isLoadingPRs {
+                                        Text("No commits on branch.")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.textTertiary)
+                                            .italic()
+                                            .padding(12)
+                                            .frame(maxWidth: .infinity, alignment: .center)
                                     }
-                                    .background(Color.bgSidebarPanel)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
-                                    .padding(.horizontal, 12)
                                 }
+                                .background(Color.bgSidebarPanel)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                                .padding(.horizontal, 12)
                             }
                         }
                     }
@@ -333,67 +291,6 @@ struct SidebarView: View {
         }
     }
 }
-
-struct RemotePRListItem: View {
-    @Environment(AppState.self) private var state
-    let pr: PullRequest
-
-    var isLocalBranch: Bool {
-        state.localBranches.contains("review/pr-\(pr.prNumber)") ||
-        state.selectedBranch == pr.headSha.replacingOccurrences(of: "origin/", with: "")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: "arrow.triangle.pull")
-                    .font(.system(size: 10))
-                    .foregroundColor(.accentPurple)
-                Text("#\(pr.prNumber)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.accentPurple)
-                Text(pr.author)
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-            }
-
-            Text(pr.title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.textPrimary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-
-            HStack {
-                if isLocalBranch {
-                    BadgeView(text: "Local Branch Exists", variant: .neutral)
-                    Spacer()
-                    Button("Review") {
-                        Task { await state.selectBranch("review/pr-\(pr.prNumber)") }
-                    }
-                    .buttonStyle(.bordered)
-                } else {
-                    BadgeView(text: "Remote PR", variant: .info)
-                    Spacer()
-                    Button {
-                        Task { await state.checkoutRemotePR(pr) }
-                    } label: {
-                        Label("Checkout", systemImage: "square.and.arrow.down")
-                            .font(.system(size: 10))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.accentPurple)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-        
-        Divider()
-            .padding(.horizontal, 10)
-    }
-}
-
 
 struct PRListItem: View {
     let pr: PullRequest
@@ -493,7 +390,7 @@ struct DetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor).ignoresSafeArea())
+        .background(Color.bgCanvas.ignoresSafeArea())
     }
 
     var loadingView: some View {
@@ -511,7 +408,7 @@ struct DetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 
     var welcomeView: some View {
@@ -543,11 +440,11 @@ struct DetailView: View {
                 .foregroundColor(.textTertiary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
-                .background(Color(NSColor.controlColor))
+                .background(Color.bgSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 
     var noSelectionView: some View {
@@ -563,7 +460,7 @@ struct DetailView: View {
                 .foregroundColor(.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 }
 
@@ -581,31 +478,11 @@ struct AnalysisDetailView: View {
             Divider()
 
             HStack(spacing: 0) {
-                // Left pane: triage panels
+                // Left pane: review navigation
                 VStack(spacing: 0) {
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("TRIAGE SUMMARY")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(.textTertiary)
-                                .kerning(0.5)
-                            Text("Review Signals")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.textPrimary)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color(NSColor.controlBackgroundColor))
-
-                    Divider()
-
                     ScrollView {
-                        VStack(spacing: 10) {
-                            ReviewMapPanel(details: details)
-                            SemanticBucketsPanel(details: details)
-                            ReviewTargetsPanel(targets: state.bucketTargets)
+                        VStack(spacing: 12) {
+                            AnalysisNavigationRail(details: details)
                             SafeToSkimPanel(targets: details.skimTargets)
                         }
                         .padding(12)
@@ -623,7 +500,7 @@ struct AnalysisDetailView: View {
                 }
             }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color.bgCanvas)
     }
 }
 
@@ -634,6 +511,7 @@ struct AnalyzeRepoSheet: View {
     @Binding var isPresented: Bool
     @State private var selectedPath: String = ""
     @State private var baseRef: String = ""
+    @State private var autoAnalyzeEnabled = true
 
     var body: some View {
         VStack(spacing: 20) {
@@ -689,6 +567,11 @@ struct AnalyzeRepoSheet: View {
                     .font(.system(size: 12, design: .monospaced))
             }
 
+            Toggle("Auto-analyze local changes while app is open", isOn: $autoAnalyzeEnabled)
+                .font(.system(size: 12))
+                .toggleStyle(.checkbox)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             if state.isAnalyzing {
                 HStack(spacing: 8) {
                     LoadingSpinner(size: 16)
@@ -719,7 +602,8 @@ struct AnalyzeRepoSheet: View {
                     Task {
                         await state.analyzeRepo(
                             path: selectedPath.isEmpty ? FileManager.default.currentDirectoryPath : selectedPath,
-                            baseRef: baseRef.isEmpty ? nil : baseRef
+                            baseRef: baseRef.isEmpty ? nil : baseRef,
+                            autoAnalyzeEnabled: autoAnalyzeEnabled
                         )
                         if state.analysisError == nil {
                             isPresented = false
@@ -801,20 +685,6 @@ struct BranchOverviewCard: View {
                         .lineLimit(1)
                 }
 
-                Button {
-                    Task {
-                        await state.analyzeRepo(path: repoPath, baseRef: "HEAD")
-                    }
-                } label: {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.accentPurple)
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-                .background(Color.accentPurple.opacity(0.10))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .help("Analyze working tree diff")
             }
 
             HStack(spacing: 5) {
@@ -827,18 +697,6 @@ struct BranchOverviewCard: View {
                 if let summary, summary.behindCount > 0 {
                     BranchStatusPill(text: "Behind \(summary.behindCount)", color: .warningColor)
                 }
-                if let prNumber = summary?.relatedPRNumber {
-                    BranchStatusPill(text: "PR #\(prNumber)", color: .infoColor)
-                } else {
-                    BranchStatusPill(text: "No PR", color: .textTertiary)
-                }
-            }
-
-            if let title = summary?.relatedPRTitle {
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(2)
             }
         }
         .padding(10)
@@ -998,6 +856,7 @@ struct WorkspaceRow: View {
     let onRemove: () -> Void
     let onOpenInFinder: () -> Void
     let onRename: (String) -> Void
+    let onToggleAutoAnalyze: (Bool) -> Void
     
     @State private var isHovered = false
     @State private var showRenameAlert = false
@@ -1018,6 +877,11 @@ struct WorkspaceRow: View {
             
             if isHovered {
                 HStack(spacing: 6) {
+                    Image(systemName: repo.autoAnalyzeEnabled ? "bolt.circle.fill" : "bolt.slash")
+                        .font(.system(size: 10))
+                        .foregroundColor(repo.autoAnalyzeEnabled ? .accentBlue : .textTertiary)
+                        .help(repo.autoAnalyzeEnabled ? "Auto-analyze is on" : "Auto-analyze is off")
+
                     // Open in Finder
                     Button {
                         onOpenInFinder()
@@ -1035,6 +899,9 @@ struct WorkspaceRow: View {
                         Button("Rename Workspace…") {
                             newName = repo.name
                             showRenameAlert = true
+                        }
+                        Button(repo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze") {
+                            onToggleAutoAnalyze(!repo.autoAnalyzeEnabled)
                         }
                         Divider()
                         Button("Remove Workspace", role: .destructive) { onRemove() }
@@ -1062,6 +929,9 @@ struct WorkspaceRow: View {
             Button("Rename Workspace…") {
                 newName = repo.name
                 showRenameAlert = true
+            }
+            Button(repo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze") {
+                onToggleAutoAnalyze(!repo.autoAnalyzeEnabled)
             }
             Divider()
             Button("Remove Workspace", role: .destructive) { onRemove() }

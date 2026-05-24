@@ -294,11 +294,25 @@ struct GitRepository: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
     var path: String
+    var autoAnalyzeEnabled: Bool
 
-    init(id: UUID = UUID(), name: String, path: String) {
+    init(id: UUID = UUID(), name: String, path: String, autoAnalyzeEnabled: Bool = true) {
         self.id = id
         self.name = name
         self.path = path
+        self.autoAnalyzeEnabled = autoAnalyzeEnabled
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, path, autoAnalyzeEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        path = try container.decode(String.self, forKey: .path)
+        autoAnalyzeEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoAnalyzeEnabled) ?? true
     }
 }
 

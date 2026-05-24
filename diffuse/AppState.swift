@@ -10,18 +10,11 @@ class AppState {
     var repositories: [GitRepository] = []
     var selectedRepoId: UUID?
 
-    // Sidebar Toggles
-    enum SidebarMode: String, Codable { case local, remote }
-    var sidebarMode: SidebarMode = .local
-
     // PRs & Runs
     var pullRequests: [PullRequest] = []
     var selectedPRId: UUID?
     var analysisDetails: AnalysisDetails?
     
-    // Remote Pull Requests
-    var remotePRs: [PullRequest] = []
-
     // Local Git State
     var localBranches: [String] = []
     var localBranchSummaries: [LocalBranchSummary] = []
@@ -44,7 +37,7 @@ class AppState {
 
     // Git File Watcher
     private var isWatcherRunning = false
-    private var lastGitIndexDate: Date?
+    private var lastGitFingerprint: String?
 
     // Computed Properties
     var selectedRepo: GitRepository? {
@@ -88,19 +81,7 @@ class AppState {
     func load() async {
         isLoadingPRs = true
         
-        // Load repositories
         repositories = await coordinator.allRepositories()
-        if repositories.isEmpty {
-            // Register default local developer workspaces
-            let defaultRepos = [
-                GitRepository(name: "diffuse", path: "/Users/rohan/repos/diffuse"),
-                GitRepository(name: "diffuse2", path: "/Users/rohan/repos/diffuse2")
-            ]
-            for r in defaultRepos {
-                _ = await coordinator.addRepository(name: r.name, path: r.path)
-            }
-            repositories = await coordinator.allRepositories()
-        }
         
         if selectedRepoId == nil {
             selectedRepoId = repositories.first?.id
@@ -114,6 +95,7 @@ class AppState {
 
     func selectRepo(_ id: UUID) async {
         selectedRepoId = id
+        lastGitFingerprint = nil
         selectedPRId = nil
         selectedBucketId = nil
         activeFileId = nil
@@ -133,6 +115,11 @@ class AppState {
         await load()
     }
 
+    func setWorkspaceAutoAnalyze(id: UUID, enabled: Bool) async {
+        await coordinator.setRepositoryAutoAnalyze(id: id, enabled: enabled)
+        repositories = await coordinator.allRepositories()
+    }
+
     func refreshActiveRepo() async {
         guard let repo = selectedRepo else { return }
         
@@ -146,13 +133,11 @@ class AppState {
         let allPRs = await coordinator.allPullRequests()
         pullRequests = allPRs.filter { $0.repository == "local/\(repo.name)" }
 
-        // Fetch remote PRs
-        remotePRs = await coordinator.listRemotePRs(repoPath: repo.path)
         localBranchSummaries = await coordinator.listLocalBranchSummaries(
             repoPath: repo.path,
             branches: localBranches,
             currentBranch: selectedBranch ?? "main",
-            remotePRs: remotePRs
+            remotePRs: []
         )
 
         if selectedPRId == nil, let first = pullRequests.first {
@@ -162,6 +147,12 @@ class AppState {
         if let id = selectedPRId {
             await loadDetails(for: id)
         }
+    }
+
+    func refreshWorkspace() async {
+        isLoadingPRs = true
+        await refreshActiveRepo()
+        isLoadingPRs = false
     }
 
     func selectPR(_ id: UUID) async {
@@ -189,29 +180,6 @@ class AppState {
             await selectPR(pr.id)
         } else {
             analysisError = coordinator.analysisError ?? "Branch analysis failed"
-        }
-        isAnalyzing = false
-    }
-
-    func checkoutRemotePR(_ pr: PullRequest) async {
-        guard let repo = selectedRepo else { return }
-        isAnalyzing = true
-        analysisError = nil
-        
-        let localBranchName = "review/pr-\(pr.prNumber)"
-        
-        do {
-            try await coordinator.checkoutPR(repoPath: repo.path, prNumber: pr.prNumber, branchName: localBranchName)
-            sidebarMode = .local
-            selectedBranch = localBranchName
-            
-            // Run analysis immediately
-            if let analyzedPR = await coordinator.analyzeRepo(path: repo.path, baseRef: pr.baseSha) {
-                pullRequests = await coordinator.allPullRequests().filter { $0.repository == "local/\(repo.name)" }
-                await selectPR(analyzedPR.id)
-            }
-        } catch {
-            analysisError = error.localizedDescription
         }
         isAnalyzing = false
     }
@@ -336,18 +304,28 @@ class AppState {
 
     private func checkGitIndex() async {
         guard let repo = selectedRepo else { return }
-        let indexPath = URL(fileURLWithPath: repo.path).appendingPathComponent(".git/index")
-        guard let attrs = try? FileManager.default.attributesOfItem(atPath: indexPath.path),
-              let modDate = attrs[.modificationDate] as? Date else { return }
-              
-        if let last = lastGitIndexDate {
-            if modDate > last {
-                lastGitIndexDate = modDate
-                await self.refreshActiveRepo()
+
+        let fingerprint = gitFingerprint(repoPath: repo.path)
+        guard !fingerprint.isEmpty else { return }
+
+        if let last = lastGitFingerprint {
+            if fingerprint != last {
+                lastGitFingerprint = fingerprint
+                if repo.autoAnalyzeEnabled, !isAnalyzing, !isLoadingAnalysis {
+                    await reRunAnalysis()
+                } else {
+                    await refreshActiveRepo()
+                }
             }
         } else {
-            lastGitIndexDate = modDate
+            lastGitFingerprint = fingerprint
         }
+    }
+
+    private func gitFingerprint(repoPath: String) -> String {
+        let head = GitService.run("git rev-parse HEAD 2>/dev/null", cwd: repoPath)
+        let status = GitService.run("git status --porcelain", cwd: repoPath)
+        return "\(head)\n\(status)"
     }
 
 
@@ -424,7 +402,7 @@ class AppState {
         }
     }
 
-    func analyzeRepo(path: String, baseRef: String? = nil) async {
+    func analyzeRepo(path: String, baseRef: String? = nil, autoAnalyzeEnabled: Bool = true) async {
         isAnalyzing = true
         analysisError = nil
 
@@ -435,35 +413,75 @@ class AppState {
             resolvedPath = home + suffix
         }
 
-        if let pr = await coordinator.analyzeRepo(path: resolvedPath, baseRef: baseRef) {
-            let repoName = URL(fileURLWithPath: resolvedPath).lastPathComponent
-            let standardized = URL(fileURLWithPath: resolvedPath).standardized.path
-            
-            let existing = repositories.first {
-                URL(fileURLWithPath: $0.path).standardized.path == standardized
-            }
-            
-            if existing == nil {
-                let newRepo = await coordinator.addRepository(name: repoName, path: resolvedPath)
-                repositories = await coordinator.allRepositories()
-                selectedRepoId = newRepo.id
-            } else {
-                selectedRepoId = existing?.id
-            }
-            
+        let repoName = URL(fileURLWithPath: resolvedPath).lastPathComponent
+        let standardized = URL(fileURLWithPath: resolvedPath).standardized.path
+        let existing = repositories.first {
+            URL(fileURLWithPath: $0.path).standardized.path == standardized
+        }
+
+        if existing == nil {
+            let newRepo = await coordinator.addRepository(name: repoName, path: resolvedPath, autoAnalyzeEnabled: autoAnalyzeEnabled)
+            repositories = await coordinator.allRepositories()
+            selectedRepoId = newRepo.id
+        } else {
+            selectedRepoId = existing?.id
+        }
+
+        selectedPRId = nil
+        selectedBucketId = nil
+        activeFileId = nil
+        activeHunkIndex = nil
+        analysisDetails = nil
+        commits = []
+        selectedCommitSha = nil
+
+        let analysisBaseRef = baseRef ?? defaultAnalysisBaseRef(repoPath: resolvedPath)
+        if let pr = await coordinator.analyzeRepo(path: resolvedPath, baseRef: analysisBaseRef) {
             await refreshActiveRepo()
             await selectPR(pr.id)
         } else {
             analysisError = coordinator.analysisError ?? "Analysis failed"
+            await refreshActiveRepo()
         }
         isAnalyzing = false
     }
 
 
     func reRunAnalysis() async {
-        guard let pr = selectedPR, let runId = pr.latestRun?.id else { return }
-        isLoadingAnalysis = true
-        analysisDetails = await coordinator.getDetails(for: runId)
-        isLoadingAnalysis = false
+        guard let repo = selectedRepo else { return }
+        isAnalyzing = true
+        analysisError = nil
+
+        let baseRef = defaultAnalysisBaseRef(repoPath: repo.path)
+        let previousSelection = selectedCommitSha
+        selectedCommitSha = nil
+
+        if let pr = await coordinator.analyzeRepo(path: repo.path, baseRef: baseRef) {
+            pullRequests = await coordinator.allPullRequests().filter { $0.repository == "local/\(repo.name)" }
+            selectedPRId = pr.id
+            selectedBucketId = nil
+            activeFileId = nil
+            activeHunkIndex = nil
+
+            await refreshActiveRepo()
+
+            if let previousSelection, commits.contains(where: { $0.sha == previousSelection }) {
+                await selectCommit(previousSelection)
+            }
+        } else {
+            analysisError = coordinator.analysisError ?? "Analysis failed"
+        }
+
+        isAnalyzing = false
+    }
+
+    private func defaultAnalysisBaseRef(repoPath: String) -> String? {
+        if !GitService.run("git rev-parse --verify main 2>/dev/null", cwd: repoPath).isEmpty {
+            return "main"
+        }
+        if !GitService.run("git rev-parse --verify master 2>/dev/null", cwd: repoPath).isEmpty {
+            return "master"
+        }
+        return selectedPR?.baseSha.isEmpty == false ? selectedPR?.baseSha : nil
     }
 }

@@ -55,13 +55,17 @@ actor GitService {
 
         // Get diff
         var diff = ""
+        var resolvedBaseRef = baseRef
         if let base = baseRef, !base.isEmpty {
             diff = GitService.run("git diff \(base)", cwd: repoPath)
         } else {
             // Try main, then HEAD~1
             diff = GitService.run("git diff main", cwd: repoPath)
             if diff.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                resolvedBaseRef = "HEAD~1"
                 diff = GitService.run("git diff HEAD~1", cwd: repoPath)
+            } else {
+                resolvedBaseRef = "main"
             }
         }
 
@@ -70,7 +74,7 @@ actor GitService {
         }
 
         // Deterministic base SHA and PR number
-        let baseSha = GitService.run("git rev-parse \(baseRef ?? "HEAD~1")", cwd: repoPath).prefix(40).description
+        let baseSha = GitService.run("git rev-parse \(resolvedBaseRef ?? "HEAD~1")", cwd: repoPath).prefix(40).description
         let prNumber = stableHash(branchName) % 1000 + 1
 
         return (diff, branchName.isEmpty ? "feature-branch" : branchName,
@@ -364,8 +368,15 @@ actor PersistenceService {
         return store.repositories ?? []
     }
 
-    func addRepository(name: String, path: String) -> GitRepository {
-        let repo = GitRepository(name: name, path: path)
+    func addRepository(name: String, path: String, autoAnalyzeEnabled: Bool = true) -> GitRepository {
+        let standardized = URL(fileURLWithPath: path).standardized.path
+        if let existing = store.repositories?.first(where: {
+            URL(fileURLWithPath: $0.path).standardized.path == standardized
+        }) {
+            return existing
+        }
+
+        let repo = GitRepository(name: name, path: path, autoAnalyzeEnabled: autoAnalyzeEnabled)
         if store.repositories == nil {
             store.repositories = []
         }
@@ -382,6 +393,13 @@ actor PersistenceService {
     func renameRepository(id: UUID, newName: String) {
         if let idx = store.repositories?.firstIndex(where: { $0.id == id }) {
             store.repositories?[idx].name = newName
+            save()
+        }
+    }
+
+    func setRepositoryAutoAnalyze(id: UUID, enabled: Bool) {
+        if let idx = store.repositories?.firstIndex(where: { $0.id == id }) {
+            store.repositories?[idx].autoAnalyzeEnabled = enabled
             save()
         }
     }
@@ -505,8 +523,8 @@ class AnalysisCoordinator: ObservableObject {
         await persistence.allRepositories()
     }
 
-    func addRepository(name: String, path: String) async -> GitRepository {
-        await persistence.addRepository(name: name, path: path)
+    func addRepository(name: String, path: String, autoAnalyzeEnabled: Bool = true) async -> GitRepository {
+        await persistence.addRepository(name: name, path: path, autoAnalyzeEnabled: autoAnalyzeEnabled)
     }
 
     func deleteRepository(id: UUID) async {
@@ -515,6 +533,10 @@ class AnalysisCoordinator: ObservableObject {
 
     func renameRepository(id: UUID, newName: String) async {
         await persistence.renameRepository(id: id, newName: newName)
+    }
+
+    func setRepositoryAutoAnalyze(id: UUID, enabled: Bool) async {
+        await persistence.setRepositoryAutoAnalyze(id: id, enabled: enabled)
     }
 
     func listCommits(repoPath: String, baseRef: String, headRef: String) async -> [GitCommit] {

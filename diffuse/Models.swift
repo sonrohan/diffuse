@@ -287,3 +287,39 @@ struct AnalysisDetails {
     var skimTargets: [SkimTarget]
     var riskFactors: [String]
 }
+
+// MARK: - Git Navigation Models
+
+struct GitRepository: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var path: String
+
+    init(id: UUID = UUID(), name: String, path: String) {
+        self.id = id
+        self.name = name
+        self.path = path
+    }
+}
+
+struct GitCommit: Identifiable, Codable, Hashable {
+    var id: String { sha }
+    let sha: String
+    let author: String
+    let subject: String
+    let date: String
+}
+
+struct LocalBranchSummary: Identifiable, Codable, Hashable {
+    var id: String { branch }
+    let branch: String
+    let isCurrent: Bool
+    let isDirty: Bool
+    let aheadCount: Int
+    let behindCount: Int
+    let upstream: String?
+    let relatedPRNumber: Int?
+    let relatedPRTitle: String?
+    let lastAuthor: String
+    let lastUpdated: String
+}

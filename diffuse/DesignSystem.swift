@@ -19,6 +19,14 @@ extension Color {
     static let bgCanvas = Color(.windowBackgroundColor)
     static let bgSubtle = Color(NSColor.controlBackgroundColor)
     static let bgInset = Color(NSColor.underPageBackgroundColor)
+    static let bgSidebar = Color.dynamic(
+        light: NSColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0),
+        dark: NSColor(red: 0.075, green: 0.075, blue: 0.08, alpha: 1.0)
+    )
+    static let bgSidebarPanel = Color.dynamic(
+        light: NSColor(red: 0.98, green: 0.985, blue: 0.995, alpha: 1.0),
+        dark: NSColor(red: 0.13, green: 0.135, blue: 0.145, alpha: 1.0)
+    )
 
     // Text
     static let textPrimary = Color(.labelColor)
@@ -138,50 +146,6 @@ struct Panel<Content: View>: View {
             .background(Color(NSColor.windowBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderDefault, lineWidth: 0.5))
-    }
-}
-
-// MARK: - Risk Score Gauge
-
-struct RiskScoreView: View {
-    let score: Int
-
-    var color: Color {
-        if score >= 70 { return .dangerColor }
-        if score >= 40 { return .warningColor }
-        return .successColor
-    }
-
-    var label: String {
-        if score >= 70 { return "High" }
-        if score >= 40 { return "Medium" }
-        return "Low"
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.15), lineWidth: 3)
-                    .frame(width: 32, height: 32)
-                Circle()
-                    .trim(from: 0, to: CGFloat(score) / 100)
-                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: 32, height: 32)
-                    .rotationEffect(.degrees(-90))
-                Text("\(score)")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundColor(color)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Risk Score")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-                Text(label)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(color)
-            }
-        }
     }
 }
 

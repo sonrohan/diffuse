@@ -6,7 +6,7 @@ struct DiffViewerPanel: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
 
-    @State private var hideBoilerplate = true
+    @State private var hideBoilerplate = false
     @State private var isFileSidebarCollapsed = false
 
     var activeFile: ChangedFile? {
@@ -41,7 +41,7 @@ struct DiffViewerPanel: View {
                 Button {
                     hideBoilerplate.toggle()
                 } label: {
-                    Label(hideBoilerplate ? "Boilerplate hidden" : "Show all",
+                    Label(hideBoilerplate ? "Boilerplate hidden" : "Hide boilerplate",
                           systemImage: hideBoilerplate ? "eye.slash" : "eye")
                         .font(.system(size: 11))
                 }

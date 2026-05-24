@@ -8,64 +8,66 @@ struct PRHeaderBar: View {
     let run: AnalysisRun
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "arrow.triangle.merge")
-                .font(.system(size: 14))
-                .foregroundColor(.successColor)
+        VStack(alignment: .leading, spacing: 8) {
+            // Main Metadata row
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.triangle.merge")
+                    .font(.system(size: 14))
+                    .foregroundColor(.successColor)
 
-            Text(pr.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.textPrimary)
-                .lineLimit(1)
+                Text(pr.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
 
-            Text("#\(pr.prNumber)")
-                .font(.system(size: 12))
-                .foregroundColor(.textTertiary)
-
-            statusBadge(run.status)
-
-            Text("·")
-                .foregroundColor(.borderDefault)
-
-            Text(pr.author)
-                .font(.system(size: 12))
-                .foregroundColor(.textSecondary)
-
-            Text("·")
-                .foregroundColor(.borderDefault)
-
-            HStack(spacing: 4) {
-                Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-                Text("\(pr.baseSha.prefix(7))")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.textSecondary)
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 9))
-                    .foregroundColor(.textTertiary)
-                Text("\(pr.headSha.prefix(7))")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.textSecondary)
-            }
-
-            Spacer()
-
-            RiskScoreView(score: run.riskScore)
-
-            Button {
-                Task { await state.reRunAnalysis() }
-            } label: {
-                Label("Re-run", systemImage: "arrow.clockwise")
+                Text("#\(pr.prNumber)")
                     .font(.system(size: 12))
+                    .foregroundColor(.textTertiary)
+
+                statusBadge(run.status)
+
+                Text("·")
+                    .foregroundColor(.borderDefault)
+
+                Text(pr.author)
+                    .font(.system(size: 12))
+                    .foregroundColor(.textSecondary)
+
+                Text("·")
+                    .foregroundColor(.borderDefault)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                    Text("\(pr.baseSha.prefix(7))")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 9))
+                        .foregroundColor(.textTertiary)
+                    Text("\(pr.headSha.prefix(7))")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                }
+
+                Spacer()
+
+                Button {
+                    Task { await state.reRunAnalysis() }
+                } label: {
+                    Label("Re-run", systemImage: "arrow.clockwise")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.bordered)
+                .disabled(state.isLoadingAnalysis)
             }
-            .buttonStyle(.bordered)
-            .disabled(state.isLoadingAnalysis)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(Color(NSColor.windowBackgroundColor))
     }
+
 
     @ViewBuilder
     func statusBadge(_ status: AnalysisRun.RunStatus) -> some View {
@@ -82,13 +84,13 @@ struct PRHeaderBar: View {
     }
 }
 
-// MARK: - Review Map Panel (Risk Summary)
+// MARK: - Review Map Panel
 
 struct ReviewMapPanel: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
 
-    var topRisks: [RiskHighlight] {
+    var topSignals: [RiskHighlight] {
         details.riskHighlights
             .filter { $0.severity >= .medium }
             .prefix(5)
@@ -105,16 +107,16 @@ struct ReviewMapPanel: View {
                     Text("Review Map")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
-                    Text("\(topRisks.count) priority signal\(topRisks.count == 1 ? "" : "s")")
+                    Text("\(topSignals.count) priority signal\(topSignals.count == 1 ? "" : "s")")
                         .font(.system(size: 11))
                         .foregroundColor(.textTertiary)
                 }
 
-                if topRisks.isEmpty {
+                if topSignals.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.successColor)
-                        Text("No risks detected by configured rules.")
+                        Text("No priority signals detected by configured rules.")
                             .font(.system(size: 12))
                             .foregroundColor(.textSecondary)
                     }
@@ -124,9 +126,9 @@ struct ReviewMapPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
                     VStack(spacing: 6) {
-                        ForEach(topRisks) { risk in
-                            RiskCard(risk: risk) {
-                                state.jumpToHighlight(risk)
+                        ForEach(topSignals) { signal in
+                            SignalCard(signal: signal) {
+                                state.jumpToHighlight(signal)
                             }
                         }
                     }
@@ -137,8 +139,8 @@ struct ReviewMapPanel: View {
     }
 }
 
-struct RiskCard: View {
-    let risk: RiskHighlight
+struct SignalCard: View {
+    let signal: RiskHighlight
     let action: () -> Void
     @State private var isHovered = false
 
@@ -146,20 +148,20 @@ struct RiskCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
-                    risk.severity.badgeView
-                    Text(risk.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
+                    signal.severity.badgeView
+                    Text(signal.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.textTertiary)
                         .textCase(.uppercase)
                 }
-                Text(risk.title)
+                Text(signal.title)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.textPrimary)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 4) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 9))
-                    Text(risk.filePath + (risk.lineStart.map { ":L\($0)" } ?? ""))
+                    Text(signal.filePath + (signal.lineStart.map { ":L\($0)" } ?? ""))
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(.accentBlue)
                         .lineLimit(1)
@@ -199,6 +201,14 @@ struct SemanticBucketsPanel: View {
                 }
 
                 VStack(spacing: 6) {
+                    AllChangesCard(
+                        fileCount: details.files.count,
+                        signalCount: details.riskHighlights.count,
+                        isSelected: state.selectedBucketId == nil
+                    ) {
+                        state.selectAllChanges()
+                    }
+
                     ForEach(details.changeBuckets) { bucket in
                         BucketCard(
                             bucket: bucket,
@@ -225,6 +235,59 @@ struct SemanticBucketsPanel: View {
     }
 }
 
+struct AllChangesCard: View {
+    let fileCount: Int
+    let signalCount: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Label("All Changes", systemImage: "rectangle.stack")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    Text("Unfiltered")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.accentBlue)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentBlue.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+
+                Text("Every changed file in this PR.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+
+                HStack(spacing: 12) {
+                    Label("\(fileCount) files", systemImage: "doc.text")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                    Label("\(signalCount) signals", systemImage: "exclamationmark.shield")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}
+
 struct BucketCard: View {
     let bucket: ChangeBucket
     let highlights: [RiskHighlight]
@@ -232,7 +295,7 @@ struct BucketCard: View {
     let action: () -> Void
     @State private var isHovered = false
 
-    var primaryRisk: RiskHighlight? { highlights.first }
+    var primarySignal: RiskHighlight? { highlights.first }
 
     var body: some View {
         Button(action: action) {
@@ -269,9 +332,9 @@ struct BucketCard: View {
                         .foregroundColor(.textTertiary)
                 }
 
-                if let risk = primaryRisk {
+                if let signal = primarySignal {
                     Divider()
-                    Text(risk.title)
+                    Text(signal.title)
                         .font(.system(size: 11))
                         .foregroundColor(.textSecondary)
                         .lineLimit(2)
@@ -310,7 +373,7 @@ struct ReviewTargetsPanel: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("No high-priority targets")
                                 .font(.system(size: 12, weight: .medium))
-                            Text("No risks detected by configured rules for this view.")
+                            Text("No priority signals detected by configured rules for this view.")
                                 .font(.system(size: 11))
                                 .foregroundColor(.textSecondary)
                         }

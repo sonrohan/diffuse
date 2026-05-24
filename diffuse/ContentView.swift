@@ -14,6 +14,7 @@ struct ContentView: View {
         } detail: {
             DetailView()
         }
+        .navigationSplitViewStyle(.balanced)
         .background(WindowAccessor { window in
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
@@ -35,6 +36,7 @@ struct ContentView: View {
 struct SidebarView: View {
     @Environment(AppState.self) private var state
     @Binding var showAnalyzeSheet: Bool
+    @State private var isDraggingOver = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,53 +74,326 @@ struct SidebarView: View {
 
             Divider()
 
-            // PR List
-            HStack {
-                Text("PULL REQUESTS")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.textTertiary)
-                    .kerning(0.5)
-                Spacer()
-                if state.isLoadingPRs {
-                    LoadingSpinner(size: 12)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
-
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(state.pullRequests) { pr in
-                        PRListItem(pr: pr, isSelected: state.selectedPRId == pr.id)
-                            .onTapGesture {
-                                Task { await state.selectPR(pr.id) }
-                            }
+                VStack(alignment: .leading, spacing: 12) {
+                    // Workspaces Section Header (Codex Style)
+                    HStack {
+                        Text("WORKSPACES")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.textTertiary)
+                            .kerning(0.5)
+                        
+                        Spacer()
+                        
+                        // Add Workspace Button (Codex folder+ icon)
+                        Button {
+                            showAnalyzeSheet = true
+                        } label: {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 12))
+                                .foregroundColor(.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Add Workspace Folder")
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
 
-                    if state.pullRequests.isEmpty && !state.isLoadingPRs {
-                        EmptySidebarView(showAnalyzeSheet: $showAnalyzeSheet)
+                    // Workspaces List
+                    VStack(spacing: 4) {
+                        ForEach(state.repositories) { repo in
+                            let isActive = state.selectedRepoId == repo.id
+                            
+                            WorkspaceRow(
+                                repo: repo,
+                                isActive: isActive,
+                                onSelect: {
+                                    Task { await state.selectRepo(repo.id) }
+                                },
+                                onRemove: {
+                                    Task {
+                                        await state.coordinator.deleteRepository(id: repo.id)
+                                        await state.load()
+                                    }
+                                },
+                                onOpenInFinder: {
+                                    NSWorkspace.shared.open(URL(fileURLWithPath: repo.path))
+                                },
+                                onRename: { newName in
+                                    Task {
+                                        await state.renameWorkspace(id: repo.id, newName: newName)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 8)
+
+                    // Active Workspace Context
+                    if let selectedRepo = state.selectedRepo {
+                        Divider()
+                            .padding(.horizontal, 12)
+                            .padding(.top, 4)
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Section Header indicating active repository
+                            HStack(spacing: 6) {
+                                Image(systemName: "folder.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.accentBlue)
+                                Text(selectedRepo.name)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.textPrimary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.top, 4)
+
+                            // Mode Selector Tab (Local vs Remote PRs)
+                            Picker("", selection: Bindable(state).sidebarMode) {
+                                Text("Local").tag(AppState.SidebarMode.local)
+                                Text("Remote PRs").tag(AppState.SidebarMode.remote)
+                            }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal, 12)
+                            
+                            if state.sidebarMode == .local {
+                                BranchOverviewCard(
+                                    repoPath: selectedRepo.path,
+                                    branch: state.selectedBranch ?? "main",
+                                    summary: state.selectedBranchSummary,
+                                    branches: state.localBranches
+                                )
+                                .padding(.horizontal, 12)
+                                
+                                // Commits Timeline
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("COMMITS")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.textTertiary)
+                                            .kerning(0.5)
+                                        Spacer()
+                                        if state.isLoadingPRs || state.isLoadingAnalysis {
+                                            LoadingSpinner(size: 10)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.top, 4)
+                                    
+                                    VStack(spacing: 0) {
+                                        // "All Changes" Row
+                                        ChangeSummaryRow(
+                                            fileCount: state.analysisDetails?.files.count ?? 0,
+                                            isSelected: state.selectedCommitSha == nil
+                                        )
+                                        .onTapGesture {
+                                            Task { await state.selectCommit(nil) }
+                                        }
+                                        
+                                        // Individual commits
+                                        ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
+                                            CommitListItem(
+                                                subject: commit.subject,
+                                                author: commit.author,
+                                                date: commit.date,
+                                                sha: String(commit.sha.prefix(7)),
+                                                isSelected: state.selectedCommitSha == commit.sha,
+                                                index: idx + 1
+                                            )
+                                            .onTapGesture {
+                                                Task { await state.selectCommit(commit.sha) }
+                                            }
+                                        }
+                                        
+                                        if state.commits.isEmpty && !state.isLoadingPRs {
+                                            Text("No commits on branch.")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.textTertiary)
+                                                .italic()
+                                                .padding(12)
+                                                .frame(maxWidth: .infinity, alignment: .center)
+                                        }
+                                    }
+                                    .background(Color.bgSidebarPanel)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                                    .padding(.horizontal, 12)
+                                }
+                            } else {
+                                // Remote PRs Mode List
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("OPEN PULL REQUESTS")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.textTertiary)
+                                            .kerning(0.5)
+                                        Spacer()
+                                        if state.isLoadingPRs {
+                                            LoadingSpinner(size: 10)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.top, 4)
+                                    
+                                    VStack(spacing: 0) {
+                                        ForEach(state.remotePRs) { pr in
+                                            RemotePRListItem(pr: pr)
+                                        }
+                                        if state.remotePRs.isEmpty && !state.isLoadingPRs {
+                                            Text("No open remote PRs.")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.textTertiary)
+                                                .italic()
+                                                .padding(12)
+                                                .frame(maxWidth: .infinity, alignment: .center)
+                                        }
+                                    }
+                                    .background(Color.bgSidebarPanel)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                                    .padding(.horizontal, 12)
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            Divider()
-
-            // Analyze button
-            Button {
-                showAnalyzeSheet = true
-            } label: {
-                Label("Analyze Local Repo", systemImage: "folder.badge.plus")
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(maxWidth: .infinity)
+            // Collapsible Triaged History list
+            if !state.pullRequests.isEmpty {
+                Divider()
+                
+                DisclosureGroup {
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(state.pullRequests) { pr in
+                                PRListItem(pr: pr, isSelected: state.selectedPRId == pr.id)
+                                    .onTapGesture {
+                                        Task { await state.selectPR(pr.id) }
+                                    }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 140)
+                } label: {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 10))
+                        Text("Triaged History (\(state.pullRequests.count))")
+                            .font(.system(size: 10, weight: .bold))
+                            .kerning(0.3)
+                    }
+                    .foregroundColor(.textSecondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.accentBlue)
-            .padding(10)
         }
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.bgSidebar)
+        // Modern Drag-and-Drop Workspace Receiver
+        .onDrop(of: ["public.file-url"], isTargeted: $isDraggingOver) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, error in
+                guard let url = url, url.isFileURL else { return }
+                let path = url.path
+                var isDir: ObjCBool = false
+                if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
+                    Task { @MainActor in
+                        await state.analyzeRepo(path: path)
+                    }
+                }
+            }
+            return true
+        }
+        .overlay(
+            Group {
+                if isDraggingOver {
+                    ZStack {
+                        Color.accentBlue.opacity(0.12)
+                        RoundedRectangle(cornerRadius: 0)
+                            .strokeBorder(Color.accentBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 4]))
+                        VStack(spacing: 8) {
+                            Image(systemName: "folder.badge.plus")
+                                .font(.system(size: 28, weight: .medium))
+                                .foregroundColor(.accentBlue)
+                            Text("Drop to Add Workspace")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.accentBlue)
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+        )
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(Color.borderDefault.opacity(0.9))
+                .frame(width: 1)
+        }
     }
 }
+
+struct RemotePRListItem: View {
+    @Environment(AppState.self) private var state
+    let pr: PullRequest
+
+    var isLocalBranch: Bool {
+        state.localBranches.contains("review/pr-\(pr.prNumber)") ||
+        state.selectedBranch == pr.headSha.replacingOccurrences(of: "origin/", with: "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.triangle.pull")
+                    .font(.system(size: 10))
+                    .foregroundColor(.accentPurple)
+                Text("#\(pr.prNumber)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.accentPurple)
+                Text(pr.author)
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+            }
+
+            Text(pr.title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.textPrimary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+
+            HStack {
+                if isLocalBranch {
+                    BadgeView(text: "Local Branch Exists", variant: .neutral)
+                    Spacer()
+                    Button("Review") {
+                        Task { await state.selectBranch("review/pr-\(pr.prNumber)") }
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    BadgeView(text: "Remote PR", variant: .info)
+                    Spacer()
+                    Button {
+                        Task { await state.checkoutRemotePR(pr) }
+                    } label: {
+                        Label("Checkout", systemImage: "square.and.arrow.down")
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentPurple)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        
+        Divider()
+            .padding(.horizontal, 10)
+    }
+}
+
 
 struct PRListItem: View {
     let pr: PullRequest
@@ -148,8 +423,6 @@ struct PRListItem: View {
 
             if let run = pr.latestRun {
                 HStack {
-                    BadgeView(text: "Risk: \(run.riskScore)", variant: run.riskScore >= 70 ? .danger : run.riskScore >= 40 ? .warning : .success)
-                    Spacer()
                     Text(run.status.rawValue.capitalized)
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
@@ -309,14 +582,34 @@ struct AnalysisDetailView: View {
 
             HStack(spacing: 0) {
                 // Left pane: triage panels
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ReviewMapPanel(details: details)
-                        SemanticBucketsPanel(details: details)
-                        ReviewTargetsPanel(targets: state.bucketTargets)
-                        SafeToSkimPanel(targets: details.skimTargets)
+                VStack(spacing: 0) {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TRIAGE SUMMARY")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.textTertiary)
+                                .kerning(0.5)
+                            Text("Review Signals")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                        }
+                        Spacer()
                     }
-                    .padding(12)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color(NSColor.controlBackgroundColor))
+
+                    Divider()
+
+                    ScrollView {
+                        VStack(spacing: 10) {
+                            ReviewMapPanel(details: details)
+                            SemanticBucketsPanel(details: details)
+                            ReviewTargetsPanel(targets: state.bucketTargets)
+                            SafeToSkimPanel(targets: details.skimTargets)
+                        }
+                        .padding(12)
+                    }
                 }
                 .frame(width: 360)
 
@@ -461,3 +754,336 @@ struct WindowAccessor: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
+// MARK: - Branch Overview
+
+struct BranchOverviewCard: View {
+    @Environment(AppState.self) private var state
+
+    let repoPath: String
+    let branch: String
+    let summary: LocalBranchSummary?
+    let branches: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.accentBlue)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Menu {
+                        ForEach(branches, id: \.self) { branchName in
+                            Button(branchName) {
+                                Task { await state.selectBranch(branchName) }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(branch)
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.textPrimary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .buttonStyle(.plain)
+
+                    Text(branchMeta)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                }
+
+                Button {
+                    Task {
+                        await state.analyzeRepo(path: repoPath, baseRef: "HEAD")
+                    }
+                } label: {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentPurple)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .background(Color.accentPurple.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .help("Analyze working tree diff")
+            }
+
+            HStack(spacing: 5) {
+                if summary?.isDirty == true {
+                    BranchStatusPill(text: "Dirty", color: .accentPurple)
+                }
+                if let summary, summary.aheadCount > 0 {
+                    BranchStatusPill(text: "Ahead \(summary.aheadCount)", color: .successColor)
+                }
+                if let summary, summary.behindCount > 0 {
+                    BranchStatusPill(text: "Behind \(summary.behindCount)", color: .warningColor)
+                }
+                if let prNumber = summary?.relatedPRNumber {
+                    BranchStatusPill(text: "PR #\(prNumber)", color: .infoColor)
+                } else {
+                    BranchStatusPill(text: "No PR", color: .textTertiary)
+                }
+            }
+
+            if let title = summary?.relatedPRTitle {
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(10)
+        .background(Color.bgSidebarPanel)
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+
+    private var branchMeta: String {
+        guard let summary else { return "Local branch" }
+        let upstream = summary.upstream ?? "no upstream"
+        return "\(upstream) · \(summary.lastUpdated) by \(summary.lastAuthor)"
+    }
+}
+
+struct BranchStatusPill: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(color.opacity(0.22), lineWidth: 0.5))
+    }
+}
+
+struct ChangeSummaryRow: View {
+    let fileCount: Int
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sum")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.accentBlue)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
+                    Text("Cumulative Diff")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+                Text("All branch and working tree changes")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(isSelected ? Color.accentBlue.opacity(0.08) : Color.clear)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Commit List Item View
+struct CommitListItem: View {
+    let subject: String
+    let author: String
+    let date: String
+    let sha: String
+    let isSelected: Bool
+    let index: Int?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Vertical timeline graph node
+            VStack(spacing: 0) {
+                // Line above
+                Rectangle()
+                    .fill(index == 1 ? Color.clear : Color.borderMuted)
+                    .frame(width: 1.5, height: 8)
+                
+                // Timeline node dot
+                Circle()
+                    .fill(isSelected ? (index == nil ? Color.accentBlue : Color.accentPurple) : Color.borderDefault)
+                    .frame(width: 8, height: 8)
+                
+                // Line below
+                Rectangle()
+                    .fill(Color.borderMuted)
+                    .frame(width: 1.5, height: 16)
+            }
+            .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(subject)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .textPrimary : .textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: 5) {
+                    if let idx = index {
+                        Text("C\(idx)")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundColor(.accentPurple)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.accentPurple.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    } else {
+                        Text("ALL")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundColor(.accentBlue)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.accentBlue.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                    
+                    if !sha.isEmpty {
+                        Text(sha)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                    }
+
+                    if !author.isEmpty {
+                        Text(author)
+                            .font(.system(size: 10))
+                            .foregroundColor(.textTertiary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Text(date)
+                        .font(.system(size: 9))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(isSelected ? Color.accentBlue.opacity(0.08) : Color.clear)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Workspace Row View (Codex Style)
+struct WorkspaceRow: View {
+    let repo: GitRepository
+    let isActive: Bool
+    let onSelect: () -> Void
+    let onRemove: () -> Void
+    let onOpenInFinder: () -> Void
+    let onRename: (String) -> Void
+    
+    @State private var isHovered = false
+    @State private var showRenameAlert = false
+    @State private var newName = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isActive ? "folder.fill" : "folder")
+                .font(.system(size: 13))
+                .foregroundColor(isActive ? .accentBlue : .textSecondary)
+
+            Text(repo.name)
+                .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+            
+            Spacer()
+            
+            if isHovered {
+                HStack(spacing: 6) {
+                    // Open in Finder
+                    Button {
+                        onOpenInFinder()
+                    } label: {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 10))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open in Finder")
+
+                    // Context Menu Trigger
+                    Menu {
+                        Button("Open in Finder") { onOpenInFinder() }
+                        Button("Rename Workspace…") {
+                            newName = repo.name
+                            showRenameAlert = true
+                        }
+                        Divider()
+                        Button("Remove Workspace", role: .destructive) { onRemove() }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 10))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 14)
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(isActive ? Color.accentBlue.opacity(0.06) : (isHovered ? Color(NSColor.controlColor).opacity(0.4) : Color.clear))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+        .onTapGesture {
+            onSelect()
+        }
+        .contextMenu {
+            Button("Open in Finder") { onOpenInFinder() }
+            Button("Rename Workspace…") {
+                newName = repo.name
+                showRenameAlert = true
+            }
+            Divider()
+            Button("Remove Workspace", role: .destructive) { onRemove() }
+        }
+        .sheet(isPresented: $showRenameAlert) {
+            VStack(spacing: 16) {
+                Text("Rename Workspace")
+                    .font(.system(size: 14, weight: .semibold))
+                TextField("Workspace Name", text: $newName)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("Cancel") { showRenameAlert = false }
+                    Spacer()
+                    Button("Rename") {
+                        onRename(newName)
+                        showRenameAlert = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(16)
+            .frame(width: 280)
+        }
+    }
+}

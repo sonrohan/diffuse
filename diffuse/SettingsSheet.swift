@@ -23,6 +23,9 @@ struct SettingsSheet: View {
     @State private var repoAlias: String = ""
     @State private var isAutoAnalyzeEnabled: Bool = true
     @State private var showDeleteWorkspaceConfirmation = false
+    @State private var isProfileWizardPresented = false
+    @State private var isProfileRulesPresented = false
+    @State private var profileStatusMessage: String = ""
     
     enum SettingsTab: String, CaseIterable, Identifiable {
         case general = "General"
@@ -59,6 +62,20 @@ struct SettingsSheet: View {
         .onChange(of: selectedRepoId) { _, newId in
             loadSelectedWorkspaceDetails(newId)
         }
+        .sheet(isPresented: $isProfileWizardPresented) {
+            if let repoId = selectedRepoId,
+               let repo = state.repositories.first(where: { $0.id == repoId }) {
+                AnalysisProfileWizard(repoName: repo.name, repoPath: repo.path) { presetId in
+                    profileStatusMessage = "Created .diffuse.json using \(presetId)"
+                }
+            }
+        }
+        .sheet(isPresented: $isProfileRulesPresented) {
+            if let repoId = selectedRepoId,
+               let repo = state.repositories.first(where: { $0.id == repoId }) {
+                AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
+            }
+        }
     }
     
     // MARK: - Initializer Helpers
@@ -75,6 +92,10 @@ struct SettingsSheet: View {
               let repo = state.repositories.first(where: { $0.id == repoId }) else { return }
         repoAlias = repo.name
         isAutoAnalyzeEnabled = repo.autoAnalyzeEnabled
+        let detectedPreset = AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path)
+        profileStatusMessage = AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
+            ? "Using repo-defined .diffuse.json"
+            : "Using detected \(detectedPreset) preset"
     }
     
     // MARK: - Sidebar Navigation Pane
@@ -441,6 +462,50 @@ struct SettingsSheet: View {
                                         await state.setWorkspaceAutoAnalyze(id: repo.id, enabled: newValue)
                                     }
                                 }
+
+                            Divider()
+                                .padding(.vertical, 4)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Analysis Profile")
+                                    .font(.system(size: 10.5, weight: .bold))
+                                    .foregroundColor(.textTertiary)
+
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(profileStatusMessage)
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.textPrimary)
+                                    }
+
+                                    Spacer()
+
+                                    Button {
+                                        isProfileRulesPresented = true
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "list.bullet.rectangle")
+                                            Text("View")
+                                        }
+                                        .font(.system(size: 11, weight: .semibold))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .help("View active analysis groups and rules")
+
+                                    Button {
+                                        isProfileWizardPresented = true
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "wand.and.stars")
+                                            Text("Wizard")
+                                        }
+                                        .font(.system(size: 11, weight: .semibold))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(AnalysisProfileStore.hasRepoProfile(repoPath: repo.path))
+                                    .help("Choose a baseline analysis profile for this workspace")
+                                }
+                            }
                             
                             Divider()
                                 .padding(.vertical, 4)
@@ -643,5 +708,290 @@ struct SettingsSheet: View {
                     .offset(y: -4)
             }
         }
+    }
+}
+
+struct AnalysisProfileWizard: View {
+    let repoName: String
+    let repoPath: String
+    let onCreated: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedPresetId: String
+    @State private var errorMessage: String?
+
+    init(repo: GitRepository, onCreated: @escaping (String) -> Void) {
+        self.repoName = repo.name
+        self.repoPath = repo.path
+        self.onCreated = onCreated
+        _selectedPresetId = State(initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))
+    }
+
+    init(repoName: String, repoPath: String, onCreated: @escaping (String) -> Void) {
+        self.repoName = repoName
+        self.repoPath = repoPath
+        self.onCreated = onCreated
+        _selectedPresetId = State(initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repoPath))
+    }
+
+    var detectedPresetId: String {
+        AnalysisProfileStore.detectBuiltInProfileId(repoPath: repoPath)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.accentBlue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Analysis Profile")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                    Text(repoName)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer()
+            }
+
+            VStack(spacing: 4) {
+                ForEach(AnalysisProfileStore.builtInPresets) { preset in
+                    Button {
+                        selectedPresetId = preset.id
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: selectedPresetId == preset.id ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(selectedPresetId == preset.id ? .accentBlue : .textTertiary)
+                                .frame(width: 18)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(preset.displayName)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(.textPrimary)
+
+                                    if preset.id == detectedPresetId {
+                                        Text("Detected")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.accentBlue)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(Color.accentBlue.opacity(0.10))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+
+                                Text(preset.id)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.textTertiary)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(selectedPresetId == preset.id ? Color.accentBlue.opacity(0.08) : Color.bgSidebarPanel)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(selectedPresetId == preset.id ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 11))
+                    .foregroundColor(.dangerColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    do {
+                        try AnalysisProfileStore.writeProfile(repoPath: repoPath, presetId: selectedPresetId)
+                        onCreated(selectedPresetId)
+                        dismiss()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "doc.badge.plus")
+                        Text("Create")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(18)
+        .frame(width: 430)
+        .background(Color.bgCanvas)
+    }
+}
+
+struct AnalysisProfileRulesSheet: View {
+    let repoName: String
+    let repoPath: String
+    @Environment(\.dismiss) private var dismiss
+
+    var profile: AnalysisProfile {
+        AnalysisProfileStore.load(repoPath: repoPath)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Analysis Rules")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                    Text(repoName)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.bordered)
+            }
+
+            ScrollView {
+                AnalysisProfileSummaryView(profile: profile)
+                    .padding(.trailing, 6)
+            }
+        }
+        .padding(18)
+        .frame(width: 560, height: 560)
+        .background(Color.bgCanvas)
+    }
+}
+
+struct AnalysisProfileSummaryView: View {
+    let profile: AnalysisProfile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(profile.displayName)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                Text(profile.extends.isEmpty ? profile.id : "\(profile.id) extends \(profile.extends.joined(separator: ", "))")
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundColor(.textSecondary)
+            }
+
+            ProfileSummarySection(title: "Groups", icon: "folder.badge.gearshape") {
+                ForEach(profile.buckets, id: \.id) { bucket in
+                    ProfileSummaryRow(title: bucket.title, detail: bucket.id)
+                }
+            }
+
+            ProfileSummarySection(title: "File Classification", icon: "doc.text.magnifyingglass") {
+                ForEach(profile.fileClassifications, id: \.classification) { rule in
+                    ProfileSummaryRow(title: rule.classification, detail: "\(rule.paths.count) patterns")
+                }
+            }
+
+            ProfileSummarySection(title: "AST Findings", icon: "point.3.connected.trianglepath.dotted") {
+                ForEach(profile.rules.semanticAreaFindings, id: \.id) { rule in
+                    ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
+                }
+                ForEach(profile.rules.contractFindings, id: \.id) { rule in
+                    ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
+                }
+                if profile.rules.semanticAreaFindings.isEmpty && profile.rules.contractFindings.isEmpty {
+                    ProfileSummaryRow(title: "No AST finding rules", detail: "")
+                }
+            }
+
+            ProfileSummarySection(title: "Architecture Boundaries", icon: "arrow.left.arrow.right") {
+                if profile.rules.importBoundaries.isEmpty {
+                    ProfileSummaryRow(title: "No import boundary rules", detail: "")
+                } else {
+                    ForEach(profile.rules.importBoundaries, id: \.id) { rule in
+                        ProfileSummaryRow(title: rule.id, detail: "\(rule.sourcePaths.count) source patterns")
+                    }
+                }
+            }
+
+            ProfileSummarySection(title: "Review Signals", icon: "target") {
+                ForEach(profile.semanticHighlights, id: \.id) { rule in
+                    ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
+                }
+                ForEach(profile.fileHighlights, id: \.id) { rule in
+                    ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
+                }
+            }
+        }
+    }
+}
+
+struct ProfileSummarySection<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.accentBlue)
+                    .frame(width: 16)
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.textSecondary)
+            }
+            VStack(spacing: 4) {
+                content
+            }
+        }
+    }
+}
+
+struct ProfileSummaryRow: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(Color.bgSidebarPanel)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
     }
 }

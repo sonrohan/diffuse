@@ -4,12 +4,6 @@
     "" : {
 
     },
-    "— e.g. main, HEAD~3, a1b2c3d" : {
-
-    },
-    "·" : {
-
-    },
     "@@ -%lld,%lld +%lld,%lld @@" : {
       "localizations" : {
         "en" : {
@@ -64,16 +58,6 @@
     },
     "%lld signals" : {
 
-    },
-    "%lld symbol%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld symbol%2$@"
-          }
-        }
-      }
     },
     "%lld/%lld" : {
       "localizations" : {
@@ -263,6 +247,12 @@
           }
         }
       }
+    },
+    "Analysis Profile" : {
+
+    },
+    "Analysis Rules" : {
+
     },
     "Analyze" : {
       "extractionState" : "manual",
@@ -474,6 +464,9 @@
         }
       }
     },
+    "Base Ref" : {
+
+    },
     "Base Ref (optional)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -496,6 +489,9 @@
           }
         }
       }
+    },
+    "Browse" : {
+
     },
     "Browse…" : {
       "extractionState" : "manual",
@@ -533,36 +529,6 @@
         }
       }
     },
-    "Called by: %@%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Called by: %1$@%2$@"
-          }
-        }
-      }
-    },
-    "calls %@%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "calls %1$@%2$@"
-          }
-        }
-      }
-    },
-    "Calls: %@%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Calls: %1$@%2$@"
-          }
-        }
-      }
-    },
     "Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -592,7 +558,10 @@
     "Changed Files" : {
 
     },
-    "Changed Symbols" : {
+    "Choose" : {
+
+    },
+    "Choose a baseline analysis profile for this workspace" : {
 
     },
     "Choose your preferred aesthetic style for diffuse." : {
@@ -702,10 +671,25 @@
     "Configuration, documentation, generated, or boilerplate files that are usually safe to skim." : {
 
     },
+    "Create" : {
+
+    },
+    "Create .diffuse.json before first analysis" : {
+
+    },
+    "Detected" : {
+
+    },
     "diffuse" : {
 
     },
+    "Diffuse can create .diffuse.json extending %@." : {
+
+    },
     "diffuse v1.0.0" : {
+
+    },
+    "Diffuse will use this repo's configured rules and groupings." : {
 
     },
     "Done" : {
@@ -821,19 +805,6 @@
         }
       }
     },
-    "L%lld" : {
-
-    },
-    "L%lld-%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "L%1$lld-%2$lld"
-          }
-        }
-      }
-    },
     "Live" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -883,7 +854,7 @@
     "Lower-Signal Changes" : {
 
     },
-    "main" : {
+    "main, HEAD~3, a1b2c3d" : {
 
     },
     "Manage paths, aliases, and auto-analysis toggles for active workspaces." : {
@@ -931,9 +902,6 @@
           }
         }
       }
-    },
-    "No AST symbols extracted." : {
-
     },
     "No change buckets available." : {
 
@@ -1004,6 +972,9 @@
           }
         }
       }
+    },
+    "optional" : {
+
     },
     "Parses symbols and signatures locally using high-fidelity Tree-sitter AST parsers. No code is sent to external APIs." : {
       "extractionState" : "manual",
@@ -1169,6 +1140,12 @@
         }
       }
     },
+    "Repo-defined" : {
+
+    },
+    "Repository" : {
+
+    },
     "Repository Path" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1202,6 +1179,9 @@
 
     },
     "REVIEW SCOPE" : {
+
+    },
+    "Rules" : {
 
     },
     "Run diffuse analysis on a local git repository." : {
@@ -1397,6 +1377,9 @@
         }
       }
     },
+    "Suggested baseline" : {
+
+    },
     "Theme Selection" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1570,6 +1553,18 @@
     "via %@" : {
 
     },
+    "View" : {
+
+    },
+    "View active analysis groups and rules" : {
+
+    },
+    "View active analysis rules and groupings" : {
+
+    },
+    "View active rules and groupings" : {
+
+    },
     "View diff" : {
 
     },
@@ -1595,6 +1590,9 @@
           }
         }
       }
+    },
+    "Wizard" : {
+
     },
     "Workspace Alias" : {
       "extractionState" : "manual",

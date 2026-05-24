@@ -25,13 +25,17 @@ extension Color {
         dark: NSColor(red: 0.095, green: 0.095, blue: 0.105, alpha: 1.0)
     )
     static let bgInset = Color(NSColor.underPageBackgroundColor)
+    static let bgToolbar = Color.dynamic(
+        light: NSColor(red: 0.965, green: 0.965, blue: 0.970, alpha: 1.0),
+        dark: NSColor(red: 0.105, green: 0.105, blue: 0.112, alpha: 1.0)
+    )
     static let bgSidebar = Color.dynamic(
-        light: NSColor(red: 0.95, green: 0.955, blue: 0.965, alpha: 1.0),
-        dark: NSColor(red: 0.13, green: 0.135, blue: 0.145, alpha: 1.0)
+        light: NSColor(red: 0.955, green: 0.955, blue: 0.960, alpha: 1.0),
+        dark: NSColor(red: 0.115, green: 0.115, blue: 0.122, alpha: 1.0)
     )
     static let bgSidebarPanel = Color.dynamic(
-        light: NSColor(red: 0.98, green: 0.985, blue: 0.995, alpha: 1.0),
-        dark: NSColor(red: 0.165, green: 0.17, blue: 0.18, alpha: 1.0)
+        light: NSColor(red: 0.982, green: 0.982, blue: 0.986, alpha: 1.0),
+        dark: NSColor(red: 0.155, green: 0.155, blue: 0.162, alpha: 1.0)
     )
 
     // Text

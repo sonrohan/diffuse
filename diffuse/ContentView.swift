@@ -219,8 +219,31 @@ struct AppHeaderView: View {
                         .help("Previous Commit")
                         
                         // Custom Dropdown menu showing current commit / scope
-                        ZStack {
-                            // 1. The custom styled label that determines size and supports responsive ViewThatFits
+                        Menu {
+                            Button {
+                                Task { await state.selectCommit(nil) }
+                            } label: {
+                                if state.selectedCommitSha == nil {
+                                    Text("✓ All Changes")
+                                } else {
+                                    Text("All Changes")
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
+                                Button {
+                                    Task { await state.selectCommit(commit.sha) }
+                                } label: {
+                                    if state.selectedCommitSha == commit.sha {
+                                        Text("✓ C\(idx + 1): \(commit.subject)")
+                                    } else {
+                                        Text("C\(idx + 1): \(commit.subject)")
+                                    }
+                                }
+                            }
+                        } label: {
                             ViewThatFits(in: .horizontal) {
                                 // Expanded layout: shows badge + commit subject + custom chevron
                                 HStack(spacing: 5) {
@@ -286,41 +309,10 @@ struct AppHeaderView: View {
                                 RoundedRectangle(cornerRadius: 4)
                                     .stroke(Color.borderDefault.opacity(0.8), lineWidth: 0.5)
                             )
-                            
-                            // 2. The native menu, made completely transparent, sitting on top to intercept clicks
-                            Menu {
-                                Button {
-                                    Task { await state.selectCommit(nil) }
-                                } label: {
-                                    if state.selectedCommitSha == nil {
-                                        Text("✓ All Changes")
-                                    } else {
-                                        Text("All Changes")
-                                    }
-                                }
-                                
-                                Divider()
-                                
-                                ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
-                                    Button {
-                                        Task { await state.selectCommit(commit.sha) }
-                                    } label: {
-                                        if state.selectedCommitSha == commit.sha {
-                                            Text("✓ C\(idx + 1): \(commit.subject)")
-                                        } else {
-                                            Text("C\(idx + 1): \(commit.subject)")
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.0001))
-                                    .frame(maxHeight: 20)
-                            }
-                            .menuStyle(.borderlessButton)
-                            .menuIndicator(.hidden)
-                            .buttonStyle(.plain)
                         }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .buttonStyle(.plain)
                         
                         // Next commit
                         Button {
@@ -377,7 +369,7 @@ struct AppHeaderView: View {
             .padding(.trailing, 16)
         }
         .frame(height: 40)
-        .background(Color.bgSidebar)
+        .background(Color.bgToolbar)
         .sheet(isPresented: $showRenameAlert) {
             VStack(spacing: 16) {
                 Text("Rename Workspace")
@@ -578,15 +570,14 @@ struct AnalysisDetailView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 12) {
-                        if !details.symbolReviewGroups.isEmpty {
-                            SymbolReviewMapPanel(details: details)
-                        }
                         AnalysisNavigationRail(details: details)
                     }
                     .padding(12)
                 }
+                .background(Color.bgSidebar)
             }
             .frame(width: navRailWidth)
+            .background(Color.bgSidebar)
 
             PaneDivider(width: $navRailWidth, minWidth: 220, maxWidth: 560)
 
@@ -654,10 +645,31 @@ struct AnalyzeRepoSheet: View {
     @State private var selectedPath: String = ""
     @State private var baseRef: String = ""
     @State private var autoAnalyzeEnabled = true
+    @State private var createProfileIfMissing = true
+    @State private var selectedPresetId = "generic"
+    @State private var isProfileWizardPresented = false
+    @State private var isProfileRulesPresented = false
+    @State private var profileMessage: String?
+
+    private var resolvedPath: String {
+        selectedPath.isEmpty ? FileManager.default.currentDirectoryPath : selectedPath
+    }
+
+    private var repoName: String {
+        URL(fileURLWithPath: resolvedPath).lastPathComponent
+    }
+
+    private var hasProfile: Bool {
+        AnalysisProfileStore.hasRepoProfile(repoPath: resolvedPath)
+    }
+
+    private var detectedPresetId: String {
+        AnalysisProfileStore.detectBuiltInProfileId(repoPath: resolvedPath)
+    }
 
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 6) {
+        VStack(spacing: 18) {
+            VStack(spacing: 5) {
                 HStack(spacing: 8) {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 20))
@@ -671,48 +683,11 @@ struct AnalyzeRepoSheet: View {
             }
             .padding(.top, 6)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Repository Path")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
-
-                HStack(spacing: 8) {
-                    TextField("Select a folder…", text: $selectedPath)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 12, design: .monospaced))
-
-                    Button("Browse…") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseDirectories = true
-                        panel.canChooseFiles = false
-                        panel.allowsMultipleSelection = false
-                        panel.prompt = "Select"
-                        if panel.runModal() == .OK {
-                            selectedPath = panel.url?.path ?? ""
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                workspacePathSection
+                profileSetupSection
+                analysisOptionsSection
             }
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Base Ref (optional)")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                    Text("— e.g. main, HEAD~3, a1b2c3d")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                }
-                TextField("main", text: $baseRef)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12, design: .monospaced))
-            }
-
-            Toggle("Auto-analyze local changes while app is open", isOn: $autoAnalyzeEnabled)
-                .font(.system(size: 12))
-                .toggleStyle(.checkbox)
-                .frame(maxWidth: .infinity, alignment: .leading)
 
             if state.isAnalyzing {
                 HStack(spacing: 8) {
@@ -742,8 +717,15 @@ struct AnalyzeRepoSheet: View {
                 Spacer()
                 Button("Analyze") {
                     Task {
+                        if createProfileIfMissing && !hasProfile {
+                            do {
+                                try AnalysisProfileStore.writeProfile(repoPath: resolvedPath, presetId: selectedPresetId)
+                            } catch {
+                                profileMessage = "Could not create .diffuse.json: \(error.localizedDescription)"
+                            }
+                        }
                         await state.analyzeRepo(
-                            path: selectedPath.isEmpty ? FileManager.default.currentDirectoryPath : selectedPath,
+                            path: resolvedPath,
                             baseRef: baseRef.isEmpty ? nil : baseRef,
                             autoAnalyzeEnabled: autoAnalyzeEnabled
                         )
@@ -759,7 +741,151 @@ struct AnalyzeRepoSheet: View {
             }
         }
         .padding(24)
-        .frame(width: 460)
+        .frame(width: 560)
+        .onAppear {
+            selectedPresetId = detectedPresetId
+        }
+        .onChange(of: selectedPath) { _, _ in
+            selectedPresetId = detectedPresetId
+            profileMessage = nil
+        }
+        .sheet(isPresented: $isProfileWizardPresented) {
+            AnalysisProfileWizard(repoName: repoName, repoPath: resolvedPath) { presetId in
+                selectedPresetId = presetId
+                createProfileIfMissing = false
+                profileMessage = "Created .diffuse.json using \(presetId)"
+            }
+        }
+        .sheet(isPresented: $isProfileRulesPresented) {
+            AnalysisProfileRulesSheet(repoName: repoName, repoPath: resolvedPath)
+        }
+    }
+
+    private var workspacePathSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Repository")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.textSecondary)
+
+            HStack(spacing: 8) {
+                TextField("Select a folder…", text: $selectedPath)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+
+                Button {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    panel.allowsMultipleSelection = false
+                    panel.prompt = "Select"
+                    if panel.runModal() == .OK {
+                        selectedPath = panel.url?.path ?? ""
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder")
+                        Text("Browse")
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var profileSetupSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Analysis Profile")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.textSecondary)
+                Spacer()
+                Text(hasProfile ? "Repo-defined" : "Suggested baseline")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(hasProfile ? .successColor : .accentBlue)
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: hasProfile ? "checkmark.seal.fill" : "wand.and.stars")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(hasProfile ? .successColor : .accentBlue)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(hasProfile ? ".diffuse.json found" : presetDisplayName(selectedPresetId))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text(hasProfile ? "Diffuse will use this repo's configured rules and groupings." : "Diffuse can create .diffuse.json extending \(selectedPresetId).")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.textSecondary)
+                }
+
+                Spacer()
+
+                Button {
+                    isProfileRulesPresented = true
+                } label: {
+                    Image(systemName: "list.bullet.rectangle")
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.bordered)
+                .help("View active rules and groupings")
+
+                if !hasProfile {
+                    Button {
+                        isProfileWizardPresented = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wand.and.stars")
+                            Text("Choose")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(10)
+            .background(Color.bgSidebarPanel)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+
+            if !hasProfile {
+                Toggle("Create .diffuse.json before first analysis", isOn: $createProfileIfMissing)
+                    .font(.system(size: 11))
+                    .toggleStyle(.checkbox)
+            }
+
+            if let profileMessage {
+                Text(profileMessage)
+                    .font(.system(size: 10.5))
+                    .foregroundColor(profileMessage.hasPrefix("Could not") ? .dangerColor : .textSecondary)
+            }
+        }
+    }
+
+    private var analysisOptionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Base Ref")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.textSecondary)
+                    Text("optional")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+                TextField("main, HEAD~3, a1b2c3d", text: $baseRef)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+            }
+
+            Toggle("Auto-analyze local changes while app is open", isOn: $autoAnalyzeEnabled)
+                .font(.system(size: 12))
+                .toggleStyle(.checkbox)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func presetDisplayName(_ id: String) -> String {
+        AnalysisProfileStore.builtInPresets.first { $0.id == id }?.displayName ?? id
     }
 }
 
@@ -779,5 +905,3 @@ struct WindowAccessor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
-
-

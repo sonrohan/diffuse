@@ -156,7 +156,10 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(PROJECT_DIR)/diffuse-core/src",
+				"$(PROJECT_DIR)/diffuse-core/src/analyzer.rs",
+				"$(PROJECT_DIR)/diffuse-core/src/languages.rs",
+				"$(PROJECT_DIR)/diffuse-core/src/main.rs",
+				"$(PROJECT_DIR)/diffuse-core/src/models.rs",
 				"$(PROJECT_DIR)/diffuse-core/Cargo.toml",
 				"$(PROJECT_DIR)/diffuse-core/Cargo.lock",
 			);

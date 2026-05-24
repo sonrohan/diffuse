@@ -162,8 +162,14 @@ pub fn compare_files(base: &Path, head: &Path, changed_lines: &[usize]) -> Vec<A
 /// Includes enclosing type/module metadata when available to avoid collisions
 /// between common names such as `init`, `body`, `render`, or `testFoo`.
 fn stable_key(sym: &AstSymbol) -> String {
-    let scope = sym.metadata.get("scope").map(|s| s.as_str()).unwrap_or("");
-    format!("{}::{}::{}", scope, sym.semantic_type, sym.name)
+    sym.metadata
+        .get("symbol_key")
+        .cloned()
+        .unwrap_or_else(|| symbol_key(
+            sym.metadata.get("scope").map(|s| s.as_str()).unwrap_or(""),
+            &sym.semantic_type,
+            &sym.name,
+        ))
 }
 
 /// Extract a compact signature fingerprint from symbol metadata. This is
@@ -326,6 +332,11 @@ fn build_symbol(
     if let Some(return_type) = extract_return_type(node, source) {
         metadata.insert("return_type".into(), return_type);
     }
+
+    let scope = metadata.get("scope").cloned().unwrap_or_default();
+    metadata.insert("qualified_name".into(), qualified_name(&scope, &name));
+    metadata.insert("symbol_key".into(), symbol_key(&scope, &semantic_type, &name));
+
     let imports = extract_imports(source, lang);
     if !imports.is_empty() {
         metadata.insert("imports".into(), imports.join(","));
@@ -347,6 +358,18 @@ fn build_symbol(
         language: lang.name().into(),
         metadata,
     })
+}
+
+fn qualified_name(scope: &str, name: &str) -> String {
+    if scope.is_empty() {
+        name.to_string()
+    } else {
+        format!("{scope}.{name}")
+    }
+}
+
+fn symbol_key(scope: &str, semantic_type: &str, name: &str) -> String {
+    format!("{scope}::{semantic_type}::{name}")
 }
 
 fn enclosing_scope(node: Node, source: &[u8]) -> Option<String> {
@@ -996,6 +1019,22 @@ class AuthService {
     }
 
     #[test]
+    fn test_symbol_identity_metadata_includes_scope() {
+        let src = "struct AuthService {\n    public func login(user: String) -> Bool {\n        true\n    }\n}\n";
+        let f = write_tmp(src, "swift");
+        let results = analyze(f.path(), &[2, 3]);
+        let login = results.iter().find(|s| s.name == "login").expect("login symbol");
+        assert_eq!(
+            login.metadata.get("qualified_name").map(|s| s.as_str()),
+            Some("AuthService.login")
+        );
+        assert_eq!(
+            login.metadata.get("symbol_key").map(|s| s.as_str()),
+            Some("AuthService::function_definition::login")
+        );
+    }
+
+    #[test]
     fn test_compare_files_signature_change() {
         let base_src = "public func greet(name: String) -> String {\n    return \"Hello \\(name)\"\n}\n";
         let head_src = "public func greet(name: String, greeting: String) -> String {\n    return \"\\(greeting) \\(name)\"\n}\n";
@@ -1007,6 +1046,21 @@ class AuthService {
             s.metadata.get("contract_signature_changed").map(|v| v == "true").unwrap_or(false)
         });
         assert!(flagged, "Expected contract_signature_changed for greet");
+    }
+
+    #[test]
+    fn test_compare_files_signature_change_after_line_shift() {
+        let base_src = "public func greet(name: String) -> String {\n    return \"Hello \\(name)\"\n}\n";
+        let head_src = "\npublic func greet(name: String, greeting: String) -> String {\n    return \"\\(greeting) \\(name)\"\n}\n";
+        let base_f = write_tmp(base_src, "swift");
+        let head_f = write_tmp(head_src, "swift");
+        let results = compare_files(base_f.path(), head_f.path(), &[2, 3, 4]);
+        let flagged = results.iter().any(|s| {
+            s.name == "greet"
+                && s.line == 2
+                && s.metadata.get("contract_signature_changed").map(|v| v == "true").unwrap_or(false)
+        });
+        assert!(flagged, "Expected symbol-key matching to survive line movement");
     }
 
     #[test]

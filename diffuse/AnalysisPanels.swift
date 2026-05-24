@@ -72,31 +72,10 @@ struct AnalysisNavigationRail: View {
                 }
             }
 
-            // Symbol-first review map section (Step 1)
-            if !details.symbolReviewGroups.isEmpty {
-                RailSectionHeader(
-                    title: "Symbols",
-                    count: details.symbolReviewGroups.flatMap { $0.symbols }.count,
-                    help: "Changed program entities grouped by semantic area. Lets you jump directly to the changed function, method, or type."
-                )
-
-                VStack(spacing: 2) {
-                    ForEach(details.symbolReviewGroups) { group in
-                        ForEach(group.symbols.prefix(4)) { sym in
-                            SymbolNavRow(symbol: sym, groupIcon: group.iconName) {
-                                if let fileId = details.files.first(where: { $0.id == sym.changedFileId })?.id {
-                                    state.jumpToFile(fileId, hunkIndex: nil)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             RailSectionHeader(
                 title: "Targets",
                 count: state.bucketTargets.count,
-                help: "Suggested review entry points for the currently selected view, ordered by where a human review is likely to be most useful."
+                help: "Suggested review entry points for the currently selected view, ordered by concrete analyzer signals and symbol-level impact."
             )
 
             if state.bucketTargets.isEmpty {
@@ -109,82 +88,6 @@ struct AnalysisNavigationRail: View {
                 }
             }
         }
-    }
-}
-
-/// A compact nav rail row for a changed symbol (Step 1).
-struct SymbolNavRow: View {
-    @Environment(AppState.self) private var state
-    let symbol: ChangedSymbol
-    let groupIcon: String
-    let action: () -> Void
-    @State private var isHovered = false
-
-    private var kindLabel: String {
-        switch symbol.kind {
-        case .function, .method: return "func"
-        case .class: return "class"
-        case .struct: return "struct"
-        case .enum: return "enum"
-        case .protocol: return "protocol"
-        case .extension: return "ext"
-        case .property, .variable: return "var"
-        case .constructor: return "init"
-        default: return "sym"
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: groupIcon)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.accentBlue)
-                    .frame(width: 14)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text(kindLabel)
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundColor(.textTertiary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color(NSColor.controlColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-
-                        Text(symbol.name)
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundColor(.textPrimary)
-                            .lineLimit(1)
-                    }
-
-                    HStack(spacing: 3) {
-                        Text("L\(symbol.startLine)")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.textTertiary)
-
-                        if !symbol.callees.isEmpty {
-                            Text("·")
-                                .font(.system(size: 8))
-                                .foregroundColor(.textTertiary)
-                            Text("calls \(symbol.callees.prefix(2).joined(separator: ", "))\(symbol.callees.count > 2 ? " +\(symbol.callees.count - 2)" : "")")
-                                .font(.system(size: 9))
-                                .foregroundColor(.textTertiary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 }
 
@@ -445,6 +348,12 @@ struct TargetNavRow: View {
                     .foregroundColor(.textTertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                if !target.evidence.isEmpty {
+                    Text(target.evidence)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 9)
@@ -973,6 +882,8 @@ struct SafeToSkimPanel: View {
 struct SelectedContextBar: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
+    @State private var isProfileRulesPresented = false
+    @State private var isProfileRulesHovered = false
 
     var nextTarget: ReviewTarget? {
         state.bucketTargets.first { $0.changedFileId != nil }
@@ -1003,6 +914,26 @@ struct SelectedContextBar: View {
                 }
                 if state.bucketTargets.count > 0 {
                     ContextStatChip(icon: "target", text: "\(state.bucketTargets.count) targets")
+                }
+
+                if let repo = state.selectedRepo {
+                    Button {
+                        isProfileRulesPresented = true
+                    } label: {
+                        Label("Rules", systemImage: "list.bullet.rectangle")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color(NSColor.controlColor).opacity(isProfileRulesHovered ? 0.85 : 0.55))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isProfileRulesHovered = $0 }
+                    .help("View active analysis rules and groupings")
+                    .sheet(isPresented: $isProfileRulesPresented) {
+                        AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
+                    }
                 }
 
                 if let nextTarget, let fileId = nextTarget.changedFileId {
@@ -1057,233 +988,5 @@ struct ContextStatChip: View {
             .padding(.vertical, 3)
             .background(Color(NSColor.controlColor).opacity(0.55))
             .clipShape(RoundedRectangle(cornerRadius: 5))
-    }
-}
-
-// MARK: - Symbol Review Map Panel (Step 1)
-
-/// Full-panel view of the symbol-first review map.
-struct SymbolReviewMapPanel: View {
-    @Environment(AppState.self) private var state
-    let details: AnalysisDetails
-
-    var body: some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Image(systemName: "function")
-                        .font(.system(size: 13))
-                        .foregroundColor(.accentBlue)
-                    Text("Changed Symbols")
-                        .font(.system(size: 13, weight: .semibold))
-                    Spacer()
-                    let totalCount = details.symbolReviewGroups.flatMap { $0.symbols }.count
-                    Text("\(totalCount) symbol\(totalCount == 1 ? "" : "s")")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                }
-                if details.symbolReviewGroups.isEmpty {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.textTertiary)
-                        Text("No AST symbols extracted.")
-                            .font(.system(size: 12))
-                            .foregroundColor(.textSecondary)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(NSColor.controlColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    VStack(spacing: 10) {
-                        ForEach(details.symbolReviewGroups) { group in
-                            SymbolReviewGroupSection(group: group, files: details.files)
-                        }
-                    }
-                }
-            }
-            .padding(12)
-        }
-    }
-}
-
-struct SymbolReviewGroupSection: View {
-    @Environment(AppState.self) private var state
-    let group: SymbolReviewGroup
-    let files: [ChangedFile]
-    @State private var isExpanded = true
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: group.iconName)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.accentBlue)
-                        .frame(width: 16)
-                    Text(group.displayLabel)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Text("\(group.symbols.count)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.textTertiary)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Color(NSColor.controlColor))
-                        .clipShape(Capsule())
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(.textTertiary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .contentShape(Rectangle())
-                .background(Color(NSColor.controlColor).opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-            }
-            .buttonStyle(.plain)
-            if isExpanded {
-                VStack(spacing: 4) {
-                    ForEach(group.symbols) { sym in
-                        SymbolRowCard(symbol: sym, files: files)
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct SymbolRowCard: View {
-    @Environment(AppState.self) private var state
-    let symbol: ChangedSymbol
-    let files: [ChangedFile]
-    @State private var isHovered = false
-
-    private var filePath: String {
-        files.first(where: { $0.id == symbol.changedFileId })?.path ?? "unknown"
-    }
-
-    private var kindBadge: (label: String, color: Color) {
-        switch symbol.kind {
-        case .function, .method: return ("func", .accentBlue)
-        case .class: return ("class", Color.purple)
-        case .struct: return ("struct", Color.teal)
-        case .enum: return ("enum", Color.orange)
-        case .protocol: return ("protocol", Color.pink)
-        case .extension: return ("ext", Color.indigo)
-        case .property, .variable: return ("var", Color.gray)
-        case .constructor: return ("init", Color.teal)
-        default: return ("sym", Color.gray)
-        }
-    }
-
-    private var behavioralFlags: [(icon: String, label: String, color: Color)] {
-        var flags: [(String, String, Color)] = []
-        let meta = symbol.metadata
-        if meta["network_call_added"] == "true"         { flags.append(("network", "network", .orange)) }
-        if meta["persistence_write_added"] == "true"    { flags.append(("cylinder", "writes", Color.purple)) }
-        if meta["auth_check_added"] == "true"           { flags.append(("lock", "auth-check", .dangerColor)) }
-        if meta["deletion_added"] == "true"             { flags.append(("trash", "deletes", .warningColor)) }
-        if meta["async_behavior_added"] == "true"       { flags.append(("bolt", "async", Color.teal)) }
-        if meta["error_handling_added"] == "true"       { flags.append(("exclamationmark.triangle", "throws", .orange)) }
-        if meta["contract_signature_changed"] == "true" { flags.append(("arrow.left.arrow.right", "sig change", .dangerColor)) }
-        if meta["contract_return_type_changed"] == "true" { flags.append(("arrow.uturn.right", "return", .dangerColor)) }
-        if meta["contract_is_new_public"] == "true"     { flags.append(("eye", "new public", .warningColor)) }
-        return flags
-    }
-
-    var body: some View {
-        Button {
-            if let file = files.first(where: { $0.id == symbol.changedFileId }) {
-                let hunkIdx = file.hunks.firstIndex {
-                    symbol.startLine >= $0.newStart && symbol.startLine <= $0.newStart + $0.newLines - 1
-                }
-                state.jumpToFile(file.id, hunkIndex: hunkIdx)
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Text(kindBadge.label)
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundColor(kindBadge.color)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(kindBadge.color.opacity(0.10))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                    Text(symbol.name)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(1)
-                    Spacer()
-                    Text("L\(symbol.startLine)-\(symbol.endLine)")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundColor(.textTertiary)
-                }
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 9))
-                        .foregroundColor(.textTertiary)
-                    Text(filePath)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.accentBlue)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                if !symbol.callees.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.turn.down.right")
-                            .font(.system(size: 8))
-                            .foregroundColor(.textTertiary)
-                        let calleePreview = symbol.callees.prefix(5).joined(separator: ", ")
-                        let extra = symbol.callees.count > 5 ? " +\(symbol.callees.count - 5) more" : ""
-                        Text("Calls: \(calleePreview)\(extra)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                if !symbol.callers.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.turn.up.left")
-                            .font(.system(size: 8))
-                            .foregroundColor(.textTertiary)
-                        let callerPreview = symbol.callers.prefix(3).joined(separator: ", ")
-                        let extra = symbol.callers.count > 3 ? " +\(symbol.callers.count - 3) more" : ""
-                        Text("Called by: \(callerPreview)\(extra)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                if !behavioralFlags.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(Array(behavioralFlags.enumerated()), id: \.offset) { _, flag in
-                            Label(flag.label, systemImage: flag.icon)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(flag.color)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(flag.color.opacity(0.10))
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-            .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor).opacity(0.4))
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(
-                isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5
-            ))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.easeInOut(duration: 0.12), value: isHovered)
     }
 }

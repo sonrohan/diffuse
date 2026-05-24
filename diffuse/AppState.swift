@@ -213,7 +213,7 @@ class AppState {
                 await analyzeSingleCommit(repoPath: repo.path, sha: sha, pr: pr, run: run)
             }
         } else {
-            analysisDetails = await coordinator.getDetails(for: run.id)
+            analysisDetails = await coordinator.getDetails(for: run.id, repoPath: selectedRepo?.path)
         }
         
         isLoadingAnalysis = false
@@ -239,8 +239,9 @@ class AppState {
             self.analysisDetails = nil
             return
         }
-        
-        let parsedFiles = DiffParser.parse(commitDiff)
+
+        let profile = AnalysisProfileStore.load(repoPath: repoPath)
+        let parsedFiles = DiffParser.parse(commitDiff, profile: profile)
         let changedFiles = parsedFiles.map { pf -> ChangedFile in
             ChangedFile(
                 analysisRunId: run.id,
@@ -252,10 +253,20 @@ class AppState {
                 hunks: pf.hunks
             )
         }
+
+        let astService = ASTAnalysisService()
+        let allSymbols = await astService.extractChangedSymbols(
+            repoPath: repoPath,
+            baseRevision: "\(sha)~1",
+            headRevision: sha,
+            analysisRunId: run.id,
+            changedFiles: changedFiles
+        )
         
         let ruleResults = RulesEngine.runDeterministicRules(
-            files: parsedFiles, symbols: [],
-            filePathMap: Dictionary(uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) })
+            files: parsedFiles, symbols: allSymbols,
+            filePathMap: Dictionary(uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) }),
+            profile: profile
         )
         var allFindings: [Finding] = []
         for (path, rulefindings) in ruleResults {
@@ -272,19 +283,19 @@ class AppState {
             allFindings.append(contentsOf: dbFindings)
         }
         
-        let breakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: [], findings:
+        let breakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: allSymbols, findings:
             allFindings.map {
                 RulesEngine.RuleFinding(severity: $0.severity, category: $0.category, message: $0.message,
                                        lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource, evidence: $0.evidence)
-            })
+            }, profile: profile)
             
-        let triage = TriageEngine.deriveTriage(files: changedFiles, symbols: [], findings: allFindings, riskScore: breakdown.score)
+        let triage = TriageEngine.deriveTriage(files: changedFiles, symbols: allSymbols, findings: allFindings, riskScore: breakdown.score, profile: profile)
         
         var mockRun = run
         mockRun.riskScore = breakdown.score
         
         self.analysisDetails = AnalysisDetails(
-            run: mockRun, pr: pr, files: changedFiles, symbols: [], findings: allFindings,
+            run: mockRun, pr: pr, files: changedFiles, symbols: allSymbols, findings: allFindings,
             reviewTargets: triage.reviewTargets,
             changeBuckets: triage.changeBuckets,
             riskHighlights: triage.riskHighlights,
@@ -615,4 +626,3 @@ class AppState {
 enum ExpandDirection {
     case up, down, all
 }
-

@@ -59,8 +59,13 @@ actor GitService {
         runGit(["show", "\(revision):\(filePath)"], cwd: cwd)
     }
 
-    static func trackedSourceFiles(cwd: String) -> [String] {
-        let output = runGit(["ls-files"], cwd: cwd)
+    static func trackedSourceFiles(cwd: String, revision: String? = nil) -> [String] {
+        let output: String
+        if let revision, !revision.isEmpty {
+            output = runGit(["ls-tree", "-r", "--name-only", revision], cwd: cwd)
+        } else {
+            output = runGit(["ls-files"], cwd: cwd)
+        }
         guard !output.isEmpty else { return [] }
         let supportedExtensions: Set<String> = ["swift", "kt", "kts", "ts", "tsx", "js", "jsx", "py", "rs"]
         return output.components(separatedBy: .newlines).filter { path in
@@ -319,6 +324,7 @@ actor ASTAnalysisService {
     /// Parse a single file and return symbols intersecting the given 1-based line numbers.
     func parseSymbols(
         for fileURL: URL,
+        filePath: String,
         changedLines: [Int],
         analysisRunId: UUID,
         changedFileId: UUID
@@ -350,9 +356,15 @@ actor ASTAnalysisService {
             return sidecarSymbols.map { s in
                 var metadata = s.metadata
                 metadata["language"] = s.language
+                metadata["file_path"] = filePath
+                if let symbolKey = metadata["symbol_key"] {
+                    metadata["symbol_id"] = "\(filePath)::\(symbolKey)"
+                }
                 // Step 6: parse comma-separated callee names from metadata
                 let calleeNames = metadata["callees"].map {
-                    $0.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                    $0.split(separator: ",")
+                        .map { String($0).trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
                 } ?? []
                 return ChangedSymbol(
                     analysisRunId: analysisRunId,
@@ -422,11 +434,19 @@ actor ASTAnalysisService {
             let contractSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
 
             // Merge contract-delta metadata back into the matching existing symbol records.
-            // We match by name + line (stable enough for same-file comparison).
             for cs in contractSymbols {
-                if let idx = existingSymbols.firstIndex(where: {
+                let idxByKey: Int?
+                if let key = cs.metadata["symbol_key"] {
+                    idxByKey = existingSymbols.firstIndex { $0.metadata["symbol_key"] == key }
+                } else {
+                    idxByKey = nil
+                }
+
+                let fallbackIdx = existingSymbols.firstIndex {
                     $0.name == cs.name && $0.startLine == cs.line
-                }) {
+                }
+
+                if let idx = idxByKey ?? fallbackIdx {
                     for (key, value) in cs.metadata where key.hasPrefix("contract_") || key.hasSuffix("_added") {
                         existingSymbols[idx].metadata[key] = value
                     }
@@ -438,18 +458,69 @@ actor ASTAnalysisService {
         }
     }
 
-    func symbolsWithCallerData(repoPath: String, symbols: [ChangedSymbol]) async -> [ChangedSymbol] {
+    func symbolsWithCallerData(repoPath: String, symbols: [ChangedSymbol], revision: String? = nil) async -> [ChangedSymbol] {
         guard !symbols.isEmpty, let helperURL = sidecarURL() else { return symbols }
 
-        let changedNames = Set(symbols.map(\.name).filter { !$0.isEmpty && $0 != "<anonymous>" })
-        guard !changedNames.isEmpty else { return symbols }
+        struct SymbolRef {
+            let key: String
+            let name: String
+            let qualifiedName: String
+        }
 
-        var callersByName: [String: Set<String>] = [:]
-        let trackedFiles = GitService.trackedSourceFiles(cwd: repoPath)
+        func symbolKey(_ symbol: ChangedSymbol) -> String {
+            if let key = symbol.metadata["symbol_key"], !key.isEmpty { return key }
+            let scope = symbol.metadata["scope"] ?? ""
+            return "\(scope)::\(symbol.semanticType)::\(symbol.name)"
+        }
+
+        func normalizedLookupName(_ value: String) -> String {
+            value.replacingOccurrences(of: "::", with: ".").lowercased()
+        }
+
+        let changedRefs = symbols
+            .filter { !$0.name.isEmpty && $0.name != "<anonymous>" }
+            .map {
+                SymbolRef(
+                    key: symbolKey($0),
+                    name: $0.name,
+                    qualifiedName: $0.metadata["qualified_name"] ?? $0.name
+                )
+            }
+        guard !changedRefs.isEmpty else { return symbols }
+
+        let refsByName = Dictionary(grouping: changedRefs, by: { $0.name.lowercased() })
+        var callersByKey: [String: Set<String>] = [:]
+        let trackedFiles = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
+
+        func matches(for callee: String) -> [SymbolRef] {
+            let normalized = normalizedLookupName(callee)
+            let isQualified = normalized.contains(".")
+            if isQualified {
+                return changedRefs.filter {
+                    normalizedLookupName($0.qualifiedName) == normalized
+                        || normalizedLookupName($0.qualifiedName).hasSuffix(".\(normalized)")
+                }
+            }
+
+            let candidates = refsByName[normalized] ?? []
+            return candidates.count == 1 ? candidates : []
+        }
 
         for relativePath in trackedFiles {
-            let fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(relativePath)
-            guard FileManager.default.isReadableFile(atPath: fileURL.path) else { continue }
+            var temporaryIndexedURL: URL?
+            let fileURL: URL
+            if let revision, !revision.isEmpty {
+                let content = GitService.fileContent(at: revision, path: relativePath, cwd: repoPath)
+                guard !content.isEmpty,
+                      let tmp = temporarySourceURL(prefix: "diffuse-index", filePath: relativePath, content: content) else {
+                    continue
+                }
+                temporaryIndexedURL = tmp
+                fileURL = tmp
+            } else {
+                fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(relativePath)
+                guard FileManager.default.isReadableFile(atPath: fileURL.path) else { continue }
+            }
 
             let process = Process()
             process.executableURL = helperURL
@@ -468,31 +539,153 @@ actor ASTAnalysisService {
                 let indexedSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
                 for indexed in indexedSymbols {
                     let callees = indexed.metadata["callees"].map {
-                        $0.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                        $0.split(separator: ",")
+                            .map { String($0).trimmingCharacters(in: .whitespaces) }
+                            .filter { !$0.isEmpty }
                     } ?? []
-                    let callerLabel = "\(relativePath):\(indexed.name)"
-                    for callee in callees where changedNames.contains(callee) && callee != indexed.name {
-                        callersByName[callee, default: []].insert(callerLabel)
+                    let callerName = indexed.metadata["qualified_name"] ?? indexed.name
+                    let callerLabel = "\(relativePath):\(callerName)"
+                    for callee in callees {
+                        for match in matches(for: callee) where match.name != indexed.name && match.qualifiedName != callerName {
+                            callersByKey[match.key, default: []].insert(callerLabel)
+                        }
                     }
                 }
-            } catch {
-                continue
+            } catch {}
+
+            if let temporaryIndexedURL {
+                try? FileManager.default.removeItem(at: temporaryIndexedURL)
             }
         }
 
         return symbols.map { symbol in
             var updated = symbol
-            let callers = Array(callersByName[symbol.name] ?? []).sorted()
+            let callers = Array(callersByKey[symbolKey(symbol)] ?? []).sorted()
             if !callers.isEmpty {
                 updated.callers = callers
+                updated.metadata["caller_resolution"] = "indexed"
             }
             return updated
+        }
+    }
+
+    func extractChangedSymbols(
+        repoPath: String,
+        baseRevision: String,
+        headRevision: String? = nil,
+        analysisRunId: UUID,
+        changedFiles: [ChangedFile]
+    ) async -> [ChangedSymbol] {
+        var allSymbols: [ChangedSymbol] = []
+
+        for changedFile in changedFiles where changedFile.classification == .source || changedFile.classification == .test {
+            guard changedFile.status != .deleted else { continue }
+            let lines = changedLinesFromHunks(changedFile.hunks)
+            guard !lines.isEmpty else { continue }
+
+            var temporaryHeadURL: URL?
+            let fileURL: URL
+            if let headRevision {
+                let headContent = GitService.fileContent(at: headRevision, path: changedFile.path, cwd: repoPath)
+                guard !headContent.isEmpty,
+                      let tmp = temporarySourceURL(prefix: "diffuse-head", filePath: changedFile.path, content: headContent) else {
+                    continue
+                }
+                temporaryHeadURL = tmp
+                fileURL = tmp
+            } else {
+                fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(changedFile.path)
+            }
+
+            var symbols = await parseSymbols(
+                for: fileURL,
+                filePath: changedFile.path,
+                changedLines: lines,
+                analysisRunId: analysisRunId,
+                changedFileId: changedFile.id
+            )
+
+            if !symbols.isEmpty {
+                let baseContent = GitService.fileContent(at: baseRevision, path: changedFile.path, cwd: repoPath)
+                if !baseContent.isEmpty,
+                   let baseTmp = temporarySourceURL(prefix: "diffuse-base", filePath: changedFile.path, content: baseContent) {
+                    await compareSymbols(
+                        baseURL: baseTmp,
+                        headURL: fileURL,
+                        changedLines: lines,
+                        existingSymbols: &symbols
+                    )
+                    try? FileManager.default.removeItem(at: baseTmp)
+                } else if changedFile.status == .added {
+                    for index in symbols.indices {
+                        symbols[index].metadata["symbol_is_new"] = "true"
+                        markAddedBehaviorDeltas(symbol: &symbols[index])
+                        if isContractSurface(symbols[index]) {
+                            symbols[index].metadata["contract_is_new_public"] = "true"
+                        }
+                    }
+                }
+            }
+
+            if let temporaryHeadURL {
+                try? FileManager.default.removeItem(at: temporaryHeadURL)
+            }
+
+            allSymbols.append(contentsOf: symbols)
+        }
+
+        return await symbolsWithCallerData(repoPath: repoPath, symbols: allSymbols, revision: headRevision)
+    }
+
+    private func temporarySourceURL(prefix: String, filePath: String, content: String) -> URL? {
+        let ext = URL(fileURLWithPath: filePath).pathExtension
+        let suffix = ext.isEmpty ? "" : ".\(ext)"
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(prefix)-\(UUID().uuidString)\(suffix)")
+        do {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func isContractSurface(_ symbol: ChangedSymbol) -> Bool {
+        switch symbol.metadata["visibility"] {
+        case "public", "open":
+            return true
+        case "private", "fileprivate", "internal", "protected":
+            return false
+        default:
+            let language = symbol.metadata["language"] ?? ""
+            return language == "typescript"
+                || language == "javascript"
+                || language == "python"
+                || symbol.semanticType == "interface_declaration"
+                || symbol.semanticType == "protocol_declaration"
+                || symbol.semanticType == "type_alias"
+        }
+    }
+
+    private func markAddedBehaviorDeltas(symbol: inout ChangedSymbol) {
+        let mappings = [
+            ("has_control_flow", "control_flow_added"),
+            ("has_error_handling", "error_handling_added"),
+            ("has_async_behavior", "async_behavior_added"),
+            ("has_persistence_write", "persistence_write_added"),
+            ("has_network_call", "network_call_added"),
+            ("has_auth_check", "auth_check_added"),
+            ("has_deletion", "deletion_added"),
+            ("has_logging", "logging_added")
+        ]
+        for (presenceKey, deltaKey) in mappings where symbol.metadata[presenceKey] == "true" {
+            symbol.metadata[deltaKey] = "true"
         }
     }
 }
 
 /// Extract all 1-based new-side line numbers that were added or changed within a file's diff hunks.
-private func changedLinesFromHunks(_ hunks: [DiffHunk]) -> [Int] {
+nonisolated private func changedLinesFromHunks(_ hunks: [DiffHunk]) -> [Int] {
     var lines: [Int] = []
     for hunk in hunks {
         var currentLine = hunk.newStart
@@ -600,7 +793,7 @@ actor PersistenceService {
         save()
     }
 
-    func getAnalysisDetails(runId: UUID) -> AnalysisDetails? {
+    func getAnalysisDetails(runId: UUID, profile: AnalysisProfile) async -> AnalysisDetails? {
         guard let run = store.analysisRuns.first(where: { $0.id == runId }),
               let pr = store.pullRequests.first(where: { $0.id == run.pullRequestId }) else { return nil }
 
@@ -608,7 +801,7 @@ actor PersistenceService {
         let symbols = store.changedSymbols.filter { $0.analysisRunId == runId }
         let findings = store.findings.filter { $0.analysisRunId == runId }
 
-        let triage = TriageEngine.deriveTriage(files: files, symbols: symbols, findings: findings, riskScore: run.riskScore)
+        let triage = await TriageEngine.deriveTriage(files: files, symbols: symbols, findings: findings, riskScore: run.riskScore, profile: profile)
 
         return AnalysisDetails(
             run: run, pr: pr, files: files, symbols: symbols, findings: findings,
@@ -694,6 +887,7 @@ class AnalysisCoordinator: ObservableObject {
         defer { isAnalyzing = false }
 
         do {
+            let profile = AnalysisProfileStore.load(repoPath: path)
             let gitInfo = try await git.gatherDiff(repoPath: path, baseRef: baseRef)
             let repoName = URL(fileURLWithPath: path).lastPathComponent
 
@@ -720,7 +914,7 @@ class AnalysisCoordinator: ObservableObject {
             await persistence.insertRun(run)
 
             // Parse diff
-            let parsedFiles = DiffParser.parse(gitInfo.diff)
+            let parsedFiles = DiffParser.parse(gitInfo.diff, profile: profile)
 
             // Create ChangedFile records
             let changedFiles = parsedFiles.map { pf -> ChangedFile in
@@ -736,55 +930,16 @@ class AnalysisCoordinator: ObservableObject {
             }
             await persistence.insertFiles(changedFiles)
 
-            // --- AST Symbol Extraction via sidecar ---
             let astService = ASTAnalysisService()
-            var allSymbols: [ChangedSymbol] = []
-            for changedFile in changedFiles where changedFile.classification == .source || changedFile.classification == .test {
-                let fileURL = URL(fileURLWithPath: path)
-                    .appendingPathComponent(changedFile.path)
-                let lines = changedLinesFromHunks(changedFile.hunks)
-                var symbols = await astService.parseSymbols(
-                    for: fileURL,
-                    changedLines: lines,
-                    analysisRunId: run.id,
-                    changedFileId: changedFile.id
-                )
-
-                // Step 4: Contract comparison — fetch base version and compare
-                if !symbols.isEmpty {
-                    let baseContent = GitService.fileContent(
-                        at: gitInfo.baseSha,
-                        path: changedFile.path,
-                        cwd: path
-                    )
-                    if !baseContent.isEmpty {
-                        let tmpDir = FileManager.default.temporaryDirectory
-                        let ext = URL(fileURLWithPath: changedFile.path).pathExtension
-                        let baseTmp = tmpDir.appendingPathComponent(
-                            "diffuse-base-\(changedFile.id.uuidString).\(ext)"
-                        )
-                        try? baseContent.write(to: baseTmp, atomically: true, encoding: .utf8)
-                        await astService.compareSymbols(
-                            baseURL: baseTmp,
-                            headURL: fileURL,
-                            changedLines: lines,
-                            existingSymbols: &symbols
-                        )
-                        try? FileManager.default.removeItem(at: baseTmp)
-                    } else if changedFile.status == .added {
-                        for index in symbols.indices where Self.isContractSurface(symbols[index]) {
-                            symbols[index].metadata["contract_is_new_public"] = "true"
-                        }
-                    }
-                }
-
-                allSymbols.append(contentsOf: symbols)
-            }
-            allSymbols = await astService.symbolsWithCallerData(repoPath: path, symbols: allSymbols)
+            let allSymbols = await astService.extractChangedSymbols(
+                repoPath: path,
+                baseRevision: gitInfo.baseSha,
+                analysisRunId: run.id,
+                changedFiles: changedFiles
+            )
             if !allSymbols.isEmpty {
                 await persistence.insertSymbols(allSymbols)
             }
-            // -----------------------------------------
 
             // FIX 1: Build file path map for deterministic rules
             let filePathMap: [UUID: String] = Dictionary(
@@ -793,7 +948,7 @@ class AnalysisCoordinator: ObservableObject {
 
             // Run deterministic rules (FIX 1: pass filePathMap)
             let ruleResults = RulesEngine.runDeterministicRules(
-                files: parsedFiles, symbols: allSymbols, filePathMap: filePathMap
+                files: parsedFiles, symbols: allSymbols, filePathMap: filePathMap, profile: profile
             )
             var allFindings: [Finding] = []
             for (path, rulefindings) in ruleResults {
@@ -816,7 +971,7 @@ class AnalysisCoordinator: ObservableObject {
                 allFindings.map {
                     RulesEngine.RuleFinding(severity: $0.severity, category: $0.category, message: $0.message,
                                            lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource, evidence: $0.evidence)
-                })
+                }, profile: profile)
 
             run.status = .completed
             run.riskScore = breakdown.score
@@ -837,8 +992,8 @@ class AnalysisCoordinator: ObservableObject {
         await persistence.allPullRequests()
     }
 
-    func getDetails(for runId: UUID) async -> AnalysisDetails? {
-        await persistence.getAnalysisDetails(runId: runId)
+    func getDetails(for runId: UUID, repoPath: String? = nil) async -> AnalysisDetails? {
+        await persistence.getAnalysisDetails(runId: runId, profile: AnalysisProfileStore.load(repoPath: repoPath))
     }
 
     func allRepositories() async -> [GitRepository] {
@@ -881,20 +1036,4 @@ class AnalysisCoordinator: ObservableObject {
         try await git.checkoutPR(repoPath: repoPath, prNumber: prNumber, branchName: branchName)
     }
 
-    private static func isContractSurface(_ symbol: ChangedSymbol) -> Bool {
-        switch symbol.metadata["visibility"] {
-        case "public", "open":
-            return true
-        case "private", "fileprivate", "internal", "protected":
-            return false
-        default:
-            let language = symbol.metadata["language"] ?? ""
-            return language == "typescript"
-                || language == "javascript"
-                || language == "python"
-                || symbol.semanticType == "interface_declaration"
-                || symbol.semanticType == "protocol_declaration"
-                || symbol.semanticType == "type_alias"
-        }
-    }
 }

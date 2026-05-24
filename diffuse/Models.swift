@@ -42,9 +42,9 @@ struct PullRequest: Identifiable, Codable, Hashable {
     var updatedAt: Date
     var latestRun: AnalysisRun?
 
-    init(id: UUID = UUID(), prNumber: Int, title: String, body: String? = nil,
-         baseSha: String, headSha: String, author: String, status: String = "open",
-         repository: String, createdAt: Date = Date(), updatedAt: Date = Date()) {
+    nonisolated init(id: UUID = UUID(), prNumber: Int, title: String, body: String? = nil,
+                     baseSha: String, headSha: String, author: String, status: String = "open",
+                     repository: String, createdAt: Date = Date(), updatedAt: Date = Date()) {
         self.id = id
         self.prNumber = prNumber
         self.title = title
@@ -148,7 +148,7 @@ struct ChangedSymbol: Identifiable, Codable, Hashable {
              constructor, module, decorated
     }
 
-    init(
+    nonisolated init(
         id: UUID = UUID(),
         analysisRunId: UUID,
         changedFileId: UUID,
@@ -377,7 +377,7 @@ struct GitRepository: Identifiable, Codable, Hashable {
     var path: String
     var autoAnalyzeEnabled: Bool
 
-    init(id: UUID = UUID(), name: String, path: String, autoAnalyzeEnabled: Bool = true) {
+    nonisolated init(id: UUID = UUID(), name: String, path: String, autoAnalyzeEnabled: Bool = true) {
         self.id = id
         self.name = name
         self.path = path

@@ -245,6 +245,7 @@ struct SymbolNavRow: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
+            .contentShape(Rectangle())
             .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
@@ -335,6 +336,7 @@ struct AllChangesNavRow: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
@@ -378,6 +380,7 @@ struct LowerSignalNavRow: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
@@ -425,6 +428,7 @@ struct SignalNavRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
+            .contentShape(Rectangle())
             .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 7))
         }
@@ -462,6 +466,7 @@ struct AreaNavRow: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
+            .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
@@ -510,6 +515,7 @@ struct TargetNavRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
+            .contentShape(Rectangle())
             .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 7))
         }
@@ -622,6 +628,7 @@ struct SignalCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
+            .contentShape(Rectangle())
             .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor))
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
@@ -727,6 +734,7 @@ struct AllChangesCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
+            .contentShape(Rectangle())
             .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
@@ -795,6 +803,7 @@ struct BucketCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
+            .contentShape(Rectangle())
             .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
@@ -1197,6 +1206,7 @@ struct SymbolReviewGroupSection: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
+                .contentShape(Rectangle())
                 .background(Color(NSColor.controlColor).opacity(0.5))
                 .clipShape(RoundedRectangle(cornerRadius: 7))
             }
@@ -1331,6 +1341,7 @@ struct SymbolRowCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
             .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor).opacity(0.4))
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(

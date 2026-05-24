@@ -1,0 +1,543 @@
+import SwiftUI
+
+// MARK: - PR Header Bar
+
+struct PRHeaderBar: View {
+    @Environment(AppState.self) private var state
+    let pr: PullRequest
+    let run: AnalysisRun
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.triangle.merge")
+                .font(.system(size: 14))
+                .foregroundColor(.successColor)
+
+            Text(pr.title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+
+            Text("#\(pr.prNumber)")
+                .font(.system(size: 12))
+                .foregroundColor(.textTertiary)
+
+            statusBadge(run.status)
+
+            Text("·")
+                .foregroundColor(.borderDefault)
+
+            Text(pr.author)
+                .font(.system(size: 12))
+                .foregroundColor(.textSecondary)
+
+            Text("·")
+                .foregroundColor(.borderDefault)
+
+            HStack(spacing: 4) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+                Text("\(pr.baseSha.prefix(7))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textSecondary)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 9))
+                    .foregroundColor(.textTertiary)
+                Text("\(pr.headSha.prefix(7))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textSecondary)
+            }
+
+            Spacer()
+
+            RiskScoreView(score: run.riskScore)
+
+            Button {
+                Task { await state.reRunAnalysis() }
+            } label: {
+                Label("Re-run", systemImage: "arrow.clockwise")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.bordered)
+            .disabled(state.isLoadingAnalysis)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    @ViewBuilder
+    func statusBadge(_ status: AnalysisRun.RunStatus) -> some View {
+        switch status {
+        case .completed:
+            BadgeView(text: "Analyzed", variant: .success)
+        case .analyzing:
+            BadgeView(text: "Analyzing", variant: .warning)
+        case .failed:
+            BadgeView(text: "Failed", variant: .danger)
+        case .queued:
+            BadgeView(text: "Queued", variant: .neutral)
+        }
+    }
+}
+
+// MARK: - Review Map Panel (Risk Summary)
+
+struct ReviewMapPanel: View {
+    @Environment(AppState.self) private var state
+    let details: AnalysisDetails
+
+    var topRisks: [RiskHighlight] {
+        details.riskHighlights
+            .filter { $0.severity >= .medium }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "map")
+                        .font(.system(size: 13))
+                        .foregroundColor(.accentBlue)
+                    Text("Review Map")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Text("\(topRisks.count) priority signal\(topRisks.count == 1 ? "" : "s")")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                }
+
+                if topRisks.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.successColor)
+                        Text("No risks detected by configured rules.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(NSColor.controlColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(topRisks) { risk in
+                            RiskCard(risk: risk) {
+                                state.jumpToHighlight(risk)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(12)
+        }
+    }
+}
+
+struct RiskCard: View {
+    let risk: RiskHighlight
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    risk.severity.badgeView
+                    Text(risk.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                        .textCase(.uppercase)
+                }
+                Text(risk.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.textPrimary)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 9))
+                    Text(risk.filePath + (risk.lineStart.map { ":L\($0)" } ?? ""))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.accentBlue)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Semantic Buckets Panel (Change Buckets)
+
+struct SemanticBucketsPanel: View {
+    @Environment(AppState.self) private var state
+    let details: AnalysisDetails
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "folder.badge.gearshape")
+                        .font(.system(size: 13))
+                        .foregroundColor(.accentBlue)
+                    Text("Semantic Views")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Text("\(details.changeBuckets.count) area\(details.changeBuckets.count == 1 ? "" : "s")")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                }
+
+                VStack(spacing: 6) {
+                    ForEach(details.changeBuckets) { bucket in
+                        BucketCard(
+                            bucket: bucket,
+                            highlights: details.riskHighlights.filter { $0.bucketId == bucket.id },
+                            isSelected: state.selectedBucketId == bucket.id
+                        ) {
+                            state.selectBucket(bucket.id)
+                        }
+                    }
+                }
+
+                if details.changeBuckets.isEmpty {
+                    Text("No change buckets available.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.textTertiary)
+                        .padding(12)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(NSColor.controlColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            .padding(12)
+        }
+    }
+}
+
+struct BucketCard: View {
+    let bucket: ChangeBucket
+    let highlights: [RiskHighlight]
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var primaryRisk: RiskHighlight? { highlights.first }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    BadgeView(text: bucket.riskLevel.displayName, variant: bucket.riskLevel.badgeColor)
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: bucket.type.icon)
+                            .font(.system(size: 10))
+                            .foregroundColor(.textTertiary)
+                        Text("#\(bucket.reviewOrder)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(bucket.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text(bucket.summary)
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 12) {
+                    Label("\(bucket.files.count) files", systemImage: "doc.text")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                    Label("\(highlights.count) signals", systemImage: "exclamationmark.shield")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                }
+
+                if let risk = primaryRisk {
+                    Divider()
+                    Text(risk.title)
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+    }
+}
+
+// MARK: - Review Targets Panel
+
+struct ReviewTargetsPanel: View {
+    let targets: [ReviewTarget]
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeading("Selected View Targets", icon: "shield.lefthalf.filled",
+                               meta: "\(targets.count) target\(targets.count == 1 ? "" : "s")")
+
+                if targets.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(.successColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("No high-priority targets")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("No risks detected by configured rules for this view.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(NSColor.controlColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(Array(targets.enumerated()), id: \.element.id) { idx, target in
+                            ReviewTargetCard(target: target, index: idx)
+                        }
+                    }
+                }
+            }
+            .padding(12)
+        }
+    }
+}
+
+struct ReviewTargetCard: View {
+    @Environment(AppState.self) private var state
+    let target: ReviewTarget
+    let index: Int
+
+    var borderColor: Color {
+        switch target.severity {
+        case .high: .dangerColor
+        case .medium: .warningColor
+        case .low: .infoColor
+        case .info: .borderDefault
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        target.severity.badgeView
+                        Text("#\(index + 1)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                        Text("via \(target.source)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                    }
+                    Text(target.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(3)
+                }
+                Spacer()
+                if let fileId = target.changedFileId {
+                    Button {
+                        state.jumpToFile(fileId, hunkIndex: target.hunkIndex)
+                    } label: {
+                        Label("View diff", systemImage: "arrow.right")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                    Text(target.filePath + (target.lineStart.map { " · L\($0)–\(target.lineEnd ?? $0)" } ?? ""))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                if !target.evidence.isEmpty {
+                    Text(target.evidence)
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(3)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(NSColor.controlColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .padding(10)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.borderMuted, lineWidth: 0.5)
+        )
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(borderColor)
+                .frame(width: 3)
+                .clipShape(RoundedRectangle(cornerRadius: 1.5))
+        }
+    }
+}
+
+// MARK: - Safe to Skim Panel
+
+struct SafeToSkimPanel: View {
+    let targets: [SkimTarget]
+    @State private var isExpanded = false
+
+    var grouped: [ChangedFile.FileClassification: [SkimTarget]] {
+        Dictionary(grouping: targets, by: { $0.classification })
+    }
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 13))
+                            .foregroundColor(.textSecondary)
+                        Text("Lower-Signal Changes")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        Text("\(targets.count) file\(targets.count == 1 ? "" : "s")")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textTertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(12)
+
+                if !isExpanded && !targets.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { cls in
+                                let items = grouped[cls]!
+                                BadgeView(text: "\(items.count) \(items[0].groupName)", variant: .neutral)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 10)
+                    }
+                }
+
+                if isExpanded {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { cls in
+                            let items = grouped[cls]!
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(items[0].groupName.uppercased())
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.textTertiary)
+                                    .kerning(0.5)
+
+                                VStack(spacing: 0) {
+                                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                                        HStack {
+                                            Image(systemName: "doc.text")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.textTertiary)
+                                            Text(item.filePath)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundColor(.textPrimary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                            Spacer()
+                                            Text("+\(item.additions) −\(item.deletions)")
+                                                .font(.system(size: 10, design: .monospaced))
+                                                .foregroundColor(.textTertiary)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 5)
+                                        if idx < items.count - 1 { Divider() }
+                                    }
+                                }
+                                .background(Color(NSColor.controlColor))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                            }
+                        }
+                    }
+                    .padding(12)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Selected Context Bar
+
+struct SelectedContextBar: View {
+    @Environment(AppState.self) private var state
+    let details: AnalysisDetails
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("CURRENT VIEW")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.textTertiary)
+                    .kerning(0.5)
+                Text(state.selectedBucket?.title ?? "All changes")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+            }
+            Spacer()
+            HStack(spacing: 10) {
+                Label("\(state.bucketFiles.count) files", systemImage: "doc.text.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+                Label("\(state.bucketHighlights.count) signals", systemImage: "exclamationmark.shield.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+}

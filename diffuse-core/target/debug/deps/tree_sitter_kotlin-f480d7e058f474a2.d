@@ -1,0 +1,9 @@
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/deps/tree_sitter_kotlin-f480d7e058f474a2.d: /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/lib.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../src/node-types.json /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../queries/highlights.scm
+
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/deps/libtree_sitter_kotlin-f480d7e058f474a2.rlib: /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/lib.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../src/node-types.json /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../queries/highlights.scm
+
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/deps/libtree_sitter_kotlin-f480d7e058f474a2.rmeta: /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/lib.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../src/node-types.json /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../queries/highlights.scm
+
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/lib.rs:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../src/node-types.json:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/../../queries/highlights.scm:

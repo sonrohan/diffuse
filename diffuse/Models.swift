@@ -101,7 +101,7 @@ struct ChangedFile: Identifiable, Codable, Hashable {
     }
 }
 
-struct ChangedSymbol: Identifiable, Codable {
+struct ChangedSymbol: Identifiable, Codable, Hashable {
     let id: UUID
     var analysisRunId: UUID
     var changedFileId: UUID
@@ -111,11 +111,41 @@ struct ChangedSymbol: Identifiable, Codable {
     var endLine: Int
     var callers: [String]
     var callees: [String]
-    var imports: [String]
-    var exports: [String]
+    /// Coarse semantic category from the AST sidecar (e.g. "function_definition", "class_declaration").
+    var semanticType: String
+    /// Extra key/value metadata from the AST sidecar (visibility, is_async, is_critical, semantic_area…).
+    var metadata: [String: String]
 
-    enum SymbolKind: String, Codable {
-        case function, `class`, method, `import`, export, jsx, type
+    enum SymbolKind: String, Codable, Hashable {
+        case function, `class`, method, `import`, export, jsx, type,
+             `struct`, `enum`, `protocol`, `extension`, property, variable,
+             constructor, module, decorated
+    }
+
+    init(
+        id: UUID = UUID(),
+        analysisRunId: UUID,
+        changedFileId: UUID,
+        name: String,
+        kind: SymbolKind,
+        startLine: Int,
+        endLine: Int,
+        callers: [String] = [],
+        callees: [String] = [],
+        semanticType: String = "",
+        metadata: [String: String] = [:]
+    ) {
+        self.id = id
+        self.analysisRunId = analysisRunId
+        self.changedFileId = changedFileId
+        self.name = name
+        self.kind = kind
+        self.startLine = startLine
+        self.endLine = endLine
+        self.callers = callers
+        self.callees = callees
+        self.semanticType = semanticType
+        self.metadata = metadata
     }
 }
 

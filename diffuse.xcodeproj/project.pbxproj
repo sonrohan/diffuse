@@ -8,7 +8,22 @@
 
 /* Begin PBXFileReference section */
 		1CCD22F32FC2969E00CB1237 /* diffuse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = diffuse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB001A0001000000000001 /* diffuse-core */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "diffuse-core"; path = "diffuse-core/target/release/diffuse-core"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AB001B0001000000000002 /* Copy diffuse-core Sidecar */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				AB001C0001000000000003 /* diffuse-core in Copy diffuse-core Sidecar */,
+			);
+			name = "Copy diffuse-core Sidecar";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1CCD22F52FC2969E00CB1237 /* diffuse */ = {
@@ -47,14 +62,47 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXBuildFile section */
+		AB001C0001000000000003 /* diffuse-core in Copy diffuse-core Sidecar */ = {isa = PBXBuildFile; fileRef = AB001A0001000000000001 /* diffuse-core */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AB001D0001000000000004 /* Build diffuse-core (Rust Sidecar) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 0;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/diffuse-core/src",
+				"$(PROJECT_DIR)/diffuse-core/Cargo.toml",
+				"$(PROJECT_DIR)/diffuse-core/Cargo.lock",
+			);
+			name = "Build diffuse-core (Rust Sidecar)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(PROJECT_DIR)/diffuse-core/target/release/diffuse-core",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "set -e\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\ncd \"$PROJECT_DIR/diffuse-core\"\ncargo build --release 2>&1\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXNativeTarget section */
 		1CCD22F22FC2969E00CB1237 /* diffuse */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1CCD22FE2FC2969F00CB1237 /* Build configuration list for PBXNativeTarget "diffuse" */;
 			buildPhases = (
+				AB001D0001000000000004 /* Build diffuse-core (Rust Sidecar) */,
 				1CCD22EF2FC2969E00CB1237 /* Sources */,
 				1CCD22F02FC2969E00CB1237 /* Frameworks */,
 				1CCD22F12FC2969E00CB1237 /* Resources */,
+				AB001B0001000000000002 /* Copy diffuse-core Sidecar */,
 			);
 			buildRules = (
 			);
@@ -257,6 +305,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -289,6 +338,7 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

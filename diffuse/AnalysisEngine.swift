@@ -256,6 +256,49 @@ struct RulesEngine {
             _ = relevantSymbols
         }
 
+        // Check 4 (AST-powered): Authentication / security symbol change
+        // Uses structured metadata from diffuse-core rather than brittle path/text heuristics.
+        for sym in symbols where sym.metadata["semantic_area"] == "security_authentication" {
+            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            addFinding(path, RuleFinding(
+                severity: .high,
+                category: .security,
+                message: "Auth symbol '\(sym.name)' modified. High regression risk — changes to authentication logic must be reviewed for correctness and side effects.",
+                lineStart: sym.startLine,
+                lineEnd: sym.endLine,
+                ruleSource: "security/auth-ast",
+                evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType)) in auth path."
+            ))
+        }
+
+        // Check 5 (AST-powered): Cryptography symbol change
+        for sym in symbols where sym.metadata["semantic_area"] == "security_cryptography" {
+            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            addFinding(path, RuleFinding(
+                severity: .high,
+                category: .security,
+                message: "Cryptographic symbol '\(sym.name)' modified. Encryption/signing changes carry high security risk.",
+                lineStart: sym.startLine,
+                lineEnd: sym.endLine,
+                ruleSource: "security/crypto-ast",
+                evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType)) in crypto path."
+            ))
+        }
+
+        // Check 6 (AST-powered): Payment flow change
+        for sym in symbols where sym.metadata["semantic_area"] == "payment" {
+            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            addFinding(path, RuleFinding(
+                severity: .medium,
+                category: .security,
+                message: "Payment symbol '\(sym.name)' modified. Validate billing flow correctness and test against edge cases.",
+                lineStart: sym.startLine,
+                lineEnd: sym.endLine,
+                ruleSource: "security/payment-ast",
+                evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType)) in payment path."
+            ))
+        }
+
         return fileFindings
     }
 
@@ -471,7 +514,11 @@ struct TriageEngine {
             )
         }
 
-        let semanticHighlights = deriveSemanticHighlights(files: effectiveFiles, bucketIdForPath: bucketIdForPath)
+        let semanticHighlights = deriveSemanticHighlights(
+            symbols: symbols,
+            files: effectiveFiles,
+            bucketIdForPath: bucketIdForPath
+        )
 
         let riskHighlights = (semanticHighlights + ruleHighlights).sorted {
             if $0.severity != $1.severity { return $0.severity > $1.severity }
@@ -580,151 +627,151 @@ struct TriageEngine {
         return .behavior
     }
 
-    private static func addedText(from file: ChangedFile) -> String {
-        file.hunks.flatMap { $0.lines }.filter { $0.hasPrefix("+") && !$0.hasPrefix("+++") }
-            .map { String($0.dropFirst()) }.joined(separator: "\n")
-    }
-
-    private static func removedText(from file: ChangedFile) -> String {
-        file.hunks.flatMap { $0.lines }.filter { $0.hasPrefix("-") && !$0.hasPrefix("---") }
-            .map { String($0.dropFirst()) }.joined(separator: "\n")
-    }
-
-    private static func findAddedLine(in file: ChangedFile, matching patterns: [String]) -> Int? {
-        for hunk in file.hunks {
-            var newLine = hunk.newStart
-            for rawLine in hunk.lines {
-                if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
-                    let content = String(rawLine.dropFirst())
-                    if patterns.contains(where: { content.contains($0) }) {
-                        return newLine
-                    }
-                    newLine += 1
-                } else if !rawLine.hasPrefix("-") {
-                    newLine += 1
-                }
-            }
-        }
-        return firstMeaningfulAddedLine(in: file)
-    }
-
-    private static func firstMeaningfulAddedLine(in file: ChangedFile) -> Int? {
-        for hunk in file.hunks {
-            var newLine = hunk.newStart
-            for rawLine in hunk.lines {
-                if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
-                    let content = String(rawLine.dropFirst()).trimmingCharacters(in: .whitespaces)
-                    if isMeaningfulAddedLine(content) {
-                        return newLine
-                    }
-                    newLine += 1
-                } else if !rawLine.hasPrefix("-") {
-                    newLine += 1
-                }
-            }
-        }
-        return nil
-    }
-
-    private static func isMeaningfulAddedLine(_ content: String) -> Bool {
-        guard !content.isEmpty else { return false }
-        if content.hasPrefix("import ") || content.hasPrefix("package ") { return false }
-        if content.hasPrefix("//") || content.hasPrefix("/*") || content.hasPrefix("*") { return false }
-        return true
-    }
-
-    private static func deriveSemanticHighlights(files: [ChangedFile], bucketIdForPath: (String) -> String) -> [RiskHighlight] {
+    /// Converts AST-extracted symbols into `RiskHighlight` objects for the triage dashboard.
+    ///
+    /// Replaces the old text-sniffing approach. Every classification now comes from
+    /// structured `semantic_area`, `semantic_type`, and `is_test` tags produced by
+    /// the diffuse-core Tree-Sitter sidecar — no substring scanning on raw diff lines.
+    private static func deriveSemanticHighlights(
+        symbols: [ChangedSymbol],
+        files: [ChangedFile],
+        bucketIdForPath: (String) -> String
+    ) -> [RiskHighlight] {
         var highlights: [RiskHighlight] = []
         var counter = 0
 
-        func add(_ file: ChangedFile, severity: Severity, category: RiskCategory, title: String,
-                  lineStart: Int?, lineEnd: Int?, evidence: [String], confidence: String = "high") {
+        func add(
+            filePath: String,
+            severity: Severity,
+            category: RiskCategory,
+            title: String,
+            lineStart: Int?,
+            lineEnd: Int?,
+            evidence: [String],
+            confidence: String = "high",
+            source: String = "ast-classifier"
+        ) {
             highlights.append(RiskHighlight(
                 id: "semantic-\(counter)",
-                bucketId: bucketIdForPath(file.path),
-                severity: severity, category: category, title: title,
-                filePath: file.path, lineStart: lineStart, lineEnd: lineEnd,
-                evidence: evidence, source: "diff-classifier", confidence: confidence
+                bucketId: bucketIdForPath(filePath),
+                severity: severity,
+                category: category,
+                title: title,
+                filePath: filePath,
+                lineStart: lineStart,
+                lineEnd: lineEnd,
+                evidence: evidence,
+                source: source,
+                confidence: confidence
             ))
             counter += 1
         }
 
+        // Build a fast lookup: changedFileId → file path
+        let fileById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0.path) })
+
+        // --- Symbol-level highlights (from AST sidecar) ---
+        for sym in symbols {
+            let filePath = fileById[sym.changedFileId] ?? "unknown"
+            let area = sym.metadata["semantic_area"] ?? ""
+
+            switch area {
+            case "security_authentication":
+                add(filePath: filePath, severity: .high, category: .security,
+                    title: "Auth symbol '\(sym.name)' modified",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: [
+                        "AST-verified: '\(sym.name)' (\(sym.semanticType)) is an authentication entry point.",
+                        "Changes to auth logic must be reviewed for regressions, token invalidation, or bypass risks."
+                    ])
+
+            case "security_cryptography":
+                add(filePath: filePath, severity: .high, category: .security,
+                    title: "Cryptographic symbol '\(sym.name)' modified",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: [
+                        "AST-verified: '\(sym.name)' (\(sym.semanticType)) handles encryption or signing.",
+                        "Cryptographic changes carry elevated risk — verify algorithm correctness and key handling."
+                    ])
+
+            case "payment":
+                add(filePath: filePath, severity: .medium, category: .contract,
+                    title: "Payment symbol '\(sym.name)' modified",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: [
+                        "AST-verified: '\(sym.name)' (\(sym.semanticType)) is in the payment flow.",
+                        "Validate billing correctness and test edge cases (retries, partial failures, idempotency)."
+                    ])
+
+            case "data_deletion":
+                add(filePath: filePath, severity: .medium, category: .data,
+                    title: "Deletion symbol '\(sym.name)' modified",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: [
+                        "AST-verified: '\(sym.name)' (\(sym.semanticType)) performs data deletion.",
+                        "Confirm deletion is intentional, properly scoped, and cascades are handled."
+                    ])
+
+            default:
+                // Non-critical named symbol — emit a low-severity reviewLoad signal for
+                // any public/exposed declaration that changed.
+                if sym.metadata["visibility"] == "public" || sym.metadata["visibility"] == nil {
+                    let isTest = sym.metadata["is_test"] == "true"
+                    if isTest {
+                        add(filePath: filePath, severity: .info, category: .testGap,
+                            title: "Test '\(sym.name)' updated",
+                            lineStart: sym.startLine, lineEnd: sym.endLine,
+                            evidence: ["Test coverage updated for '\(sym.name)'."],
+                            confidence: "medium")
+                    } else if sym.semanticType == "class_declaration" || sym.semanticType == "struct_declaration"
+                        || sym.semanticType == "protocol_declaration" || sym.semanticType == "interface_declaration" {
+                        add(filePath: filePath, severity: .low, category: .contract,
+                            title: "\(sym.semanticType.replacingOccurrences(of: "_", with: " ").capitalized) '\(sym.name)' changed",
+                            lineStart: sym.startLine, lineEnd: sym.endLine,
+                            evidence: ["Public type '\(sym.name)' changed — check callers and conformances."],
+                            confidence: "medium")
+                    }
+                }
+            }
+        }
+
+        // --- File-level highlights (no sidecar data available, or non-source files) ---
+        // Only fires for files that produced zero symbols (binary, unsupported language, etc.)
+        let filesWithSymbols = Set(symbols.map { $0.changedFileId })
         for file in files {
-            let path = file.path.lowercased()
-            let additions = addedText(from: file)
-            let removals = removedText(from: file)
-
-            if file.classification == .test {
-                add(file, severity: .info, category: .testGap,
-                    title: "Tests exercise newly added behavior",
-                    lineStart: firstMeaningfulAddedLine(in: file),
-                    lineEnd: nil,
+            // Test files not covered by a symbol highlight
+            if file.classification == .test && !filesWithSymbols.contains(file.id) {
+                add(filePath: file.path, severity: .info, category: .testGap,
+                    title: "Tests updated",
+                    lineStart: nil, lineEnd: nil,
                     evidence: ["\(file.path) adds or updates test coverage."],
-                    confidence: "medium")
-                continue
+                    confidence: "medium",
+                    source: "file-classifier")
             }
 
-            guard file.classification == .source else { continue }
-
-            // Auth-related changes
-            if path.contains("auth") || path.contains("session") || path.contains("token") {
-                if additions.contains("validate") || additions.contains("verify") || additions.contains("sign") {
-                    add(file, severity: .high, category: .security,
-                        title: "Auth or token validation logic changed",
-                        lineStart: findAddedLine(in: file, matching: ["validate", "verify", "sign", "token"]),
-                        lineEnd: nil,
-                        evidence: ["Changes to auth/session paths affect token validation. Review carefully for regressions."])
-                }
-            }
-
-            // Schema/migration
-            if path.hasSuffix(".sql") || path.contains("migration") {
-                add(file, severity: .medium, category: .data,
+            // SQL migrations and config-tracked schema files — path-based, no AST needed
+            let lpath = file.path.lowercased()
+            if file.classification == .source && (lpath.hasSuffix(".sql") || lpath.contains("migration")) {
+                add(filePath: file.path, severity: .medium, category: .data,
                     title: "Database schema migration",
-                    lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
-                    evidence: ["Schema changes can affect existing data. Check for missing backfills or default values."])
+                    lineStart: nil, lineEnd: nil,
+                    evidence: ["Schema changes can affect existing data. Check for missing backfills or default values."],
+                    source: "file-classifier")
             }
 
-            // Data model shape changes (Kotlin/Swift data classes)
-            if path.contains("/data/") && (additions.contains("data class") || additions.contains("enum class") || additions.contains("struct ")) {
-                add(file, severity: .medium, category: .data,
-                    title: "Domain model shape changed",
-                    lineStart: findAddedLine(in: file, matching: ["data class", "enum class", "struct "]),
-                    lineEnd: nil,
-                    evidence: ["New fields, enum values, or types can affect persistence and UI assumptions."])
-            }
-
-            // ViewModel exposing new state
-            if path.contains("viewmodel") {
-                add(file, severity: .medium, category: .contract,
-                    title: "ViewModel exposes new state or actions",
-                    lineStart: findAddedLine(in: file, matching: ["val ", "var ", "fun ", "StateFlow", "MutableStateFlow", "LiveData", "sealed ", "class "]),
-                    lineEnd: nil,
-                    evidence: ["State-management API changed. Review how UI consumes new state."])
-            }
-
-            // Dashboard metric swaps
-            if !additions.isEmpty && !removals.isEmpty {
-                let addedWords = Set(additions.components(separatedBy: .whitespaces))
-                let removedWords = Set(removals.components(separatedBy: .whitespaces))
-                let swapped = addedWords.intersection(["score", "metric", "Health", "Plan"]).count > 0 &&
-                              removedWords.intersection(["minutes", "count", "total", "focus"]).count > 0
-                if swapped {
-                    add(file, severity: .medium, category: .contract,
-                        title: "UI metric or display logic changed",
-                        lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
-                        evidence: ["A previously visible metric appears replaced. Validate this as an intentional product change."])
+            // Large UI surfaces with no symbol detail (e.g. JSX/TSX not yet parsed)
+            if !filesWithSymbols.contains(file.id) && file.classification == .source && file.additions > 20 {
+                let isUI = lpath.contains("/ui/") || lpath.hasSuffix(".tsx") || lpath.hasSuffix(".jsx")
+                    || lpath.hasSuffix("screen.kt") || lpath.hasSuffix(".swift")
+                if isUI {
+                    let screenName = URL(fileURLWithPath: file.path).deletingPathExtension().lastPathComponent
+                    add(filePath: file.path, severity: .info, category: .reviewLoad,
+                        title: "\(screenName) user-facing surface changed",
+                        lineStart: nil, lineEnd: nil,
+                        evidence: ["\(file.additions) added lines may affect visible copy, controls, or layout."],
+                        confidence: "low",
+                        source: "file-classifier")
                 }
-            }
-
-            // Large UI changes
-            if (path.contains("/ui/") || path.hasSuffix(".tsx") || path.hasSuffix(".jsx") || path.hasSuffix("screen.kt") || path.hasSuffix(".swift")) && file.additions > 20 {
-                let screenName = URL(fileURLWithPath: file.path).deletingPathExtension().lastPathComponent
-                add(file, severity: .info, category: .reviewLoad,
-                    title: "\(screenName) user-facing surface changed",
-                    lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
-                    evidence: ["\(file.additions) added lines affect visible copy, controls, or layout."],
-                    confidence: "medium")
             }
         }
 

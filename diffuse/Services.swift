@@ -244,6 +244,132 @@ actor GitService {
 }
 
 
+// MARK: - AST Analysis Service
+// Spawns the bundled diffuse-core sidecar to extract semantic AST symbols.
+
+actor ASTAnalysisService {
+
+    /// Raw JSON model matching diffuse-core's AstSymbol output.
+    private struct SidecarSymbol: Codable {
+        let line: Int
+        let end_line: Int
+        let semantic_type: String
+        let name: String
+        let language: String
+        let metadata: [String: String]
+    }
+
+    /// Locate the bundled sidecar binary. During development it falls back to the
+    /// debug build next to the project so the app can be tested without a full
+    /// Xcode release build.
+    private func sidecarURL() -> URL? {
+        // 1. App bundle (production)
+        if let url = Bundle.main.url(forAuxiliaryExecutable: "diffuse-core") {
+            return url
+        }
+        // 2. Dev fallback — sibling directory next to the .xcodeproj
+        if let bundlePath = Bundle.main.bundlePath
+            .components(separatedBy: "/diffuse.app").first {
+            let devBinary = URL(fileURLWithPath: bundlePath)
+                .appendingPathComponent("diffuse-core/target/debug/diffuse-core")
+            if FileManager.default.isExecutableFile(atPath: devBinary.path) {
+                return devBinary
+            }
+            // Also try release build
+            let releaseBinary = URL(fileURLWithPath: bundlePath)
+                .appendingPathComponent("diffuse-core/target/release/diffuse-core")
+            if FileManager.default.isExecutableFile(atPath: releaseBinary.path) {
+                return releaseBinary
+            }
+        }
+        return nil
+    }
+
+    /// Parse a single file and return symbols intersecting the given 1-based line numbers.
+    func parseSymbols(
+        for fileURL: URL,
+        changedLines: [Int],
+        analysisRunId: UUID,
+        changedFileId: UUID
+    ) async -> [ChangedSymbol] {
+        guard !changedLines.isEmpty else { return [] }
+        guard let helperURL = sidecarURL() else {
+            print("[ASTAnalysisService] diffuse-core binary not found")
+            return []
+        }
+
+        let process = Process()
+        process.executableURL = helperURL
+        let linesArg = changedLines.map(String.init).joined(separator: ",")
+        process.arguments = ["analyze", "--file", fileURL.path, "--lines", linesArg]
+
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            guard !data.isEmpty else { return [] }
+
+            let sidecarSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
+            return sidecarSymbols.map { s in
+                ChangedSymbol(
+                    analysisRunId: analysisRunId,
+                    changedFileId: changedFileId,
+                    name: s.name,
+                    kind: mapSymbolKind(s.semantic_type),
+                    startLine: s.line,
+                    endLine: s.end_line,
+                    semanticType: s.semantic_type,
+                    metadata: s.metadata
+                )
+            }
+        } catch {
+            let errOutput = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            print("[ASTAnalysisService] error for \(fileURL.lastPathComponent): \(error) — sidecar: \(errOutput)")
+            return []
+        }
+    }
+
+    private func mapSymbolKind(_ semanticType: String) -> ChangedSymbol.SymbolKind {
+        switch semanticType {
+        case "function_definition", "function_declaration": return .function
+        case "method_definition", "constructor_declaration":  return .method
+        case "class_declaration":                            return .class
+        case "struct_declaration":                           return .struct
+        case "enum_declaration":                             return .enum
+        case "protocol_declaration", "interface_declaration": return .protocol
+        case "extension_declaration":                        return .extension
+        case "type_alias":                                   return .type
+        case "property_declaration", "variable_declaration": return .property
+        case "module_declaration", "object_declaration":    return .module
+        case "decorated_definition":                         return .decorated
+        default:                                             return .function
+        }
+    }
+}
+
+/// Extract all 1-based new-side line numbers that were added or changed within a file's diff hunks.
+private func changedLinesFromHunks(_ hunks: [DiffHunk]) -> [Int] {
+    var lines: [Int] = []
+    for hunk in hunks {
+        var currentLine = hunk.newStart
+        for rawLine in hunk.lines {
+            if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
+                lines.append(currentLine)
+                currentLine += 1
+            } else if !rawLine.hasPrefix("-") {
+                currentLine += 1
+            }
+        }
+    }
+    return lines
+}
+
 // MARK: - Persistence Service
 // Simple JSON-based persistence (no external DB dependency)
 
@@ -471,8 +597,28 @@ class AnalysisCoordinator: ObservableObject {
             }
             await persistence.insertFiles(changedFiles)
 
+            // --- AST Symbol Extraction via sidecar ---
+            let astService = ASTAnalysisService()
+            var allSymbols: [ChangedSymbol] = []
+            for changedFile in changedFiles where changedFile.classification == .source {
+                let fileURL = URL(fileURLWithPath: path)
+                    .appendingPathComponent(changedFile.path)
+                let lines = changedLinesFromHunks(changedFile.hunks)
+                let symbols = await astService.parseSymbols(
+                    for: fileURL,
+                    changedLines: lines,
+                    analysisRunId: run.id,
+                    changedFileId: changedFile.id
+                )
+                allSymbols.append(contentsOf: symbols)
+            }
+            if !allSymbols.isEmpty {
+                await persistence.insertSymbols(allSymbols)
+            }
+            // -----------------------------------------
+
             // Run deterministic rules
-            let ruleResults = RulesEngine.runDeterministicRules(files: parsedFiles, symbols: [])
+            let ruleResults = RulesEngine.runDeterministicRules(files: parsedFiles, symbols: allSymbols)
             var allFindings: [Finding] = []
             for (path, rulefindings) in ruleResults {
                 let matchFile = changedFiles.first { $0.path == path }
@@ -490,7 +636,7 @@ class AnalysisCoordinator: ObservableObject {
             await persistence.insertFindings(allFindings)
 
             // Calculate risk score
-            let breakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: [], findings:
+            let breakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: allSymbols, findings:
                 allFindings.map {
                     RulesEngine.RuleFinding(severity: $0.severity, category: $0.category, message: $0.message,
                                            lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource, evidence: $0.evidence)

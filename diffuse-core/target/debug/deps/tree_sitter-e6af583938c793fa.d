@@ -1,0 +1,14 @@
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/deps/tree_sitter-e6af583938c793fa.d: /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/lib.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/ffi.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/util.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./README.md /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./bindings.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/array.h /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/parser.h /Users/rohan/repos/diffuse/diffuse-core/target/debug/build/tree-sitter-9703bb7a9fc4c2f7/out/stdlib-symbols.txt
+
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/deps/libtree_sitter-e6af583938c793fa.rmeta: /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/lib.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/ffi.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/util.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./README.md /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./bindings.rs /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/array.h /Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/parser.h /Users/rohan/repos/diffuse/diffuse-core/target/debug/build/tree-sitter-9703bb7a9fc4c2f7/out/stdlib-symbols.txt
+
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/lib.rs:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/ffi.rs:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/util.rs:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./README.md:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/./bindings.rs:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/array.h:
+/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/../src/parser.h:
+/Users/rohan/repos/diffuse/diffuse-core/target/debug/build/tree-sitter-9703bb7a9fc4c2f7/out/stdlib-symbols.txt:
+
+# env-dep:OUT_DIR=/Users/rohan/repos/diffuse/diffuse-core/target/debug/build/tree-sitter-9703bb7a9fc4c2f7/out

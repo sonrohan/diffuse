@@ -1,0 +1,33 @@
+[package]
+name = "diffuse-core"
+version = "0.1.0"
+edition = "2021"
+description = "AST analysis sidecar for Diffuse — extracts semantic symbols from changed files using Tree-Sitter"
+
+[[bin]]
+name = "diffuse-core"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tree-sitter = "0.23"
+
+# Language grammars — pinned to versions compatible with tree-sitter 0.23 new-style API
+tree-sitter-swift = "0.6"
+# tree-sitter-kotlin 0.3.x uses old API; use -ng fork which has the new API
+tree-sitter-kotlin-ng = "1.1"
+tree-sitter-typescript = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-rust = "0.23"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

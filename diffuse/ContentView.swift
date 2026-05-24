@@ -44,7 +44,7 @@ struct AppHeaderView: View {
         HStack(spacing: 0) {
             // Spacer to avoid macOS traffic lights window controls
             Spacer()
-                .frame(width: 72)
+                .frame(width: 16)
             
             // Logo & Title
             HStack(spacing: 8) {
@@ -200,60 +200,65 @@ struct AppHeaderView: View {
                         .disabled(!canGoToPreviousCommit)
                         .help("Previous Commit")
                         
-                        // Dropdown menu showing current commit / scope
-                        Menu {
-                            Button {
-                                Task { await state.selectCommit(nil) }
-                            } label: {
-                                if state.selectedCommitSha == nil {
-                                    Text("✓ All Changes")
-                                } else {
-                                    Text("All Changes")
-                                }
-                            }
-                            
-                            Divider()
-                            
-                            ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
-                                Button {
-                                    Task { await state.selectCommit(commit.sha) }
-                                } label: {
-                                    if state.selectedCommitSha == commit.sha {
-                                        Text("✓ C\(idx + 1): \(commit.subject)")
+                        // Custom Dropdown menu showing current commit / scope
+                        ZStack {
+                            // 1. The custom styled label that determines size and supports responsive ViewThatFits
+                            ViewThatFits(in: .horizontal) {
+                                // Expanded layout: shows badge + commit subject + custom chevron
+                                HStack(spacing: 5) {
+                                    if state.selectedCommitSha == nil {
+                                        Image(systemName: "sum")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(.accentBlue)
+                                        Text("All Changes")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.textPrimary)
                                     } else {
-                                        Text("C\(idx + 1): \(commit.subject)")
+                                        let activeIdx = state.commits.firstIndex(where: { $0.sha == state.selectedCommitSha }) ?? 0
+                                        let activeCommit = state.commits[activeIdx]
+                                        Text("C\(activeIdx + 1)")
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.accentPurple)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(Color.accentPurple.opacity(0.12))
+                                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                                        Text(activeCommit.subject)
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.textPrimary)
+                                            .lineLimit(1)
+                                            .frame(maxWidth: 220, alignment: .leading)
                                     }
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 5) {
-                                if state.selectedCommitSha == nil {
-                                    Image(systemName: "sum")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.accentBlue)
-                                    Text("All Changes")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.textPrimary)
-                                } else {
-                                    let activeIdx = state.commits.firstIndex(where: { $0.sha == state.selectedCommitSha }) ?? 0
-                                    let activeCommit = state.commits[activeIdx]
-                                    Text("C\(activeIdx + 1)")
-                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                        .foregroundColor(.accentPurple)
-                                        .padding(.horizontal, 4)
-                                        .padding(.vertical, 1)
-                                        .background(Color.accentPurple.opacity(0.12))
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                                    Text(activeCommit.subject)
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.textPrimary)
-                                        .lineLimit(1)
-                                        .frame(maxWidth: 180, alignment: .leading)
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.textTertiary)
                                 }
                                 
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.textTertiary)
+                                // Compact fallback layout: only shows badge + custom chevron
+                                HStack(spacing: 5) {
+                                    if state.selectedCommitSha == nil {
+                                        Image(systemName: "sum")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(.accentBlue)
+                                        Text("All")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.textPrimary)
+                                    } else {
+                                        let activeIdx = state.commits.firstIndex(where: { $0.sha == state.selectedCommitSha }) ?? 0
+                                        Text("C\(activeIdx + 1)")
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.accentPurple)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(Color.accentPurple.opacity(0.12))
+                                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                                    }
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.textTertiary)
+                                }
                             }
                             .padding(.horizontal, 8)
                             .frame(height: 20)
@@ -263,9 +268,41 @@ struct AppHeaderView: View {
                                 RoundedRectangle(cornerRadius: 4)
                                     .stroke(Color.borderDefault.opacity(0.8), lineWidth: 0.5)
                             )
+                            
+                            // 2. The native menu, made completely transparent, sitting on top to intercept clicks
+                            Menu {
+                                Button {
+                                    Task { await state.selectCommit(nil) }
+                                } label: {
+                                    if state.selectedCommitSha == nil {
+                                        Text("✓ All Changes")
+                                    } else {
+                                        Text("All Changes")
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
+                                    Button {
+                                        Task { await state.selectCommit(commit.sha) }
+                                    } label: {
+                                        if state.selectedCommitSha == commit.sha {
+                                            Text("✓ C\(idx + 1): \(commit.subject)")
+                                        } else {
+                                            Text("C\(idx + 1): \(commit.subject)")
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.0001))
+                                    .frame(maxHeight: 20)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .menuIndicator(.hidden)
+                            .buttonStyle(.plain)
                         }
-                        .menuStyle(.borderlessButton)
-                        .buttonStyle(.plain)
                         
                         // Next commit
                         Button {

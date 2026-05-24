@@ -9,6 +9,7 @@ struct DiffViewerPanel: View {
     @State private var hideBoilerplate = false
     @State private var isFileSidebarCollapsed = false
     @State private var compactFileTree = true
+    @State private var fileSidebarWidth: CGFloat = 220
 
     var activeFile: ChangedFile? {
         guard let id = state.activeFileId else { return filteredFiles.first }
@@ -67,8 +68,8 @@ struct DiffViewerPanel: View {
             HStack(spacing: 0) {
                 // File list sidebar
                 if !isFileSidebarCollapsed {
-                    FileListSidebar(files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree)
-                    Divider()
+                    FileListSidebar(files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree, width: fileSidebarWidth)
+                    PaneDivider(width: $fileSidebarWidth, minWidth: 140, maxWidth: 420)
                 }
 
                 // Diff content
@@ -99,6 +100,7 @@ struct FileListSidebar: View {
     let files: [ChangedFile]
     let activeFile: ChangedFile?
     let compactTree: Bool
+    var width: CGFloat = 220
     @State private var collapsedFolders: Set<String> = []
 
     var roots: [FileTreeNode] {
@@ -129,7 +131,7 @@ struct FileListSidebar: View {
                 }
             }
         }
-        .frame(width: 220)
+        .frame(width: width)
         .background(Color.bgSubtle)
     }
 }

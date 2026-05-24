@@ -10,7 +10,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(showAnalyzeSheet: $showAnalyzeSheet)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 500)
         } detail: {
             DetailView()
         }
@@ -469,6 +469,7 @@ struct DetailView: View {
 struct AnalysisDetailView: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
+    @State private var navRailWidth: CGFloat = 360
 
     var body: some View {
         VStack(spacing: 0) {
@@ -488,9 +489,9 @@ struct AnalysisDetailView: View {
                         .padding(12)
                     }
                 }
-                .frame(width: 360)
+                .frame(width: navRailWidth)
 
-                Divider()
+                PaneDivider(width: $navRailWidth, minWidth: 220, maxWidth: 560)
 
                 // Right pane: context + diff
                 VStack(spacing: 0) {
@@ -501,6 +502,51 @@ struct AnalysisDetailView: View {
             }
         }
         .background(Color.bgCanvas)
+    }
+}
+
+// MARK: - Resizable Pane Divider
+
+/// A thin draggable handle that adjusts a pane's width.
+struct PaneDivider: View {
+    @Binding var width: CGFloat
+    var minWidth: CGFloat = 160
+    var maxWidth: CGFloat = 800
+    @State private var isDragging = false
+    @State private var startingWidth: CGFloat = 0
+
+    var body: some View {
+        Rectangle()
+            .fill(isDragging ? Color.accentBlue.opacity(0.55) : Color.borderDefault.opacity(0.9))
+            .frame(width: 1)
+            .overlay(
+                // Wider invisible hit area for easy grabbing
+                Color.clear
+                    .frame(width: 8)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                            .onChanged { value in
+                                if !isDragging {
+                                    isDragging = true
+                                    startingWidth = width
+                                }
+                                let proposed = startingWidth + value.translation.width
+                                width = max(minWidth, min(maxWidth, proposed))
+                            }
+                            .onEnded { _ in
+                                isDragging = false
+                            }
+                    )
+            )
+            .animation(.easeInOut(duration: 0.1), value: isDragging)
     }
 }
 

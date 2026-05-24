@@ -98,6 +98,49 @@ struct DiffViewerPanel: View {
 
                 Spacer()
 
+                // Diff Layout Selector
+                Menu {
+                    Button {
+                        state.diffLayout = .unified
+                    } label: {
+                        if state.diffLayout == .unified {
+                            Text("✓ Unified")
+                        } else {
+                            Text("Unified")
+                        }
+                    }
+                    Button {
+                        state.diffLayout = .split
+                    } label: {
+                        if state.diffLayout == .split {
+                            Text("✓ Split")
+                        } else {
+                            Text("Split")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: state.diffLayout == .unified ? "doc.text" : "square.split.2x1")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(state.diffLayout == .unified ? "Unified" : "Split")
+                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundColor(.textTertiary)
+                    }
+                    .foregroundColor(.textSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color(NSColor.controlColor).opacity(0.45))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.borderMuted, lineWidth: 0.5)
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .help("Change diff layout")
+
                 DiffToolbarButton(
                     systemImage: "sidebar.left",
                     help: isFileSidebarCollapsed ? "Show changed files" : "Hide changed files"
@@ -804,7 +847,14 @@ struct DiffContent: View {
 
 // MARK: - Hunk View
 
+struct AlignedDiffLine: Identifiable {
+    let id = UUID()
+    let oldLine: NumberedDiffLine?
+    let newLine: NumberedDiffLine?
+}
+
 struct HunkView: View {
+    @Environment(AppState.self) private var state
     let hunk: DiffHunk
     let hunkIndex: Int
     let fileId: UUID
@@ -829,6 +879,42 @@ struct HunkView: View {
 
             return numbered
         }
+    }
+
+    var alignedDiffLines: [AlignedDiffLine] {
+        var aligned: [AlignedDiffLine] = []
+        
+        var pendingDeletions: [NumberedDiffLine] = []
+        var pendingAdditions: [NumberedDiffLine] = []
+        
+        func flushPending() {
+            let maxCount = max(pendingDeletions.count, pendingAdditions.count)
+            for i in 0..<maxCount {
+                let old = i < pendingDeletions.count ? pendingDeletions[i] : nil
+                let new = i < pendingAdditions.count ? pendingAdditions[i] : nil
+                aligned.append(AlignedDiffLine(oldLine: old, newLine: new))
+            }
+            pendingDeletions.removeAll()
+            pendingAdditions.removeAll()
+        }
+        
+        for line in diffLines {
+            switch line.type {
+            case .context:
+                flushPending()
+                aligned.append(AlignedDiffLine(oldLine: line, newLine: line))
+            case .deleted:
+                pendingDeletions.append(line)
+            case .added:
+                pendingAdditions.append(line)
+            case .metadata:
+                flushPending()
+                aligned.append(AlignedDiffLine(oldLine: line, newLine: line))
+            }
+        }
+        flushPending()
+        
+        return aligned
     }
 
     var body: some View {
@@ -862,8 +948,14 @@ struct HunkView: View {
             // Hunk lines
             if !isCollapsed {
                 VStack(spacing: 0) {
-                    ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
-                        DiffLine(line: line)
+                    if state.diffLayout == .split {
+                        ForEach(alignedDiffLines) { alignedLine in
+                            SplitDiffLine(alignedLine: alignedLine)
+                        }
+                    } else {
+                        ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
+                            DiffLine(line: line)
+                        }
                     }
                 }
                 .font(.system(size: 12, design: .monospaced))
@@ -882,6 +974,97 @@ struct HunkView: View {
         ))
     }
 }
+
+struct SplitDiffLine: View {
+    let alignedLine: AlignedDiffLine
+
+    var body: some View {
+        HStack(spacing: 0) {
+            SplitDiffSideLine(line: alignedLine.oldLine, isLeft: true)
+            Rectangle()
+                .fill(Color.borderMuted)
+                .frame(width: 1)
+            SplitDiffSideLine(line: alignedLine.newLine, isLeft: false)
+        }
+    }
+}
+
+struct SplitDiffSideLine: View {
+    let line: NumberedDiffLine?
+    let isLeft: Bool
+
+    var bgColor: Color {
+        guard let line else {
+            return Color.bgSubtle.opacity(0.3) // Blank placeholder background
+        }
+        switch line.type {
+        case .added: return Color.diffAddedBg
+        case .deleted: return Color.diffDeletedBg
+        case .context, .metadata: return Color.clear
+        }
+    }
+
+    var prefixColor: Color {
+        guard let line else { return .clear }
+        switch line.type {
+        case .added: return Color.diffAddedFg
+        case .deleted: return Color.diffDeletedFg
+        case .context, .metadata: return Color.textTertiary
+        }
+    }
+
+    var prefix: String {
+        guard let line else { return "" }
+        switch line.type {
+        case .added: return "+"
+        case .deleted: return "−"
+        case .context: return " "
+        case .metadata: return "\\"
+        }
+    }
+
+    var lineContent: String {
+        guard let line else { return "" }
+        guard !line.rawLine.isEmpty else { return "" }
+        if line.type == .metadata { return String(line.rawLine.dropFirst()).trimmingCharacters(in: .whitespaces) }
+        return String(line.rawLine.dropFirst())
+    }
+
+    var lineNumber: Int? {
+        guard let line else { return nil }
+        return isLeft ? line.oldLineNumber : line.newLineNumber
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Line number gutter
+            Text(lineNumber.map(String.init) ?? "")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.textTertiary)
+                .frame(width: 44, alignment: .trailing)
+                .padding(.trailing, 6)
+                .background(Color.bgSubtle.opacity(0.65))
+
+            // Prefix gutter
+            Text(prefix)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(prefixColor)
+                .frame(width: 18, alignment: .center)
+                .background(Color.bgSubtle.opacity(0.65))
+
+            // Line content
+            Text(lineContent)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(line?.type == .context ? Color.textPrimary.opacity(0.75) : line?.type == .metadata ? .textTertiary : .textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 8)
+                .padding(.trailing, 12)
+        }
+        .frame(minHeight: 20)
+        .background(bgColor)
+    }
+}
+
 
 // MARK: - Diff Line
 

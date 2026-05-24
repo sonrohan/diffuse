@@ -31,7 +31,9 @@ class AppState {
     var isLowerSignalViewSelected = false
     var activeFileId: UUID?
     var activeHunkIndex: Int?
+    var diffLayout: DiffLayout = .unified
     var isAnalyzing = false
+
     var analysisError: String?
 
     let coordinator = AnalysisCoordinator()

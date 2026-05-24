@@ -2,6 +2,14 @@ import Foundation
 
 // MARK: - Core Models
 
+enum DiffLayout: String, CaseIterable, Identifiable, Codable {
+    case unified = "Unified"
+    case split = "Split"
+
+    var id: String { self.rawValue }
+}
+
+
 struct PullRequest: Identifiable, Codable, Hashable {
     let id: UUID
     var prNumber: Int

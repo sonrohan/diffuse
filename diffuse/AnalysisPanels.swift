@@ -9,33 +9,38 @@ struct PRHeaderBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
+            HStack(spacing: 12) {
                 Image(systemName: "arrow.triangle.merge")
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.successColor)
+                    .frame(width: 20)
 
-                Text(pr.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 7) {
+                        Text(pr.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
 
-                Text("#\(pr.prNumber)")
-                    .font(.system(size: 12))
-                    .foregroundColor(.textTertiary)
+                        Text("#\(pr.prNumber)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.textTertiary)
+                    }
 
-                HStack(spacing: 4) {
-                    Image(systemName: "point.3.connected.trianglepath.dotted")
-                        .font(.system(size: 10))
-                        .foregroundColor(.textTertiary)
-                    Text("\(pr.baseSha.prefix(7))")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 9))
-                        .foregroundColor(.textTertiary)
-                    Text("\(pr.headSha.prefix(7))")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
+                    HStack(spacing: 5) {
+                        Image(systemName: "point.3.connected.trianglepath.dotted")
+                            .font(.system(size: 9))
+                            .foregroundColor(.textTertiary)
+                        Text("\(pr.baseSha.prefix(7))")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.textSecondary)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 8))
+                            .foregroundColor(.textTertiary)
+                        Text("\(pr.headSha.prefix(7))")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.textSecondary)
+                    }
                 }
 
                 Spacer()
@@ -80,16 +85,24 @@ struct AnalysisNavigationRail: View {
 
             AllChangesNavRow(
                 fileCount: details.files.count,
-                signalCount: details.riskHighlights.count,
-                isSelected: state.selectedBucketId == nil
+                isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected
             ) {
                 state.selectAllChanges()
+            }
+
+            if !details.skimTargets.isEmpty {
+                LowerSignalNavRow(
+                    fileCount: details.skimTargets.count,
+                    isSelected: state.isLowerSignalViewSelected
+                ) {
+                    state.selectLowerSignalChanges()
+                }
             }
 
             RailSectionHeader(
                 title: "Signals",
                 count: prioritySignals.count,
-                help: "Specific findings that may deserve attention, such as contract changes, data model shifts, or behavior-impacting edits."
+                help: "Concrete analyzer signals that may deserve attention, such as contract changes, data model shifts, or behavior-impacting edits."
             )
 
             if prioritySignals.isEmpty {
@@ -117,7 +130,6 @@ struct AnalysisNavigationRail: View {
                     ForEach(details.changeBuckets) { bucket in
                         AreaNavRow(
                             bucket: bucket,
-                            signalCount: details.riskHighlights.filter { $0.bucketId == bucket.id }.count,
                             isSelected: state.selectedBucketId == bucket.id
                         ) {
                             state.selectBucket(bucket.id)
@@ -149,6 +161,7 @@ struct RailSectionHeader: View {
     let title: String
     let count: Int?
     var help: String? = nil
+    @State private var isShowingHelp = false
 
     var body: some View {
         HStack {
@@ -157,10 +170,26 @@ struct RailSectionHeader: View {
                 .foregroundColor(.textTertiary)
                 .kerning(0.5)
             if let help {
-                Image(systemName: "info.circle")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.textTertiary)
-                    .help(help)
+                Button {
+                    isShowingHelp.toggle()
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.textTertiary)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(help)
+                .popover(isPresented: $isShowingHelp, arrowEdge: .trailing) {
+                    Text(help)
+                        .font(.system(size: 12))
+                        .foregroundColor(.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: 220, alignment: .leading)
+                        .padding(12)
+                        .background(Color.bgCanvas)
+                }
             }
             Spacer()
             if let count {
@@ -176,7 +205,6 @@ struct RailSectionHeader: View {
 
 struct AllChangesNavRow: View {
     let fileCount: Int
-    let signalCount: Int
     let isSelected: Bool
     let action: () -> Void
     @State private var isHovered = false
@@ -202,7 +230,7 @@ struct AllChangesNavRow: View {
                             .background(Color.accentBlue.opacity(0.10))
                             .clipShape(Capsule())
                     }
-                    Text("\(fileCount) files · \(signalCount) signals")
+                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
                 }
@@ -217,6 +245,50 @@ struct AllChangesNavRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
+    }
+}
+
+struct LowerSignalNavRow: View {
+    let fileCount: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Lower-Signal Changes")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 8)
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Configuration, documentation, generated, or boilerplate files that are usually safe to skim.")
     }
 
     private var rowBackground: Color {
@@ -267,7 +339,6 @@ struct SignalNavRow: View {
 
 struct AreaNavRow: View {
     let bucket: ChangeBucket
-    let signalCount: Int
     let isSelected: Bool
     let action: () -> Void
     @State private var isHovered = false
@@ -286,7 +357,7 @@ struct AreaNavRow: View {
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
 
-                    Text("\(bucket.files.count) files · \(signalCount) signals")
+                    Text(bucket.files.count == 1 ? "1 file" : "\(bucket.files.count) files")
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
                 }
@@ -488,7 +559,7 @@ struct SemanticBucketsPanel: View {
                 VStack(spacing: 6) {
                     AllChangesCard(
                         fileCount: details.files.count,
-                        signalCount: details.riskHighlights.count,
+                        signalCount: details.riskHighlights.filter { $0.severity >= .medium }.count,
                         isSelected: state.selectedBucketId == nil
                     ) {
                         state.selectAllChanges()
@@ -581,6 +652,7 @@ struct BucketCard: View {
     @State private var isHovered = false
 
     var primarySignal: RiskHighlight? { highlights.first }
+    var prioritySignalCount: Int { highlights.filter { $0.severity >= .medium }.count }
 
     var body: some View {
         Button(action: action) {
@@ -612,7 +684,7 @@ struct BucketCard: View {
                     Label("\(bucket.files.count) files", systemImage: "doc.text")
                         .font(.system(size: 11))
                         .foregroundColor(.textTertiary)
-                    Label("\(highlights.count) signals", systemImage: "exclamationmark.shield")
+                    Label("\(prioritySignalCount) signals", systemImage: "exclamationmark.shield")
                         .font(.system(size: 11))
                         .foregroundColor(.textTertiary)
                 }
@@ -863,29 +935,88 @@ struct SelectedContextBar: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
 
+    var nextTarget: ReviewTarget? {
+        state.bucketTargets.first { $0.changedFileId != nil }
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("CURRENT VIEW")
+                Text("REVIEW SCOPE")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.textTertiary)
                     .kerning(0.5)
-                Text(state.selectedBucket?.title ?? "All changes")
+                Text(state.selectedReviewScopeTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                Text(state.selectedReviewScopeSubtitle)
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
             }
             Spacer()
-            HStack(spacing: 10) {
-                Label("\(state.bucketFiles.count) files", systemImage: "doc.text.fill")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-                Label("\(state.bucketHighlights.count) signals", systemImage: "exclamationmark.shield.fill")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
+
+            HStack(spacing: 7) {
+                ContextStatChip(icon: "doc.text.fill", text: "\(state.bucketFiles.count) files")
+                if state.selectedScopeSignalCount > 0 {
+                    ContextStatChip(icon: "exclamationmark.shield.fill", text: "\(state.selectedScopeSignalCount) signals")
+                }
+                if state.bucketTargets.count > 0 {
+                    ContextStatChip(icon: "target", text: "\(state.bucketTargets.count) targets")
+                }
+
+                if let nextTarget, let fileId = nextTarget.changedFileId {
+                    Button {
+                        state.jumpToFile(fileId, hunkIndex: nextTarget.hunkIndex)
+                    } label: {
+                        Label("Review next", systemImage: "arrow.right.circle.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentBlue)
+                    .help(nextTarget.title)
+                }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color.bgSubtle)
+    }
+}
+
+private extension AppState {
+    var selectedReviewScopeTitle: String {
+        if isLowerSignalViewSelected { return "Lower-signal changes" }
+        return selectedBucket?.title ?? "All changes"
+    }
+
+    var selectedReviewScopeSubtitle: String {
+        if isLowerSignalViewSelected {
+            return "Configuration, documentation, generated, and boilerplate files."
+        }
+        if let selectedBucket {
+            return selectedBucket.summary
+        }
+        return "Unfiltered branch and working tree changes."
+    }
+
+    var selectedScopeSignalCount: Int {
+        bucketHighlights.filter { $0.severity >= .medium }.count
+    }
+}
+
+struct ContextStatChip: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: icon)
+            .font(.system(size: 11))
+            .foregroundColor(.textSecondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Color(NSColor.controlColor).opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }

@@ -137,34 +137,32 @@ struct SidebarView: View {
                     if let selectedRepo = state.selectedRepo {
                         Divider()
                             .padding(.horizontal, 12)
-                            .padding(.top, 4)
+                            .padding(.top, 2)
                         
-                        VStack(alignment: .leading, spacing: 10) {
-                            // Section Header indicating active repository
-                            HStack(spacing: 6) {
-                                Image(systemName: "folder.fill")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.accentBlue)
-                                Text(selectedRepo.name)
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.textPrimary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("BRANCH")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.textTertiary)
+                                    .kerning(0.5)
                                 Spacer()
                             }
                             .padding(.horizontal, 12)
-                            .padding(.top, 4)
+                            .padding(.top, 2)
 
                             BranchOverviewCard(
                                 repoPath: selectedRepo.path,
                                 branch: state.selectedBranch ?? "main",
                                 summary: state.selectedBranchSummary,
-                                branches: state.localBranches
+                                branches: state.localBranches,
+                                autoAnalyzeEnabled: selectedRepo.autoAnalyzeEnabled
                             )
                             .padding(.horizontal, 12)
                             
                             // Commits Timeline
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
-                                    Text("COMMITS")
+                                    Text("REVIEW SCOPE")
                                         .font(.system(size: 9, weight: .bold))
                                         .foregroundColor(.textTertiary)
                                         .kerning(0.5)
@@ -216,36 +214,6 @@ struct SidebarView: View {
                         }
                     }
                 }
-            }
-
-            // Collapsible Triaged History list
-            if !state.pullRequests.isEmpty {
-                Divider()
-                
-                DisclosureGroup {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(state.pullRequests) { pr in
-                                PRListItem(pr: pr, isSelected: state.selectedPRId == pr.id)
-                                    .onTapGesture {
-                                        Task { await state.selectPR(pr.id) }
-                                    }
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 140)
-                } label: {
-                    HStack {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 10))
-                        Text("Triaged History (\(state.pullRequests.count))")
-                            .font(.system(size: 10, weight: .bold))
-                            .kerning(0.3)
-                    }
-                    .foregroundColor(.textSecondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
         }
         .background(Color.bgSidebar)
@@ -484,7 +452,6 @@ struct AnalysisDetailView: View {
                     ScrollView {
                         VStack(spacing: 12) {
                             AnalysisNavigationRail(details: details)
-                            SafeToSkimPanel(targets: details.skimTargets)
                         }
                         .padding(12)
                     }
@@ -693,9 +660,10 @@ struct BranchOverviewCard: View {
     let branch: String
     let summary: LocalBranchSummary?
     let branches: [String]
+    let autoAnalyzeEnabled: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 7) {
             Menu {
                 ForEach(branches, id: \.self) { branchName in
                     Button(branchName) {
@@ -703,20 +671,24 @@ struct BranchOverviewCard: View {
                     }
                 }
             } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                HStack(alignment: .center, spacing: 7) {
                     Image(systemName: "arrow.triangle.branch")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.accentBlue)
                         .frame(width: 14)
 
                     Text(branch)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(.textPrimary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
 
                     Spacer(minLength: 2)
+
+                    BranchStatusPill(
+                        text: autoAnalyzeEnabled ? "Live" : "Manual",
+                        color: autoAnalyzeEnabled ? .accentBlue : .textTertiary
+                    )
 
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .bold))
@@ -730,15 +702,13 @@ struct BranchOverviewCard: View {
             .help(branch)
 
             if let summary {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        BranchInlineMeta(icon: "clock", text: summary.lastUpdated)
-                        BranchInlineMeta(icon: "person", text: summary.lastAuthor)
-                    }
-
+                HStack(spacing: 8) {
+                    BranchInlineMeta(icon: "clock", text: summary.lastUpdated)
+                    BranchInlineMeta(icon: "person", text: summary.lastAuthor)
                     if let upstream = summary.upstream, !upstream.isEmpty {
                         BranchInlineMeta(icon: "arrow.up.right", text: upstream)
                     }
+                    Spacer(minLength: 0)
                 }
             } else {
                 BranchInlineMeta(icon: "arrow.triangle.branch", text: "Local branch")
@@ -756,10 +726,11 @@ struct BranchOverviewCard: View {
                 }
             }
         }
-        .padding(10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
         .background(Color.bgSidebarPanel)
-        .clipShape(RoundedRectangle(cornerRadius: 7))
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
     }
 }
 
@@ -803,31 +774,35 @@ struct ChangeSummaryRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             Image(systemName: "sum")
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.accentBlue)
-                .frame(width: 16)
+                .frame(width: 18)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    Text("Cumulative Diff")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Spacer()
-                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
-                        .font(.system(size: 10))
-                        .foregroundColor(.textTertiary)
-                }
-                Text("All branch and working tree changes")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-                    .lineLimit(1)
+            Text("All Changes")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.textTertiary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color(NSColor.controlColor).opacity(0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
             }
-        }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 9)
         .background(isSelected ? Color.accentBlue.opacity(0.08) : Color.clear)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(isSelected ? Color.accentBlue : Color.clear)
+                .frame(width: 2)
+        }
         .contentShape(Rectangle())
     }
 }
@@ -842,52 +817,40 @@ struct CommitListItem: View {
     let index: Int?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             // Vertical timeline graph node
             VStack(spacing: 0) {
                 // Line above
                 Rectangle()
                     .fill(index == 1 ? Color.clear : Color.borderMuted)
-                    .frame(width: 1.5, height: 8)
+                    .frame(width: 1.5, height: 5)
                 
                 // Timeline node dot
                 Circle()
-                    .fill(isSelected ? (index == nil ? Color.accentBlue : Color.accentPurple) : Color.borderDefault)
-                    .frame(width: 8, height: 8)
+                    .fill(isSelected ? Color.accentBlue : Color.borderDefault.opacity(0.85))
+                    .frame(width: 7, height: 7)
                 
                 // Line below
                 Rectangle()
                     .fill(Color.borderMuted)
-                    .frame(width: 1.5, height: 16)
+                    .frame(width: 1.5, height: 11)
             }
             .frame(width: 16)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(subject)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(isSelected ? .textPrimary : .textSecondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    CommitIndexBadge(index: index)
+
+                    Text(subject)
+                        .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                        .foregroundColor(isSelected ? .textPrimary : .textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Spacer(minLength: 4)
+                }
 
                 HStack(spacing: 5) {
-                    if let idx = index {
-                        Text("C\(idx)")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundColor(.accentPurple)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.accentPurple.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    } else {
-                        Text("ALL")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundColor(.accentBlue)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.accentBlue.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                    
                     if !sha.isEmpty {
                         Text(sha)
                             .font(.system(size: 10, design: .monospaced))
@@ -900,13 +863,6 @@ struct CommitListItem: View {
                             .foregroundColor(.textTertiary)
                             .lineLimit(1)
                     }
-
-                    Spacer()
-
-                    Text(date)
-                        .font(.system(size: 9))
-                        .foregroundColor(.textTertiary)
-                        .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -914,7 +870,27 @@ struct CommitListItem: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(isSelected ? Color.accentBlue.opacity(0.08) : Color.clear)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(isSelected ? Color.accentBlue : Color.clear)
+                .frame(width: 2)
+        }
         .contentShape(Rectangle())
+        .help(date)
+    }
+}
+
+struct CommitIndexBadge: View {
+    let index: Int?
+
+    var body: some View {
+        Text(index.map { "C\($0)" } ?? "ALL")
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundColor(index == nil ? .accentBlue : .accentPurple)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background((index == nil ? Color.accentBlue : Color.accentPurple).opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 3))
     }
 }
 

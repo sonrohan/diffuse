@@ -10,18 +10,39 @@ struct DiffViewerPanel: View {
     @State private var isFileSidebarCollapsed = false
     @State private var compactFileTree = true
     @State private var fileSidebarWidth: CGFloat = 220
+    @State private var fileSearchText = ""
+    @State private var excludedExtensions: Set<String> = []
+    @State private var excludedStatuses: Set<ChangedFile.FileStatus> = []
+    @State private var excludedClassifications: Set<ChangedFile.FileClassification> = []
+    @State private var showUnviewedOnly = false
+    @State private var viewedFileIds: Set<UUID> = []
+    @State private var isFilterPopoverPresented = false
 
     var activeFile: ChangedFile? {
         guard let id = state.activeFileId else { return filteredFiles.first }
-        return state.bucketFiles.first { $0.id == id }
+        return filteredFiles.first { $0.id == id } ?? filteredFiles.first
+    }
+
+    var orderedFiles: [ChangedFile] {
+        state.reorderFiles(state.bucketFiles, highlights: details.riskHighlights)
     }
 
     var filteredFiles: [ChangedFile] {
-        let ordered = state.reorderFiles(state.bucketFiles, highlights: details.riskHighlights)
-        if hideBoilerplate {
-            return ordered.filter { $0.classification == .source || $0.classification == .test }
+        orderedFiles.filter { file in
+            if hideBoilerplate && !(file.classification == .source || file.classification == .test) { return false }
+            if showUnviewedOnly && viewedFileIds.contains(file.id) { return false }
+            if excludedExtensions.contains(file.filterExtension) { return false }
+            if excludedStatuses.contains(file.status) { return false }
+            if excludedClassifications.contains(file.classification) { return false }
+            return file.matchesSearch(fileSearchText)
         }
-        return ordered
+    }
+
+    var activeFilterCount: Int {
+        var count = excludedExtensions.count + excludedStatuses.count + excludedClassifications.count
+        if !fileSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { count += 1 }
+        if showUnviewedOnly { count += 1 }
+        return count
     }
 
     var body: some View {
@@ -31,33 +52,74 @@ struct DiffViewerPanel: View {
                 Text("Changed Files")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.textPrimary)
+                Text("\(filteredFiles.count)/\(orderedFiles.count)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+
+                FileSearchField(text: $fileSearchText)
+                    .frame(maxWidth: 340)
+
+                Button {
+                    isFilterPopoverPresented.toggle()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.system(size: 12, weight: .semibold))
+                        if activeFilterCount > 0 {
+                            Text("\(activeFilterCount)")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundColor(.accentBlue)
+                        }
+                    }
+                    .foregroundColor(activeFilterCount > 0 ? .accentBlue : .textSecondary)
+                    .frame(minWidth: 28, minHeight: 22)
+                    .padding(.horizontal, activeFilterCount > 0 ? 5 : 0)
+                    .background(activeFilterCount > 0 ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(activeFilterCount > 0 ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Filter changed files")
+                .popover(isPresented: $isFilterPopoverPresented, arrowEdge: .bottom) {
+                    FileFilterPopover(
+                        files: orderedFiles,
+                        excludedExtensions: $excludedExtensions,
+                        excludedStatuses: $excludedStatuses,
+                        excludedClassifications: $excludedClassifications,
+                        showUnviewedOnly: $showUnviewedOnly,
+                        viewedFileCount: orderedFiles.filter { viewedFileIds.contains($0.id) }.count
+                    ) {
+                        resetFileFilters()
+                    }
+                }
+
                 Spacer()
-                Button {
+
+                DiffToolbarButton(
+                    systemImage: "sidebar.left",
+                    help: isFileSidebarCollapsed ? "Show changed files" : "Hide changed files"
+                ) {
                     isFileSidebarCollapsed.toggle()
-                } label: {
-                    Text(isFileSidebarCollapsed ? "Show files" : "Hide files")
-                        .font(.system(size: 11))
                 }
-                .buttonStyle(.bordered)
 
-                Button {
+                DiffToolbarButton(
+                    systemImage: hideBoilerplate ? "eye.slash.fill" : "eye",
+                    isActive: hideBoilerplate,
+                    help: hideBoilerplate ? "Show boilerplate files" : "Hide boilerplate files"
+                ) {
                     hideBoilerplate.toggle()
-                } label: {
-                    Label(hideBoilerplate ? "Boilerplate hidden" : "Hide boilerplate",
-                          systemImage: hideBoilerplate ? "eye.slash" : "eye")
-                        .font(.system(size: 11))
                 }
-                .buttonStyle(.bordered)
 
-                Button {
+                DiffToolbarButton(
+                    systemImage: compactFileTree ? "rectangle.compress.vertical" : "list.bullet.indent",
+                    isActive: compactFileTree,
+                    help: compactFileTree ? "Show every folder level" : "Fold single-child folder chains"
+                ) {
                     compactFileTree.toggle()
-                } label: {
-                    Label(compactFileTree ? "Compact tree" : "Full tree",
-                          systemImage: compactFileTree ? "rectangle.compress.vertical" : "list.bullet.indent")
-                        .font(.system(size: 11))
                 }
-                .buttonStyle(.bordered)
-                .help(compactFileTree ? "Fold single-child folder chains" : "Show every folder level")
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -80,9 +142,16 @@ struct DiffViewerPanel: View {
                         Image(systemName: "doc.text.magnifyingglass")
                             .font(.system(size: 28))
                             .foregroundColor(.textTertiary)
-                        Text("Select a file to view its diff")
+                        Text(filteredFiles.isEmpty ? "No files match the current filters" : "Select a file to view its diff")
                             .font(.system(size: 13))
                             .foregroundColor(.textSecondary)
+                        if filteredFiles.isEmpty && activeFilterCount > 0 {
+                            Button("Clear filters") {
+                                resetFileFilters()
+                            }
+                            .font(.system(size: 12, weight: .semibold))
+                            .buttonStyle(.bordered)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.bgCanvas)
@@ -90,6 +159,304 @@ struct DiffViewerPanel: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            if let id = activeFile?.id {
+                viewedFileIds.insert(id)
+            }
+        }
+        .onChange(of: activeFile?.id) { _, id in
+            if let id { viewedFileIds.insert(id) }
+        }
+        .onChange(of: filteredFiles.map(\.id)) { _, ids in
+            if let activeId = state.activeFileId, !ids.contains(activeId) {
+                state.jumpToFile(ids.first ?? activeId)
+            }
+        }
+    }
+
+    private func resetFileFilters() {
+        fileSearchText = ""
+        excludedExtensions = []
+        excludedStatuses = []
+        excludedClassifications = []
+        showUnviewedOnly = false
+    }
+}
+
+struct FileSearchField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.textTertiary)
+
+            TextField("Filter files...", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear file search")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color(NSColor.controlColor).opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+}
+
+struct FileFilterPopover: View {
+    let files: [ChangedFile]
+    @Binding var excludedExtensions: Set<String>
+    @Binding var excludedStatuses: Set<ChangedFile.FileStatus>
+    @Binding var excludedClassifications: Set<ChangedFile.FileClassification>
+    @Binding var showUnviewedOnly: Bool
+    let viewedFileCount: Int
+    let reset: () -> Void
+
+    var extensionCounts: [(String, Int)] {
+        counted(files.map(\.filterExtension))
+    }
+
+    var statusCounts: [(ChangedFile.FileStatus, Int)] {
+        ChangedFile.FileStatus.allCases.compactMap { status in
+            let count = files.filter { $0.status == status }.count
+            return count == 0 ? nil : (status, count)
+        }
+    }
+
+    var classificationCounts: [(ChangedFile.FileClassification, Int)] {
+        ChangedFile.FileClassification.allCases.compactMap { classification in
+            let count = files.filter { $0.classification == classification }.count
+            return count == 0 ? nil : (classification, count)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("File filters")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Button("Reset", action: reset)
+                    .font(.system(size: 11, weight: .semibold))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentBlue)
+            }
+
+            FilterSection(title: "Extensions") {
+                ForEach(extensionCounts, id: \.0) { ext, count in
+                    FilterToggleRow(
+                        title: ext,
+                        count: count,
+                        isIncluded: !excludedExtensions.contains(ext)
+                    ) {
+                        toggle(ext, in: $excludedExtensions)
+                    }
+                }
+            }
+
+            FilterSection(title: "Status") {
+                ForEach(statusCounts, id: \.0) { status, count in
+                    FilterToggleRow(title: status.displayName, count: count, isIncluded: !excludedStatuses.contains(status)) {
+                        toggle(status, in: $excludedStatuses)
+                    }
+                }
+            }
+
+            FilterSection(title: "Type") {
+                ForEach(classificationCounts, id: \.0) { classification, count in
+                    FilterToggleRow(title: classification.displayName, count: count, isIncluded: !excludedClassifications.contains(classification)) {
+                        toggle(classification, in: $excludedClassifications)
+                    }
+                }
+            }
+
+            Divider()
+
+            Button {
+                showUnviewedOnly.toggle()
+            } label: {
+                FilterToggleRowContent(
+                    title: "Unviewed only",
+                    count: max(files.count - viewedFileCount, 0),
+                    isIncluded: showUnviewedOnly
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .frame(width: 260)
+        .background(Color.bgCanvas)
+    }
+
+    private func counted(_ values: [String]) -> [(String, Int)] {
+        Dictionary(grouping: values, by: { $0 })
+            .map { ($0.key, $0.value.count) }
+            .sorted { lhs, rhs in
+                if lhs.0 == "No extension" { return false }
+                if rhs.0 == "No extension" { return true }
+                return lhs.0.localizedStandardCompare(rhs.0) == .orderedAscending
+            }
+    }
+
+    private func toggle<T: Hashable>(_ value: T, in binding: Binding<Set<T>>) {
+        var values = binding.wrappedValue
+        if values.contains(value) {
+            values.remove(value)
+        } else {
+            values.insert(value)
+        }
+        binding.wrappedValue = values
+    }
+}
+
+struct FilterSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .kerning(0.5)
+            VStack(spacing: 2) {
+                content
+            }
+        }
+    }
+}
+
+struct FilterToggleRow: View {
+    let title: String
+    let count: Int
+    let isIncluded: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            FilterToggleRowContent(title: title, count: count, isIncluded: isIncluded)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct FilterToggleRowContent: View {
+    let title: String
+    let count: Int
+    let isIncluded: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textSecondary)
+                .opacity(isIncluded ? 1 : 0)
+                .frame(width: 14)
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+            Spacer()
+            Text("\(count)")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundColor(.textSecondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color(NSColor.controlColor).opacity(0.55))
+                .clipShape(Capsule())
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
+        .contentShape(Rectangle())
+    }
+}
+
+private extension ChangedFile {
+    var filterExtension: String {
+        let ext = URL(fileURLWithPath: path).pathExtension
+        return ext.isEmpty ? "No extension" : ".\(ext)"
+    }
+
+    func matchesSearch(_ text: String) -> Bool {
+        let terms = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: " ")
+            .map { String($0).lowercased() }
+        guard !terms.isEmpty else { return true }
+
+        let haystack = "\(path) \(filename) \(classification.displayName) \(status.displayName)"
+            .lowercased()
+        return terms.allSatisfy { haystack.contains($0) }
+    }
+}
+
+extension ChangedFile.FileStatus: CaseIterable {
+    static var allCases: [ChangedFile.FileStatus] {
+        [.added, .modified, .deleted, .renamed]
+    }
+
+    var displayName: String {
+        switch self {
+        case .added: "Added"
+        case .modified: "Modified"
+        case .deleted: "Deleted"
+        case .renamed: "Renamed"
+        }
+    }
+}
+
+extension ChangedFile.FileClassification: CaseIterable {
+    static var allCases: [ChangedFile.FileClassification] {
+        [.source, .test, .config, .documentation, .generated, .boilerplate]
+    }
+
+    var displayName: String {
+        switch self {
+        case .source: "Source"
+        case .test: "Tests"
+        case .config: "Config"
+        case .documentation: "Docs"
+        case .generated: "Generated"
+        case .boilerplate: "Boilerplate"
+        }
+    }
+}
+
+struct DiffToolbarButton: View {
+    let systemImage: String
+    var isActive = false
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(isActive ? .accentBlue : .textSecondary)
+                .frame(width: 26, height: 22)
+                .background(isActive ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(isActive ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 }
 

@@ -885,10 +885,6 @@ struct SelectedContextBar: View {
     @State private var isProfileRulesPresented = false
     @State private var isProfileRulesHovered = false
 
-    var nextTarget: ReviewTarget? {
-        state.bucketTargets.first { $0.changedFileId != nil }
-    }
-
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
@@ -934,18 +930,6 @@ struct SelectedContextBar: View {
                     .sheet(isPresented: $isProfileRulesPresented) {
                         AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
                     }
-                }
-
-                if let nextTarget, let fileId = nextTarget.changedFileId {
-                    Button {
-                        state.jumpToFile(fileId, hunkIndex: nextTarget.hunkIndex)
-                    } label: {
-                        Label("Review next", systemImage: "arrow.right.circle.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.accentBlue)
-                    .help(nextTarget.title)
                 }
             }
         }

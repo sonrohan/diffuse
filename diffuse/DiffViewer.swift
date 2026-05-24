@@ -919,29 +919,80 @@ struct HunkView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Hunk header
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { isCollapsed.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                        .font(.system(size: 10))
-                        .foregroundColor(.textSecondary)
-                    Text("@@ -\(hunk.oldStart),\(hunk.oldLines) +\(hunk.newStart),\(hunk.newLines) @@")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.infoColor)
-                    Spacer()
-                    Text("\(hunk.lines.count) lines")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
+            // Hunk header with expand controls in the gutter
+            HStack(spacing: 0) {
+                HStack(spacing: 3) {
+                    Button {
+                        Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .up) }
+                    } label: {
+                        Image(systemName: "arrow.up.to.line")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.accentBlue)
+                            .frame(width: 17, height: 17)
+                            .background(Color.accentBlue.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Expand context up (20 lines)")
+
+                    if hunkIndex > 0 {
+                        Button {
+                            Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .all) }
+                        } label: {
+                            Image(systemName: "arrow.up.and.down")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(.accentBlue)
+                                .frame(width: 17, height: 17)
+                                .background(Color.accentBlue.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Expand all context to previous hunk")
+                    }
+
+                    Button {
+                        Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .down) }
+                    } label: {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.accentBlue)
+                            .frame(width: 17, height: 17)
+                            .background(Color.accentBlue.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Expand context down (20 lines)")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .frame(maxWidth: .infinity)
-                .background(Color(NSColor.underPageBackgroundColor))
-                .contentShape(Rectangle())
+                .frame(width: state.diffLayout == .split ? 62 : 106, alignment: .center)
+                .background(Color.bgSubtle.opacity(0.85))
+
+                Rectangle()
+                    .fill(Color.borderMuted)
+                    .frame(width: 1)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { isCollapsed.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                            .font(.system(size: 10))
+                            .foregroundColor(.textSecondary)
+                        Text("@@ -\(hunk.oldStart),\(hunk.oldLines) +\(hunk.newStart),\(hunk.newLines) @@")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.infoColor)
+                        Spacer()
+                        Text("\(hunk.lines.count) lines")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textTertiary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(NSColor.underPageBackgroundColor))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             Divider()
 

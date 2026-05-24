@@ -518,4 +518,101 @@ class AppState {
         }
         return selectedPR?.baseSha.isEmpty == false ? selectedPR?.baseSha : nil
     }
+
+    func expandHunk(fileId: UUID, hunkIndex: Int, direction: ExpandDirection) async {
+        guard let repo = selectedRepo,
+              let details = analysisDetails,
+              let fileIdx = details.files.firstIndex(where: { $0.id == fileId }) else { return }
+        
+        let file = details.files[fileIdx]
+        let hunk = file.hunks[hunkIndex]
+        
+        let baseRevision = selectedCommitSha != nil ? "\(selectedCommitSha!)~1" : (selectedPR?.baseSha ?? "HEAD~1")
+        
+        let content = GitService.fileContent(at: baseRevision, path: file.path, cwd: repo.path)
+        guard !content.isEmpty else { return }
+        
+        let allLines = content.components(separatedBy: "\n")
+        
+        var updatedHunk = hunk
+        
+        switch direction {
+        case .up:
+            let currentStart = hunk.oldStart
+            let limit: Int
+            if hunkIndex > 0 {
+                let prev = file.hunks[hunkIndex - 1]
+                limit = prev.oldStart + prev.oldLines
+            } else {
+                limit = 1
+            }
+            
+            let linesToFetch = min(20, currentStart - limit)
+            guard linesToFetch > 0 else { return }
+            
+            let startLine = currentStart - linesToFetch
+            let fetchedLines = (startLine..<(currentStart)).map { idx -> String in
+                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
+                return " " + lineContent
+            }
+            
+            updatedHunk.lines.insert(contentsOf: fetchedLines, at: 0)
+            updatedHunk.oldStart = startLine
+            updatedHunk.newStart = updatedHunk.newStart - linesToFetch
+            updatedHunk.oldLines += linesToFetch
+            updatedHunk.newLines += linesToFetch
+            
+            analysisDetails?.files[fileIdx].hunks[hunkIndex] = updatedHunk
+            
+        case .down:
+            let currentEnd = hunk.oldStart + hunk.oldLines
+            let limit: Int
+            if hunkIndex < file.hunks.count - 1 {
+                limit = file.hunks[hunkIndex + 1].oldStart
+            } else {
+                limit = allLines.count + 1
+            }
+            
+            let linesToFetch = min(20, limit - currentEnd)
+            guard linesToFetch > 0 else { return }
+            
+            let fetchedLines = (currentEnd..<(currentEnd + linesToFetch)).map { idx -> String in
+                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
+                return " " + lineContent
+            }
+            
+            updatedHunk.lines.append(contentsOf: fetchedLines)
+            updatedHunk.oldLines += linesToFetch
+            updatedHunk.newLines += linesToFetch
+            
+            analysisDetails?.files[fileIdx].hunks[hunkIndex] = updatedHunk
+            
+        case .all:
+            guard hunkIndex > 0 else { return }
+            let prevHunk = file.hunks[hunkIndex - 1]
+            let prevEnd = prevHunk.oldStart + prevHunk.oldLines
+            let currentStart = hunk.oldStart
+            let gap = currentStart - prevEnd
+            guard gap > 0 else { return }
+            
+            let fetchedLines = (prevEnd..<currentStart).map { idx -> String in
+                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
+                return " " + lineContent
+            }
+            
+            var mergedHunk = prevHunk
+            mergedHunk.lines.append(contentsOf: fetchedLines)
+            mergedHunk.lines.append(contentsOf: hunk.lines)
+            mergedHunk.oldLines = mergedHunk.oldLines + gap + hunk.oldLines
+            mergedHunk.newLines = mergedHunk.newLines + gap + hunk.newLines
+            
+            analysisDetails?.files[fileIdx].hunks.remove(at: hunkIndex)
+            analysisDetails?.files[fileIdx].hunks[hunkIndex - 1] = mergedHunk
+        }
+    }
 }
+
+enum ExpandDirection {
+    case up, down, all
+}
+

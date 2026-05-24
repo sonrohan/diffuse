@@ -111,7 +111,7 @@ struct SettingsSheet: View {
                                 .foregroundColor(isSelected ? .accentBlue : .textSecondary)
                                 .frame(width: 16, height: 16)
                             
-                            Text(tab.rawValue)
+                            Text(LocalizedStringKey(tab.rawValue))
                                 .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                                 .foregroundColor(isSelected ? .textPrimary : .textSecondary)
                             
@@ -250,7 +250,7 @@ struct SettingsSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     Picker("", selection: $defaultLanguage) {
-                        ForEach(["Auto Detect", "English", "Chinese (简体中文)", "Spanish (Español)", "French (Français)", "German (Deutsch)", "Japanese (日本語)"], id: \.self) { lang in
+                        ForEach(["Auto Detect", "English", "Spanish (Español)", "French (Français)", "Russian (Русский)"], id: \.self) { lang in
                             Text(lang).tag(lang)
                         }
                     }

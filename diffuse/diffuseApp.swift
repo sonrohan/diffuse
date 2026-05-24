@@ -4,12 +4,14 @@ import SwiftUI
 struct diffuseApp: App {
     @State private var appState = AppState()
     @AppStorage("appTheme") private var appTheme = "System"
+    @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appState)
                 .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
+                .environment(\.locale, currentLocale)
                 .frame(minWidth: 1100, minHeight: 700)
         }
         .windowStyle(.titleBar)
@@ -22,6 +24,21 @@ struct diffuseApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
+        }
+    }
+
+    private var currentLocale: Locale {
+        switch defaultLanguage {
+        case "English":
+            return Locale(identifier: "en")
+        case "Spanish (Español)":
+            return Locale(identifier: "es")
+        case "French (Français)":
+            return Locale(identifier: "fr")
+        case "Russian (Русский)":
+            return Locale(identifier: "ru")
+        default:
+            return .current
         }
     }
 }

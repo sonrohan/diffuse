@@ -5,6 +5,7 @@ import AppKit
 
 struct ContentView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.locale) private var locale
     @State private var showAnalyzeSheet = false
 
     var body: some View {
@@ -20,6 +21,7 @@ struct ContentView: View {
         })
         .sheet(isPresented: $showAnalyzeSheet) {
             AnalyzeRepoSheet(isPresented: $showAnalyzeSheet)
+                .environment(\.locale, locale)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openAnalyzeRepo)) { _ in
             showAnalyzeSheet = true
@@ -34,6 +36,7 @@ struct ContentView: View {
 
 struct AppHeaderView: View {
     @Environment(AppState.self) private var state
+    @Environment(\.locale) private var locale
     @Binding var showAnalyzeSheet: Bool
     
     @State private var showRenameAlert = false
@@ -95,9 +98,17 @@ struct AppHeaderView: View {
                         newName = selectedRepo.name
                         showRenameAlert = true
                     }
-                    Button(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze") {
-                        Task {
-                            await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                    if selectedRepo.autoAnalyzeEnabled {
+                        Button("Turn Off Auto-Analyze") {
+                            Task {
+                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: false)
+                            }
+                        }
+                    } else {
+                        Button("Turn On Auto-Analyze") {
+                            Task {
+                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: true)
+                            }
                         }
                     }
                     Divider()
@@ -115,9 +126,15 @@ struct AppHeaderView: View {
                     Image(systemName: "folder.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.accentBlue)
-                    Text(state.selectedRepo?.name ?? "Select Workspace")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                    if let repo = state.selectedRepo {
+                        Text(repo.name)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                    } else {
+                        Text("Select Workspace")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                    }
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .bold))
                         .foregroundColor(.textTertiary)
@@ -383,6 +400,7 @@ struct AppHeaderView: View {
             }
             .padding(16)
             .frame(width: 280)
+            .environment(\.locale, locale)
         }
         .confirmationDialog(
             "Are you sure you want to remove this workspace?",
@@ -403,6 +421,7 @@ struct AppHeaderView: View {
         }
         .sheet(isPresented: $showSettingsSheet) {
             SettingsSheet(isPresented: $showSettingsSheet)
+                .environment(\.locale, locale)
         }
     }
     
@@ -472,9 +491,15 @@ struct DetailView: View {
     var loadingView: some View {
         VStack(spacing: 12) {
             LoadingSpinner(size: 28)
-            Text(state.isAnalyzing ? "Running analysis…" : "Loading analysis…")
-                .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+            if state.isAnalyzing {
+                Text("Running analysis…")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+            } else {
+                Text("Loading analysis…")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+            }
             if let error = state.analysisError {
                 Text(error)
                     .font(.system(size: 12))

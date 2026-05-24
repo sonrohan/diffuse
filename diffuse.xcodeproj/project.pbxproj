@@ -6,10 +6,9 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXFileReference section */
-		1CCD22F32FC2969E00CB1237 /* diffuse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = diffuse.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AB001A0001000000000001 /* diffuse-core */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "diffuse-core"; path = "diffuse-core/target/release/diffuse-core"; sourceTree = "<group>"; };
-/* End PBXFileReference section */
+/* Begin PBXBuildFile section */
+		AB001C0001000000000003 /* diffuse-core in Copy diffuse-core Sidecar */ = {isa = PBXBuildFile; fileRef = AB001A0001000000000001 /* diffuse-core */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		AB001B0001000000000002 /* Copy diffuse-core Sidecar */ = {
@@ -24,6 +23,11 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		1CCD22F32FC2969E00CB1237 /* diffuse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = diffuse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB001A0001000000000001 /* diffuse-core */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "diffuse-core"; path = "diffuse-core/target/release/diffuse-core"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1CCD22F52FC2969E00CB1237 /* diffuse */ = {
@@ -49,6 +53,7 @@
 			children = (
 				1CCD22F52FC2969E00CB1237 /* diffuse */,
 				1CCD22F42FC2969E00CB1237 /* Products */,
+				1CCD23382FC2D3A700CB1237 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -60,38 +65,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-/* End PBXGroup section */
-
-/* Begin PBXBuildFile section */
-		AB001C0001000000000003 /* diffuse-core in Copy diffuse-core Sidecar */ = {isa = PBXBuildFile; fileRef = AB001A0001000000000001 /* diffuse-core */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		AB001D0001000000000004 /* Build diffuse-core (Rust Sidecar) */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 0;
-			buildActionMask = 2147483647;
-			files = (
+		1CCD23382FC2D3A700CB1237 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				AB001A0001000000000001 /* diffuse-core */,
 			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(PROJECT_DIR)/diffuse-core/src",
-				"$(PROJECT_DIR)/diffuse-core/Cargo.toml",
-				"$(PROJECT_DIR)/diffuse-core/Cargo.lock",
-			);
-			name = "Build diffuse-core (Rust Sidecar)";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(PROJECT_DIR)/diffuse-core/target/release/diffuse-core",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/zsh;
-			shellScript = "set -e\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\ncd \"$PROJECT_DIR/diffuse-core\"\ncargo build --release 2>&1\n";
-			showEnvVarsInLog = 0;
+			name = "Recovered References";
+			sourceTree = "<group>";
 		};
-/* End PBXShellScriptBuildPhase section */
+/* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		1CCD22F22FC2969E00CB1237 /* diffuse */ = {
@@ -161,6 +143,32 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AB001D0001000000000004 /* Build diffuse-core (Rust Sidecar) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/diffuse-core/src",
+				"$(PROJECT_DIR)/diffuse-core/Cargo.toml",
+				"$(PROJECT_DIR)/diffuse-core/Cargo.lock",
+			);
+			name = "Build diffuse-core (Rust Sidecar)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(PROJECT_DIR)/diffuse-core/target/release/diffuse-core",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "set -e\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\ncd \"$PROJECT_DIR/diffuse-core\"\ncargo build --release 2>&1\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1CCD22EF2FC2969E00CB1237 /* Sources */ = {

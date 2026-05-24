@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Core Models
 
@@ -8,6 +9,23 @@ enum DiffLayout: String, CaseIterable, Identifiable, Codable {
 
     var id: String { self.rawValue }
 }
+
+enum AppTheme: String, CaseIterable, Identifiable, Codable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+
+    var id: String { self.rawValue }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 
 
 struct PullRequest: Identifiable, Codable, Hashable {

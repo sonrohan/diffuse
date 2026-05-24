@@ -39,6 +39,7 @@ struct AppHeaderView: View {
     @State private var showRenameAlert = false
     @State private var newName = ""
     @State private var showDeleteConfirmation = false
+    @State private var showSettingsSheet = false
     
     var body: some View {
         HStack(spacing: 0) {
@@ -347,7 +348,7 @@ struct AppHeaderView: View {
                 }
                 
                 Button {
-                    // Settings placeholder action
+                    showSettingsSheet = true
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 12))
@@ -399,6 +400,9 @@ struct AppHeaderView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will remove the workspace from diffuse. Your local Git repository and files will not be deleted.")
+        }
+        .sheet(isPresented: $showSettingsSheet) {
+            SettingsSheet(isPresented: $showSettingsSheet)
         }
     }
     

@@ -3,11 +3,13 @@ import SwiftUI
 @main
 struct diffuseApp: App {
     @State private var appState = AppState()
+    @AppStorage("appTheme") private var appTheme = "System"
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appState)
+                .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
                 .frame(minWidth: 1100, minHeight: 700)
         }
         .windowStyle(.titleBar)

@@ -38,6 +38,37 @@ actor GitService {
         return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    static func runGit(_ arguments: [String], cwd: String) -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        process.currentDirectoryURL = URL(fileURLWithPath: cwd)
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        try? process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    static func fileContent(at revision: String, path filePath: String, cwd: String) -> String {
+        runGit(["show", "\(revision):\(filePath)"], cwd: cwd)
+    }
+
+    static func trackedSourceFiles(cwd: String) -> [String] {
+        let output = runGit(["ls-files"], cwd: cwd)
+        guard !output.isEmpty else { return [] }
+        let supportedExtensions: Set<String> = ["swift", "kt", "kts", "ts", "tsx", "js", "jsx", "py", "rs"]
+        return output.components(separatedBy: .newlines).filter { path in
+            let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+            return supportedExtensions.contains(ext)
+        }
+    }
+
     func gatherDiff(repoPath: String, baseRef: String?) throws -> (
         diff: String, branchName: String, commitSubject: String,
         baseSha: String, headSha: String, author: String, prNumber: Int
@@ -317,15 +348,22 @@ actor ASTAnalysisService {
 
             let sidecarSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
             return sidecarSymbols.map { s in
-                ChangedSymbol(
+                var metadata = s.metadata
+                metadata["language"] = s.language
+                // Step 6: parse comma-separated callee names from metadata
+                let calleeNames = metadata["callees"].map {
+                    $0.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                } ?? []
+                return ChangedSymbol(
                     analysisRunId: analysisRunId,
                     changedFileId: changedFileId,
                     name: s.name,
                     kind: mapSymbolKind(s.semantic_type),
                     startLine: s.line,
                     endLine: s.end_line,
+                    callees: calleeNames,
                     semanticType: s.semantic_type,
-                    metadata: s.metadata
+                    metadata: metadata
                 )
             }
         } catch {
@@ -349,6 +387,106 @@ actor ASTAnalysisService {
         case "module_declaration", "object_declaration":    return .module
         case "decorated_definition":                         return .decorated
         default:                                             return .function
+        }
+    }
+
+    /// Parse symbols for contract-level comparison between the base and head versions of a file.
+    /// Runs `diffuse-core compare --base <base> --head <head> --lines <csv>` and merges
+    /// the returned contract-delta metadata into the existing `ChangedSymbol` array.
+    func compareSymbols(
+        baseURL: URL,
+        headURL: URL,
+        changedLines: [Int],
+        existingSymbols: inout [ChangedSymbol]
+    ) async {
+        guard !changedLines.isEmpty else { return }
+        guard let helperURL = sidecarURL() else { return }
+
+        let process = Process()
+        process.executableURL = helperURL
+        let linesArg = changedLines.map(String.init).joined(separator: ",")
+        process.arguments = ["compare", "--base", baseURL.path, "--head", headURL.path, "--lines", linesArg]
+
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            guard !data.isEmpty else { return }
+
+            let contractSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
+
+            // Merge contract-delta metadata back into the matching existing symbol records.
+            // We match by name + line (stable enough for same-file comparison).
+            for cs in contractSymbols {
+                if let idx = existingSymbols.firstIndex(where: {
+                    $0.name == cs.name && $0.startLine == cs.line
+                }) {
+                    for (key, value) in cs.metadata where key.hasPrefix("contract_") || key.hasSuffix("_added") {
+                        existingSymbols[idx].metadata[key] = value
+                    }
+                }
+            }
+        } catch {
+            let errOutput = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            print("[ASTAnalysisService] compare error for \(headURL.lastPathComponent): \(error) — sidecar: \(errOutput)")
+        }
+    }
+
+    func symbolsWithCallerData(repoPath: String, symbols: [ChangedSymbol]) async -> [ChangedSymbol] {
+        guard !symbols.isEmpty, let helperURL = sidecarURL() else { return symbols }
+
+        let changedNames = Set(symbols.map(\.name).filter { !$0.isEmpty && $0 != "<anonymous>" })
+        guard !changedNames.isEmpty else { return symbols }
+
+        var callersByName: [String: Set<String>] = [:]
+        let trackedFiles = GitService.trackedSourceFiles(cwd: repoPath)
+
+        for relativePath in trackedFiles {
+            let fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(relativePath)
+            guard FileManager.default.isReadableFile(atPath: fileURL.path) else { continue }
+
+            let process = Process()
+            process.executableURL = helperURL
+            process.arguments = ["index", "--file", fileURL.path]
+
+            let stdout = Pipe()
+            process.standardOutput = stdout
+            process.standardError = Pipe()
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+                let data = stdout.fileHandleForReading.readDataToEndOfFile()
+                guard !data.isEmpty else { continue }
+
+                let indexedSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
+                for indexed in indexedSymbols {
+                    let callees = indexed.metadata["callees"].map {
+                        $0.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                    } ?? []
+                    let callerLabel = "\(relativePath):\(indexed.name)"
+                    for callee in callees where changedNames.contains(callee) && callee != indexed.name {
+                        callersByName[callee, default: []].insert(callerLabel)
+                    }
+                }
+            } catch {
+                continue
+            }
+        }
+
+        return symbols.map { symbol in
+            var updated = symbol
+            let callers = Array(callersByName[symbol.name] ?? []).sorted()
+            if !callers.isEmpty {
+                updated.callers = callers
+            }
+            return updated
         }
     }
 }
@@ -478,7 +616,8 @@ actor PersistenceService {
             changeBuckets: triage.changeBuckets,
             riskHighlights: triage.riskHighlights,
             skimTargets: triage.skimTargets,
-            riskFactors: triage.riskFactors
+            riskFactors: triage.riskFactors,
+            symbolReviewGroups: triage.symbolReviewGroups
         )
     }
 
@@ -600,25 +739,62 @@ class AnalysisCoordinator: ObservableObject {
             // --- AST Symbol Extraction via sidecar ---
             let astService = ASTAnalysisService()
             var allSymbols: [ChangedSymbol] = []
-            for changedFile in changedFiles where changedFile.classification == .source {
+            for changedFile in changedFiles where changedFile.classification == .source || changedFile.classification == .test {
                 let fileURL = URL(fileURLWithPath: path)
                     .appendingPathComponent(changedFile.path)
                 let lines = changedLinesFromHunks(changedFile.hunks)
-                let symbols = await astService.parseSymbols(
+                var symbols = await astService.parseSymbols(
                     for: fileURL,
                     changedLines: lines,
                     analysisRunId: run.id,
                     changedFileId: changedFile.id
                 )
+
+                // Step 4: Contract comparison — fetch base version and compare
+                if !symbols.isEmpty {
+                    let baseContent = GitService.fileContent(
+                        at: gitInfo.baseSha,
+                        path: changedFile.path,
+                        cwd: path
+                    )
+                    if !baseContent.isEmpty {
+                        let tmpDir = FileManager.default.temporaryDirectory
+                        let ext = URL(fileURLWithPath: changedFile.path).pathExtension
+                        let baseTmp = tmpDir.appendingPathComponent(
+                            "diffuse-base-\(changedFile.id.uuidString).\(ext)"
+                        )
+                        try? baseContent.write(to: baseTmp, atomically: true, encoding: .utf8)
+                        await astService.compareSymbols(
+                            baseURL: baseTmp,
+                            headURL: fileURL,
+                            changedLines: lines,
+                            existingSymbols: &symbols
+                        )
+                        try? FileManager.default.removeItem(at: baseTmp)
+                    } else if changedFile.status == .added {
+                        for index in symbols.indices where Self.isContractSurface(symbols[index]) {
+                            symbols[index].metadata["contract_is_new_public"] = "true"
+                        }
+                    }
+                }
+
                 allSymbols.append(contentsOf: symbols)
             }
+            allSymbols = await astService.symbolsWithCallerData(repoPath: path, symbols: allSymbols)
             if !allSymbols.isEmpty {
                 await persistence.insertSymbols(allSymbols)
             }
             // -----------------------------------------
 
-            // Run deterministic rules
-            let ruleResults = RulesEngine.runDeterministicRules(files: parsedFiles, symbols: allSymbols)
+            // FIX 1: Build file path map for deterministic rules
+            let filePathMap: [UUID: String] = Dictionary(
+                uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) }
+            )
+
+            // Run deterministic rules (FIX 1: pass filePathMap)
+            let ruleResults = RulesEngine.runDeterministicRules(
+                files: parsedFiles, symbols: allSymbols, filePathMap: filePathMap
+            )
             var allFindings: [Finding] = []
             for (path, rulefindings) in ruleResults {
                 let matchFile = changedFiles.first { $0.path == path }
@@ -703,5 +879,22 @@ class AnalysisCoordinator: ObservableObject {
 
     func checkoutPR(repoPath: String, prNumber: Int, branchName: String) async throws {
         try await git.checkoutPR(repoPath: repoPath, prNumber: prNumber, branchName: branchName)
+    }
+
+    private static func isContractSurface(_ symbol: ChangedSymbol) -> Bool {
+        switch symbol.metadata["visibility"] {
+        case "public", "open":
+            return true
+        case "private", "fileprivate", "internal", "protected":
+            return false
+        default:
+            let language = symbol.metadata["language"] ?? ""
+            return language == "typescript"
+                || language == "javascript"
+                || language == "python"
+                || symbol.semanticType == "interface_declaration"
+                || symbol.semanticType == "protocol_declaration"
+                || symbol.semanticType == "type_alias"
+        }
     }
 }

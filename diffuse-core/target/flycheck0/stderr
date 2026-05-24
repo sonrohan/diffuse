@@ -1,5 +1,5 @@
-   0.024862708s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint: fingerprint error for diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core)/Check { test: false }/TargetInner { name: "diffuse-core", doc: true, ..: with_path("/Users/rohan/repos/diffuse/diffuse-core/src/main.rs", Edition2021) }
-   0.024888958s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/diffuse-core-f63c04fc72ec0780/bin-diffuse-core`
+   0.036621583s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint: fingerprint error for diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core)/Check { test: false }/TargetInner { name: "diffuse-core", doc: true, ..: with_path("/Users/rohan/repos/diffuse/diffuse-core/src/main.rs", Edition2021) }
+   0.036652417s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/diffuse-core-90a06065c35d0830/bin-diffuse-core`
 
 Caused by:
     No such file or directory (os error 2)
@@ -22,8 +22,8 @@ Stack backtrace:
   14: std::rt::lang_start::<()>::{closure#0}
   15: std::rt::lang_start_internal
   16: _main
-   0.029545042s  INFO prepare_target{force=false package_id=clap v4.6.1 target="clap"}: cargo::core::compiler::fingerprint: fingerprint error for clap v4.6.1/Check { test: false }/TargetInner { benched: false, ..: lib_target("clap", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap-4.6.1/src/lib.rs", Edition2024) }
-   0.029566583s  INFO prepare_target{force=false package_id=clap v4.6.1 target="clap"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/clap-bbe9a812192dbcb8/lib-clap`
+   0.054732750s  INFO prepare_target{force=false package_id=tree-sitter v0.23.2 target="tree_sitter"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter v0.23.2/Check { test: false }/TargetInner { ..: lib_target("tree_sitter", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.23.2/binding_rust/lib.rs", Edition2021) }
+   0.054936958s  INFO prepare_target{force=false package_id=tree-sitter v0.23.2 target="tree_sitter"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-06f16aedac4627b7/lib-tree_sitter`
 
 Caused by:
     No such file or directory (os error 2)
@@ -47,8 +47,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.029797292s  INFO prepare_target{force=false package_id=clap_builder v4.6.0 target="clap_builder"}: cargo::core::compiler::fingerprint: fingerprint error for clap_builder v4.6.0/Check { test: false }/TargetInner { benched: false, ..: lib_target("clap_builder", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_builder-4.6.0/src/lib.rs", Edition2024) }
-   0.029802250s  INFO prepare_target{force=false package_id=clap_builder v4.6.0 target="clap_builder"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/clap_builder-4cb05a5453fc0813/lib-clap_builder`
+   0.055245250s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint: fingerprint error for regex v1.12.3/Check { test: false }/TargetInner { ..: lib_target("regex", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.12.3/src/lib.rs", Edition2021) }
+   0.055250958s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-476aedae89a0f20a/lib-regex`
 
 Caused by:
     No such file or directory (os error 2)
@@ -73,8 +73,8 @@ Stack backtrace:
   16: std::rt::lang_start::<()>::{closure#0}
   17: std::rt::lang_start_internal
   18: _main
-   0.030008292s  INFO prepare_target{force=false package_id=anstream v1.0.0 target="anstream"}: cargo::core::compiler::fingerprint: fingerprint error for anstream v1.0.0/Check { test: false }/TargetInner { ..: lib_target("anstream", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anstream-1.0.0/src/lib.rs", Edition2021) }
-   0.030012375s  INFO prepare_target{force=false package_id=anstream v1.0.0 target="anstream"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/anstream-6c6d9f2a9378cd1d/lib-anstream`
+   0.055586667s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint: fingerprint error for regex-automata v0.4.14/Check { test: false }/TargetInner { benched: false, ..: lib_target("regex_automata", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.14/src/lib.rs", Edition2021) }
+   0.055593000s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-automata-ab3fa03235370ee6/lib-regex_automata`
 
 Caused by:
     No such file or directory (os error 2)
@@ -100,8 +100,8 @@ Stack backtrace:
   17: std::rt::lang_start::<()>::{closure#0}
   18: std::rt::lang_start_internal
   19: _main
-   0.030261792s  INFO prepare_target{force=false package_id=anstyle v1.0.14 target="anstyle"}: cargo::core::compiler::fingerprint: fingerprint error for anstyle v1.0.14/Check { test: false }/TargetInner { ..: lib_target("anstyle", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anstyle-1.0.14/src/lib.rs", Edition2021) }
-   0.030265917s  INFO prepare_target{force=false package_id=anstyle v1.0.14 target="anstyle"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/anstyle-b8bed29a0d9dd511/lib-anstyle`
+   0.055953875s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint: fingerprint error for regex-syntax v0.8.10/Check { test: false }/TargetInner { ..: lib_target("regex_syntax", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-syntax-0.8.10/src/lib.rs", Edition2021) }
+   0.055958042s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-syntax-dee10fa81f479de2/lib-regex_syntax`
 
 Caused by:
     No such file or directory (os error 2)
@@ -128,203 +128,8 @@ Stack backtrace:
   18: std::rt::lang_start::<()>::{closure#0}
   19: std::rt::lang_start_internal
   20: _main
-   0.030398750s  INFO prepare_target{force=false package_id=anstyle-parse v1.0.0 target="anstyle_parse"}: cargo::core::compiler::fingerprint: fingerprint error for anstyle-parse v1.0.0/Check { test: false }/TargetInner { ..: lib_target("anstyle_parse", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anstyle-parse-1.0.0/src/lib.rs", Edition2021) }
-   0.030403042s  INFO prepare_target{force=false package_id=anstyle-parse v1.0.0 target="anstyle_parse"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/anstyle-parse-853571d14a5c181c/lib-anstyle_parse`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  11: cargo::ops::cargo_compile::compile_ws
-  12: cargo::ops::cargo_compile::compile_with_exec
-  13: cargo::ops::cargo_compile::compile
-  14: cargo::commands::check::exec
-  15: <cargo::cli::Exec>::exec
-  16: cargo::main
-  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  18: std::rt::lang_start::<()>::{closure#0}
-  19: std::rt::lang_start_internal
-  20: _main
-   0.030568292s  INFO prepare_target{force=false package_id=utf8parse v0.2.2 target="utf8parse"}: cargo::core::compiler::fingerprint: fingerprint error for utf8parse v0.2.2/Check { test: false }/TargetInner { ..: lib_target("utf8parse", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/utf8parse-0.2.2/src/lib.rs", Edition2018) }
-   0.030572375s  INFO prepare_target{force=false package_id=utf8parse v0.2.2 target="utf8parse"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/utf8parse-01047c416527c51d/lib-utf8parse`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: cargo::core::compiler::compile
-  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  12: cargo::ops::cargo_compile::compile_ws
-  13: cargo::ops::cargo_compile::compile_with_exec
-  14: cargo::ops::cargo_compile::compile
-  15: cargo::commands::check::exec
-  16: <cargo::cli::Exec>::exec
-  17: cargo::main
-  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  19: std::rt::lang_start::<()>::{closure#0}
-  20: std::rt::lang_start_internal
-  21: _main
-   0.030701792s  INFO prepare_target{force=false package_id=anstyle-query v1.1.5 target="anstyle_query"}: cargo::core::compiler::fingerprint: fingerprint error for anstyle-query v1.1.5/Check { test: false }/TargetInner { ..: lib_target("anstyle_query", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anstyle-query-1.1.5/src/lib.rs", Edition2021) }
-   0.030705792s  INFO prepare_target{force=false package_id=anstyle-query v1.1.5 target="anstyle_query"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/anstyle-query-d797dcf67f058f8e/lib-anstyle_query`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  11: cargo::ops::cargo_compile::compile_ws
-  12: cargo::ops::cargo_compile::compile_with_exec
-  13: cargo::ops::cargo_compile::compile
-  14: cargo::commands::check::exec
-  15: <cargo::cli::Exec>::exec
-  16: cargo::main
-  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  18: std::rt::lang_start::<()>::{closure#0}
-  19: std::rt::lang_start_internal
-  20: _main
-   0.030841833s  INFO prepare_target{force=false package_id=colorchoice v1.0.5 target="colorchoice"}: cargo::core::compiler::fingerprint: fingerprint error for colorchoice v1.0.5/Check { test: false }/TargetInner { ..: lib_target("colorchoice", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/colorchoice-1.0.5/src/lib.rs", Edition2021) }
-   0.030846250s  INFO prepare_target{force=false package_id=colorchoice v1.0.5 target="colorchoice"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/colorchoice-1f39a7b1e0f9c5c2/lib-colorchoice`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  11: cargo::ops::cargo_compile::compile_ws
-  12: cargo::ops::cargo_compile::compile_with_exec
-  13: cargo::ops::cargo_compile::compile
-  14: cargo::commands::check::exec
-  15: <cargo::cli::Exec>::exec
-  16: cargo::main
-  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  18: std::rt::lang_start::<()>::{closure#0}
-  19: std::rt::lang_start_internal
-  20: _main
-   0.030979875s  INFO prepare_target{force=false package_id=is_terminal_polyfill v1.70.2 target="is_terminal_polyfill"}: cargo::core::compiler::fingerprint: fingerprint error for is_terminal_polyfill v1.70.2/Check { test: false }/TargetInner { ..: lib_target("is_terminal_polyfill", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/is_terminal_polyfill-1.70.2/src/lib.rs", Edition2021) }
-   0.030984250s  INFO prepare_target{force=false package_id=is_terminal_polyfill v1.70.2 target="is_terminal_polyfill"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/is_terminal_polyfill-4944d86f04096529/lib-is_terminal_polyfill`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  11: cargo::ops::cargo_compile::compile_ws
-  12: cargo::ops::cargo_compile::compile_with_exec
-  13: cargo::ops::cargo_compile::compile
-  14: cargo::commands::check::exec
-  15: <cargo::cli::Exec>::exec
-  16: cargo::main
-  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  18: std::rt::lang_start::<()>::{closure#0}
-  19: std::rt::lang_start_internal
-  20: _main
-   0.031117750s  INFO prepare_target{force=false package_id=clap_lex v1.1.0 target="clap_lex"}: cargo::core::compiler::fingerprint: fingerprint error for clap_lex v1.1.0/Check { test: false }/TargetInner { benched: false, ..: lib_target("clap_lex", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_lex-1.1.0/src/lib.rs", Edition2024) }
-   0.031120958s  INFO prepare_target{force=false package_id=clap_lex v1.1.0 target="clap_lex"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/clap_lex-0c7b87e1f80a9daa/lib-clap_lex`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.031263708s  INFO prepare_target{force=false package_id=strsim v0.11.1 target="strsim"}: cargo::core::compiler::fingerprint: fingerprint error for strsim v0.11.1/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("strsim", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/strsim-0.11.1/src/lib.rs", Edition2015) }
-   0.031267458s  INFO prepare_target{force=false package_id=strsim v0.11.1 target="strsim"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/strsim-ff9948b4a5a363e8/lib-strsim`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.031870167s  INFO prepare_target{force=false package_id=serde v1.0.228 target="serde"}: cargo::core::compiler::fingerprint: fingerprint error for serde v1.0.228/Check { test: false }/TargetInner { ..: lib_target("serde", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs", Edition2021) }
-   0.031874083s  INFO prepare_target{force=false package_id=serde v1.0.228 target="serde"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/serde-70df73138a1facca/lib-serde`
+   0.056624667s  INFO prepare_target{force=false package_id=tree-sitter-javascript v0.23.1 target="tree_sitter_javascript"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-javascript v0.23.1/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_javascript", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-javascript-0.23.1/bindings/rust/lib.rs", Edition2021) }
+   0.056632458s  INFO prepare_target{force=false package_id=tree-sitter-javascript v0.23.1 target="tree_sitter_javascript"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-javascript-f9e1c1a24d676f43/lib-tree_sitter_javascript`
 
 Caused by:
     No such file or directory (os error 2)
@@ -348,34 +153,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.032152583s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="serde_core"}: cargo::core::compiler::fingerprint: fingerprint error for serde_core v1.0.228/Check { test: false }/TargetInner { ..: lib_target("serde_core", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.228/src/lib.rs", Edition2021) }
-   0.032156667s  INFO prepare_target{force=false package_id=serde_core v1.0.228 target="serde_core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/serde_core-b3025106d823fbc0/lib-serde_core`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.032436333s  INFO prepare_target{force=false package_id=serde_json v1.0.150 target="serde_json"}: cargo::core::compiler::fingerprint: fingerprint error for serde_json v1.0.150/Check { test: false }/TargetInner { ..: lib_target("serde_json", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.150/src/lib.rs", Edition2021) }
-   0.032440333s  INFO prepare_target{force=false package_id=serde_json v1.0.150 target="serde_json"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/serde_json-6bc29a294fc7658e/lib-serde_json`
+   0.057304167s  INFO prepare_target{force=false package_id=tree-sitter-kotlin-ng v1.1.0 target="tree_sitter_kotlin_ng"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-kotlin-ng v1.1.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_kotlin_ng", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-ng-1.1.0/bindings/rust/lib.rs", Edition2021) }
+   0.057310958s  INFO prepare_target{force=false package_id=tree-sitter-kotlin-ng v1.1.0 target="tree_sitter_kotlin_ng"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-kotlin-ng-be995c769d0b684e/lib-tree_sitter_kotlin_ng`
 
 Caused by:
     No such file or directory (os error 2)
@@ -399,86 +178,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.032629625s  INFO prepare_target{force=false package_id=itoa v1.0.18 target="itoa"}: cargo::core::compiler::fingerprint: fingerprint error for itoa v1.0.18/Check { test: false }/TargetInner { ..: lib_target("itoa", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/itoa-1.0.18/src/lib.rs", Edition2021) }
-   0.032633542s  INFO prepare_target{force=false package_id=itoa v1.0.18 target="itoa"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/itoa-254bb3b8fa14adca/lib-itoa`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.032762375s  INFO prepare_target{force=false package_id=memchr v2.8.0 target="memchr"}: cargo::core::compiler::fingerprint: fingerprint error for memchr v2.8.0/Check { test: false }/TargetInner { benched: false, ..: lib_target("memchr", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/memchr-2.8.0/src/lib.rs", Edition2021) }
-   0.032766333s  INFO prepare_target{force=false package_id=memchr v2.8.0 target="memchr"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/memchr-f1aece9c514850f5/lib-memchr`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.032992292s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="zmij"}: cargo::core::compiler::fingerprint: fingerprint error for zmij v1.0.21/Check { test: false }/TargetInner { ..: lib_target("zmij", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zmij-1.0.21/src/lib.rs", Edition2021) }
-   0.032996917s  INFO prepare_target{force=false package_id=zmij v1.0.21 target="zmij"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/zmij-ce0029820fcfcb40/lib-zmij`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.033226917s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="tree_sitter"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter v0.22.6/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-0.22.6/binding_rust/lib.rs", Edition2021) }
-   0.033231333s  INFO prepare_target{force=false package_id=tree-sitter v0.22.6 target="tree_sitter"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-e6af583938c793fa/lib-tree_sitter`
+   0.057733625s  INFO prepare_target{force=false package_id=tree-sitter-python v0.23.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-python v0.23.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_python", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-python-0.23.0/bindings/rust/lib.rs", Edition2021) }
+   0.057739583s  INFO prepare_target{force=false package_id=tree-sitter-python v0.23.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-python-749e72d15ecf53db/lib-tree_sitter_python`
 
 Caused by:
     No such file or directory (os error 2)
@@ -502,116 +203,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.033860583s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint: fingerprint error for regex v1.12.3/Check { test: false }/TargetInner { ..: lib_target("regex", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-1.12.3/src/lib.rs", Edition2021) }
-   0.033875750s  INFO prepare_target{force=false package_id=regex v1.12.3 target="regex"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-3602132805db89d6/lib-regex`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.034326542s  INFO prepare_target{force=false package_id=aho-corasick v1.1.4 target="aho_corasick"}: cargo::core::compiler::fingerprint: fingerprint error for aho-corasick v1.1.4/Check { test: false }/TargetInner { ..: lib_target("aho_corasick", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aho-corasick-1.1.4/src/lib.rs", Edition2021) }
-   0.034333500s  INFO prepare_target{force=false package_id=aho-corasick v1.1.4 target="aho_corasick"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/aho-corasick-88cf244fc6339266/lib-aho_corasick`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.034507833s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint: fingerprint error for regex-automata v0.4.14/Check { test: false }/TargetInner { benched: false, ..: lib_target("regex_automata", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.14/src/lib.rs", Edition2021) }
-   0.034512458s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-automata-6ea6d1c25db93a0f/lib-regex_automata`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.034713458s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint: fingerprint error for regex-syntax v0.8.10/Check { test: false }/TargetInner { ..: lib_target("regex_syntax", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-syntax-0.8.10/src/lib.rs", Edition2021) }
-   0.034717167s  INFO prepare_target{force=false package_id=regex-syntax v0.8.10 target="regex_syntax"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/regex-syntax-2492816ef953a080/lib-regex_syntax`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: cargo::core::compiler::compile
-  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  11: cargo::ops::cargo_compile::compile_ws
-  12: cargo::ops::cargo_compile::compile_with_exec
-  13: cargo::ops::cargo_compile::compile
-  14: cargo::commands::check::exec
-  15: <cargo::cli::Exec>::exec
-  16: cargo::main
-  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  18: std::rt::lang_start::<()>::{closure#0}
-  19: std::rt::lang_start_internal
-  20: _main
-   0.035060500s  INFO prepare_target{force=false package_id=tree-sitter-javascript v0.21.4 target="tree_sitter_javascript"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-javascript v0.21.4/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter_javascript", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-javascript-0.21.4/bindings/rust/lib.rs", Edition2021) }
-   0.035064417s  INFO prepare_target{force=false package_id=tree-sitter-javascript v0.21.4 target="tree_sitter_javascript"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-javascript-900abb86a9cae601/lib-tree_sitter_javascript`
+   0.058245417s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.23.3 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-rust v0.23.3/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_rust", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-rust-0.23.3/bindings/rust/lib.rs", Edition2021) }
+   0.058252333s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.23.3 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-rust-5ed80ef4ff8faf35/lib-tree_sitter_rust`
 
 Caused by:
     No such file or directory (os error 2)
@@ -635,8 +228,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.035340792s  INFO prepare_target{force=false package_id=tree-sitter-kotlin v0.3.8 target="tree_sitter_kotlin"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-kotlin v0.3.8/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_kotlin", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-0.3.8/bindings/rust/lib.rs", Edition2018) }
-   0.035346042s  INFO prepare_target{force=false package_id=tree-sitter-kotlin v0.3.8 target="tree_sitter_kotlin"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-kotlin-9ee6b9d8d0aa0275/lib-tree_sitter_kotlin`
+   0.059230042s  INFO prepare_target{force=false package_id=tree-sitter-swift v0.6.0 target="tree_sitter_swift"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-swift v0.6.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_swift", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-swift-0.6.0/bindings/rust/lib.rs", Edition2018) }
+   0.059236333s  INFO prepare_target{force=false package_id=tree-sitter-swift v0.6.0 target="tree_sitter_swift"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-swift-45f540aa0e8aa680/lib-tree_sitter_swift`
 
 Caused by:
     No such file or directory (os error 2)
@@ -660,8 +253,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.035617000s  INFO prepare_target{force=false package_id=tree-sitter-python v0.23.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-python v0.23.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_python", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-python-0.23.0/bindings/rust/lib.rs", Edition2021) }
-   0.035620375s  INFO prepare_target{force=false package_id=tree-sitter-python v0.23.0 target="tree_sitter_python"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-python-52f066d916c00fad/lib-tree_sitter_python`
+   0.059828917s  INFO prepare_target{force=false package_id=tree-sitter-typescript v0.23.0 target="tree_sitter_typescript"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-typescript v0.23.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_typescript", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-typescript-0.23.0/bindings/rust/lib.rs", Edition2021) }
+   0.059832458s  INFO prepare_target{force=false package_id=tree-sitter-typescript v0.23.0 target="tree_sitter_typescript"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-typescript-463141fa8aed68ef/lib-tree_sitter_typescript`
 
 Caused by:
     No such file or directory (os error 2)
@@ -685,109 +278,8 @@ Stack backtrace:
   15: std::rt::lang_start::<()>::{closure#0}
   16: std::rt::lang_start_internal
   17: _main
-   0.035752042s  INFO prepare_target{force=false package_id=tree-sitter-language v0.1.7 target="tree_sitter_language"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-language v0.1.7/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_language", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-language-0.1.7/src/language.rs", Edition2021) }
-   0.035755250s  INFO prepare_target{force=false package_id=tree-sitter-language v0.1.7 target="tree_sitter_language"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-language-0cead5d60827f49c/lib-tree_sitter_language`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.036108875s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-rust v0.21.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("tree_sitter_rust", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-rust-0.21.2/bindings/rust/lib.rs", Edition2021) }
-   0.036112125s  INFO prepare_target{force=false package_id=tree-sitter-rust v0.21.2 target="tree_sitter_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-rust-065103efe1546761/lib-tree_sitter_rust`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   8: cargo::ops::cargo_compile::compile_ws
-   9: cargo::ops::cargo_compile::compile_with_exec
-  10: cargo::ops::cargo_compile::compile
-  11: cargo::commands::check::exec
-  12: <cargo::cli::Exec>::exec
-  13: cargo::main
-  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  15: std::rt::lang_start::<()>::{closure#0}
-  16: std::rt::lang_start_internal
-  17: _main
-   0.036369583s  INFO prepare_target{force=false package_id=tree-sitter-swift v0.6.0 target="tree_sitter_swift"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-swift v0.6.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_swift", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-swift-0.6.0/bindings/rust/lib.rs", Edition2018) }
-   0.036373000s  INFO prepare_target{force=false package_id=tree-sitter-swift v0.6.0 target="tree_sitter_swift"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-swift-7429055bc8fca35d/lib-tree_sitter_swift`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   8: cargo::ops::cargo_compile::compile_ws
-   9: cargo::ops::cargo_compile::compile_with_exec
-  10: cargo::ops::cargo_compile::compile
-  11: cargo::commands::check::exec
-  12: <cargo::cli::Exec>::exec
-  13: cargo::main
-  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  15: std::rt::lang_start::<()>::{closure#0}
-  16: std::rt::lang_start_internal
-  17: _main
-   0.036638458s  INFO prepare_target{force=false package_id=tree-sitter-typescript v0.23.0 target="tree_sitter_typescript"}: cargo::core::compiler::fingerprint: fingerprint error for tree-sitter-typescript v0.23.0/Check { test: false }/TargetInner { ..: lib_target("tree_sitter_typescript", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-typescript-0.23.0/bindings/rust/lib.rs", Edition2021) }
-   0.036642375s  INFO prepare_target{force=false package_id=tree-sitter-typescript v0.23.0 target="tree_sitter_typescript"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tree-sitter-typescript-a356388bf150b2a9/lib-tree_sitter_typescript`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   8: cargo::ops::cargo_compile::compile_ws
-   9: cargo::ops::cargo_compile::compile_with_exec
-  10: cargo::ops::cargo_compile::compile
-  11: cargo::commands::check::exec
-  12: <cargo::cli::Exec>::exec
-  13: cargo::main
-  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  15: std::rt::lang_start::<()>::{closure#0}
-  16: std::rt::lang_start_internal
-  17: _main
-   0.037338500s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint: fingerprint error for diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core)/Check { test: true }/TargetInner { name: "diffuse-core", doc: true, ..: with_path("/Users/rohan/repos/diffuse/diffuse-core/src/main.rs", Edition2021) }
-   0.037343625s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/diffuse-core-5993f184c33fa897/test-bin-diffuse-core`
+   0.062388042s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint: fingerprint error for diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core)/Check { test: true }/TargetInner { name: "diffuse-core", doc: true, ..: with_path("/Users/rohan/repos/diffuse/diffuse-core/src/main.rs", Edition2021) }
+   0.062399708s  INFO prepare_target{force=false package_id=diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core) target="diffuse-core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/diffuse-core-851cf561fe28b41c/test-bin-diffuse-core`
 
 Caused by:
     No such file or directory (os error 2)
@@ -810,282 +302,15 @@ Stack backtrace:
   14: std::rt::lang_start::<()>::{closure#0}
   15: std::rt::lang_start_internal
   16: _main
-   0.037704667s  INFO prepare_target{force=false package_id=tempfile v3.27.0 target="tempfile"}: cargo::core::compiler::fingerprint: fingerprint error for tempfile v3.27.0/Check { test: false }/TargetInner { ..: lib_target("tempfile", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tempfile-3.27.0/src/lib.rs", Edition2021) }
-   0.037708667s  INFO prepare_target{force=false package_id=tempfile v3.27.0 target="tempfile"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/tempfile-40b7dd6f25058f65/lib-tempfile`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   8: cargo::ops::cargo_compile::compile_ws
-   9: cargo::ops::cargo_compile::compile_with_exec
-  10: cargo::ops::cargo_compile::compile
-  11: cargo::commands::check::exec
-  12: <cargo::cli::Exec>::exec
-  13: cargo::main
-  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  15: std::rt::lang_start::<()>::{closure#0}
-  16: std::rt::lang_start_internal
-  17: _main
-   0.037889750s  INFO prepare_target{force=false package_id=fastrand v2.4.1 target="fastrand"}: cargo::core::compiler::fingerprint: fingerprint error for fastrand v2.4.1/Check { test: false }/TargetInner { ..: lib_target("fastrand", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fastrand-2.4.1/src/lib.rs", Edition2018) }
-   0.037892750s  INFO prepare_target{force=false package_id=fastrand v2.4.1 target="fastrand"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/fastrand-5410565d52e78365/lib-fastrand`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.038008917s  INFO prepare_target{force=false package_id=getrandom v0.4.2 target="getrandom"}: cargo::core::compiler::fingerprint: fingerprint error for getrandom v0.4.2/Check { test: false }/TargetInner { ..: lib_target("getrandom", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.4.2/src/lib.rs", Edition2024) }
-   0.038011833s  INFO prepare_target{force=false package_id=getrandom v0.4.2 target="getrandom"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/getrandom-d3dc564ab4e115a5/lib-getrandom`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.038169500s  INFO prepare_target{force=false package_id=cfg-if v1.0.4 target="cfg_if"}: cargo::core::compiler::fingerprint: fingerprint error for cfg-if v1.0.4/Check { test: false }/TargetInner { ..: lib_target("cfg_if", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cfg-if-1.0.4/src/lib.rs", Edition2018) }
-   0.038172458s  INFO prepare_target{force=false package_id=cfg-if v1.0.4 target="cfg_if"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/cfg-if-d3a2e93bda4adf48/lib-cfg_if`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.038394542s  INFO prepare_target{force=false package_id=libc v0.2.186 target="libc"}: cargo::core::compiler::fingerprint: fingerprint error for libc v0.2.186/Check { test: false }/TargetInner { ..: lib_target("libc", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libc-0.2.186/src/lib.rs", Edition2021) }
-   0.038397958s  INFO prepare_target{force=false package_id=libc v0.2.186 target="libc"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/libc-ee204eb8a7ff4eca/lib-libc`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.038661417s  INFO prepare_target{force=false package_id=once_cell v1.21.4 target="once_cell"}: cargo::core::compiler::fingerprint: fingerprint error for once_cell v1.21.4/Check { test: false }/TargetInner { ..: lib_target("once_cell", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/once_cell-1.21.4/src/lib.rs", Edition2021) }
-   0.038664625s  INFO prepare_target{force=false package_id=once_cell v1.21.4 target="once_cell"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/once_cell-9c2df4fe61459bc4/lib-once_cell`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.038787917s  INFO prepare_target{force=false package_id=rustix v1.1.4 target="rustix"}: cargo::core::compiler::fingerprint: fingerprint error for rustix v1.1.4/Check { test: false }/TargetInner { ..: lib_target("rustix", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rustix-1.1.4/src/lib.rs", Edition2021) }
-   0.038790917s  INFO prepare_target{force=false package_id=rustix v1.1.4 target="rustix"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/rustix-7ba123b1579ced01/lib-rustix`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   9: cargo::ops::cargo_compile::compile_ws
-  10: cargo::ops::cargo_compile::compile_with_exec
-  11: cargo::ops::cargo_compile::compile
-  12: cargo::commands::check::exec
-  13: <cargo::cli::Exec>::exec
-  14: cargo::main
-  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  16: std::rt::lang_start::<()>::{closure#0}
-  17: std::rt::lang_start_internal
-  18: _main
-   0.038972292s  INFO prepare_target{force=false package_id=bitflags v2.11.1 target="bitflags"}: cargo::core::compiler::fingerprint: fingerprint error for bitflags v2.11.1/Check { test: false }/TargetInner { ..: lib_target("bitflags", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitflags-2.11.1/src/lib.rs", Edition2021) }
-   0.038975333s  INFO prepare_target{force=false package_id=bitflags v2.11.1 target="bitflags"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/bitflags-c77b42b18d4167b2/lib-bitflags`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-   0.039090458s  INFO prepare_target{force=false package_id=errno v0.3.14 target="errno"}: cargo::core::compiler::fingerprint: fingerprint error for errno v0.3.14/Check { test: false }/TargetInner { ..: lib_target("errno", ["lib"], "/Users/rohan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/errno-0.3.14/src/lib.rs", Edition2018) }
-   0.039093208s  INFO prepare_target{force=false package_id=errno v0.3.14 target="errno"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/rohan/repos/diffuse/diffuse-core/target/debug/.fingerprint/errno-c147cceb40edb5d3/lib-errno`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: <std::backtrace::Backtrace>::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: cargo::core::compiler::compile
-   7: cargo::core::compiler::compile
-   8: cargo::core::compiler::compile
-   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
-  10: cargo::ops::cargo_compile::compile_ws
-  11: cargo::ops::cargo_compile::compile_with_exec
-  12: cargo::ops::cargo_compile::compile
-  13: cargo::commands::check::exec
-  14: <cargo::cli::Exec>::exec
-  15: cargo::main
-  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  17: std::rt::lang_start::<()>::{closure#0}
-  18: std::rt::lang_start_internal
-  19: _main
-    Checking memchr v2.8.0
     Checking regex-syntax v0.8.10
-    Checking utf8parse v0.2.2
-    Checking tree-sitter-language v0.1.7
-    Checking libc v0.2.186
-    Checking is_terminal_polyfill v1.70.2
-    Checking anstyle v1.0.14
-    Checking anstyle-query v1.1.5
-    Checking colorchoice v1.0.5
-    Checking serde_core v1.0.228
-    Checking anstyle-parse v1.0.0
-    Checking strsim v0.11.1
-    Checking clap_lex v1.1.0
-    Checking zmij v1.0.21
-    Checking anstream v1.0.0
-    Checking bitflags v2.11.1
-    Checking itoa v1.0.18
-    Checking cfg-if v1.0.4
+    Checking tree-sitter-kotlin-ng v1.1.0
     Checking tree-sitter-typescript v0.23.0
-    Checking tree-sitter-swift v0.6.0
-    Checking aho-corasick v1.1.4
     Checking tree-sitter-python v0.23.0
-    Checking clap_builder v4.6.0
-    Checking once_cell v1.21.4
-    Checking errno v0.3.14
-    Checking getrandom v0.4.2
-    Checking fastrand v2.4.1
-    Checking rustix v1.1.4
-    Checking tempfile v3.27.0
+    Checking tree-sitter-rust v0.23.3
+    Checking tree-sitter-javascript v0.23.1
+    Checking tree-sitter-swift v0.6.0
     Checking regex-automata v0.4.14
-    Checking clap v4.6.1
-    Checking serde v1.0.228
-    Checking serde_json v1.0.150
     Checking regex v1.12.3
-    Checking tree-sitter v0.22.6
-    Checking tree-sitter-rust v0.21.2
-    Checking tree-sitter-kotlin v0.3.8
-    Checking tree-sitter-javascript v0.21.4
+    Checking tree-sitter v0.23.2
     Checking diffuse-core v0.1.0 (/Users/rohan/repos/diffuse/diffuse-core)
-error: could not compile `diffuse-core` (bin "diffuse-core") due to 1 previous error
-warning: build failed, waiting for other jobs to finish...
-error: could not compile `diffuse-core` (bin "diffuse-core" test) due to 1 previous error
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.11s

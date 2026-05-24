@@ -451,6 +451,9 @@ struct AnalysisDetailView: View {
                 VStack(spacing: 0) {
                     ScrollView {
                         VStack(spacing: 12) {
+                            if !details.symbolReviewGroups.isEmpty {
+                                SymbolReviewMapPanel(details: details)
+                            }
                             AnalysisNavigationRail(details: details)
                         }
                         .padding(12)

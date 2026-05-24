@@ -6,7 +6,7 @@ use crate::languages::SupportedLanguage;
 use crate::models::AstSymbol;
 
 // ---------------------------------------------------------------------------
-// Public entry-point
+// Public entry-point: analyze a single file
 // ---------------------------------------------------------------------------
 
 /// Parse `file` with Tree-Sitter and return all named declaration nodes whose
@@ -25,26 +25,227 @@ pub fn analyze(file: &Path, changed_lines: &[usize]) -> Vec<AstSymbol> {
         return vec![];
     };
 
-    // 3. Build parser
+    analyze_source(&source, lang, changed_lines)
+}
+
+/// Parse `file` and return all named declaration symbols.
+pub fn analyze_all(file: &Path) -> Vec<AstSymbol> {
+    let Some(lang) = SupportedLanguage::from_path(file) else {
+        return vec![];
+    };
+    let Ok(source) = std::fs::read(file) else {
+        eprintln!("diffuse-core: cannot read {:?}", file);
+        return vec![];
+    };
+    analyze_source(&source, lang, &[])
+}
+
+/// Shared inner implementation used by both `analyze` and `compare_files`.
+fn analyze_source(source: &[u8], lang: SupportedLanguage, changed_lines: &[usize]) -> Vec<AstSymbol> {
+    // Build parser
     let mut parser = Parser::new();
     if parser.set_language(&lang.tree_sitter_language()).is_err() {
-        eprintln!("diffuse-core: failed to load grammar for {:?}", file);
         return vec![];
     }
 
-    // 4. Parse
-    let Some(tree) = parser.parse(&source, None) else {
-        eprintln!("diffuse-core: parse failed for {:?}", file);
+    // Parse
+    let Some(tree) = parser.parse(source, None) else {
         return vec![];
     };
 
-    // 5. Walk the tree collecting matching declarations
+    // Walk the tree collecting matching declarations
     let changed_set: std::collections::HashSet<usize> = changed_lines.iter().copied().collect();
     let mut symbols: Vec<AstSymbol> = Vec::new();
-    walk_tree(tree.root_node(), &source, &changed_set, lang, &mut symbols);
+    walk_tree(tree.root_node(), source, &changed_set, lang, &mut symbols);
 
-    // 6. Deduplicate: keep only the innermost symbol per changed line
+    // Deduplicate: keep only the innermost symbol per changed line
     deduplicate(symbols)
+}
+
+// ---------------------------------------------------------------------------
+// Public entry-point: compare base and head versions of a file (Step 4)
+// ---------------------------------------------------------------------------
+
+/// Compare two versions of the same file and return symbols from `head` that
+/// have contract-level changes relative to `base` (signature, visibility).
+///
+/// `changed_lines` are the 1-based new-side lines from the diff for this file.
+pub fn compare_files(base: &Path, head: &Path, changed_lines: &[usize]) -> Vec<AstSymbol> {
+    let Some(lang) = SupportedLanguage::from_path(head) else {
+        return vec![];
+    };
+
+    let Ok(base_source) = std::fs::read(base) else {
+        eprintln!("diffuse-core: cannot read base {:?}", base);
+        return vec![];
+    };
+    let Ok(head_source) = std::fs::read(head) else {
+        eprintln!("diffuse-core: cannot read head {:?}", head);
+        return vec![];
+    };
+
+    // Parse both with all lines (we compare the whole symbol surface)
+    let all_lines_base: Vec<usize> = (1..=base_source.iter().filter(|&&b| b == b'\n').count() + 1).collect();
+    let base_syms = analyze_source(&base_source, lang, &all_lines_base);
+    let head_syms = analyze_source(&head_source, lang, changed_lines);
+
+    // Build lookup: stable key → base symbol
+    let base_map: HashMap<String, &AstSymbol> = base_syms
+        .iter()
+        .map(|s| (stable_key(s), s))
+        .collect();
+
+    // For each head symbol in the changed lines, compute contract delta
+    head_syms
+        .into_iter()
+        .map(|mut head_sym| {
+            let key = stable_key(&head_sym);
+            if let Some(base_sym) = base_map.get(&key) {
+                let is_surface = is_contract_surface(base_sym) || is_contract_surface(&head_sym);
+                let base_sig = signature_fingerprint(base_sym);
+                let head_sig = signature_fingerprint(&head_sym);
+                if is_surface && base_sig != head_sig {
+                    head_sym.metadata.insert("contract_signature_changed".into(), "true".into());
+                }
+
+                if is_surface {
+                    compare_field_delta(
+                        base_sym,
+                        &mut head_sym,
+                        "return_type",
+                        "contract_return_type_changed",
+                        "contract_old_return_type",
+                        "contract_new_return_type",
+                    );
+                }
+
+                // Compare visibility — materialize owned Strings before mutable borrow
+                let base_vis: String = base_sym
+                    .metadata
+                    .get("visibility")
+                    .cloned()
+                    .unwrap_or_else(|| "internal".into());
+                let head_vis: String = head_sym
+                    .metadata
+                    .get("visibility")
+                    .cloned()
+                    .unwrap_or_else(|| "internal".into());
+                if base_vis != head_vis {
+                    let is_new_public = head_vis == "public" || head_vis == "open";
+                    head_sym.metadata.insert("contract_visibility_changed".into(), "true".into());
+                    head_sym.metadata.insert("contract_old_visibility".into(), base_vis);
+                    head_sym.metadata.insert("contract_new_visibility".into(), head_vis);
+                    if is_new_public {
+                        head_sym.metadata.insert("contract_is_new_public".into(), "true".into());
+                    }
+                }
+
+                tag_behavioral_delta(base_sym, &mut head_sym);
+            } else {
+                // Symbol is new in head — if it is public, flag it
+                let vis = head_sym.metadata.get("visibility").map(|s| s.as_str()).unwrap_or("internal");
+                if vis == "public" || vis == "open" {
+                    head_sym.metadata.insert("contract_is_new_public".into(), "true".into());
+                }
+                tag_new_symbol_behavior(&mut head_sym);
+            }
+            head_sym
+        })
+        .filter(|s| {
+            // Only return symbols that have some contract delta
+            s.metadata.keys().any(|k| k.starts_with("contract_") || k.ends_with("_added"))
+        })
+        .collect()
+}
+
+/// Build a stable identifier for a symbol that survives formatting changes.
+/// Includes enclosing type/module metadata when available to avoid collisions
+/// between common names such as `init`, `body`, `render`, or `testFoo`.
+fn stable_key(sym: &AstSymbol) -> String {
+    let scope = sym.metadata.get("scope").map(|s| s.as_str()).unwrap_or("");
+    format!("{}::{}::{}", scope, sym.semantic_type, sym.name)
+}
+
+/// Extract a compact signature fingerprint from symbol metadata. This is
+/// intentionally declaration-only; body text changes must not become contract
+/// changes.
+fn signature_fingerprint(sym: &AstSymbol) -> String {
+    let async_flag = sym.metadata.get("is_async").map(|s| s.as_str()).unwrap_or("false");
+    let throws_flag = sym.metadata.get("throws").map(|s| s.as_str()).unwrap_or("false");
+    let vis = sym.metadata.get("visibility").map(|s| s.as_str()).unwrap_or("internal");
+    let param_hash = sym.metadata.get("param_hash").map(|s| s.as_str()).unwrap_or("");
+    let return_type = sym.metadata.get("return_type").map(|s| s.as_str()).unwrap_or("");
+    format!(
+        "{}::{}::async={}::throws={}::vis={}::params={}::returns={}",
+        sym.semantic_type, sym.name, async_flag, throws_flag, vis, param_hash, return_type
+    )
+}
+
+fn is_contract_surface(sym: &AstSymbol) -> bool {
+    match sym.metadata.get("visibility").map(|s| s.as_str()) {
+        Some("public") | Some("open") => true,
+        Some("private") | Some("fileprivate") | Some("internal") | Some("protected") => false,
+        _ => matches!(
+            sym.language.as_str(),
+            "typescript" | "javascript" | "python"
+        ) || matches!(
+            sym.semantic_type.as_str(),
+            "interface_declaration" | "protocol_declaration" | "type_alias"
+        ),
+    }
+}
+
+fn compare_field_delta(
+    base_sym: &AstSymbol,
+    head_sym: &mut AstSymbol,
+    field: &str,
+    changed_key: &str,
+    old_key: &str,
+    new_key: &str,
+) {
+    let base_value = base_sym.metadata.get(field).cloned().unwrap_or_default();
+    let head_value = head_sym.metadata.get(field).cloned().unwrap_or_default();
+    if base_value != head_value {
+        head_sym.metadata.insert(changed_key.into(), "true".into());
+        head_sym.metadata.insert(old_key.into(), base_value);
+        head_sym.metadata.insert(new_key.into(), head_value);
+    }
+}
+
+fn tag_behavioral_delta(base_sym: &AstSymbol, head_sym: &mut AstSymbol) {
+    for (presence_key, delta_key) in [
+        ("has_control_flow", "control_flow_added"),
+        ("has_error_handling", "error_handling_added"),
+        ("has_async_behavior", "async_behavior_added"),
+        ("has_persistence_write", "persistence_write_added"),
+        ("has_network_call", "network_call_added"),
+        ("has_auth_check", "auth_check_added"),
+        ("has_deletion", "deletion_added"),
+        ("has_logging", "logging_added"),
+    ] {
+        let had = base_sym.metadata.get(presence_key).map(|v| v == "true").unwrap_or(false);
+        let has = head_sym.metadata.get(presence_key).map(|v| v == "true").unwrap_or(false);
+        if has && !had {
+            head_sym.metadata.insert(delta_key.into(), "true".into());
+        }
+    }
+}
+
+fn tag_new_symbol_behavior(head_sym: &mut AstSymbol) {
+    for (presence_key, delta_key) in [
+        ("has_control_flow", "control_flow_added"),
+        ("has_error_handling", "error_handling_added"),
+        ("has_async_behavior", "async_behavior_added"),
+        ("has_persistence_write", "persistence_write_added"),
+        ("has_network_call", "network_call_added"),
+        ("has_auth_check", "auth_check_added"),
+        ("has_deletion", "deletion_added"),
+        ("has_logging", "logging_added"),
+    ] {
+        if head_sym.metadata.get(presence_key).map(|v| v == "true").unwrap_or(false) {
+            head_sym.metadata.insert(delta_key.into(), "true".into());
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -69,9 +270,8 @@ fn walk_tree(
             let end_line = child.end_position().row + 1;
 
             // Does this node's line range overlap any changed line?
-            let overlaps = changed_lines
-                .iter()
-                .any(|l| *l >= start_line && *l <= end_line);
+            let overlaps = changed_lines.is_empty()
+                || changed_lines.iter().any(|l| *l >= start_line && *l <= end_line);
 
             if overlaps {
                 if let Some(sym) = build_symbol(child, source, lang, start_line, end_line) {
@@ -101,9 +301,43 @@ fn build_symbol(
     let semantic_type = map_semantic_type(node.kind(), lang);
     let name = extract_name(node, source).unwrap_or_else(|| "<anonymous>".into());
     let mut metadata = build_metadata(node, source, lang);
+    if let Some(scope) = enclosing_scope(node, source) {
+        metadata.insert("scope".into(), scope);
+    }
 
     // Security / auth tagging heuristics
     tag_security_metadata(&name, node, source, &mut metadata);
+
+    // Behavioral body presence. These are not reported as changes unless
+    // compare_files observes that the behavior is newly introduced.
+    tag_behavioral_metadata(node, source, &mut metadata);
+
+    // Direct callee extraction (Step 6)
+    let callees = extract_callees(node, source, lang);
+    if !callees.is_empty() {
+        metadata.insert("callees".into(), callees.join(","));
+    }
+
+    // Parameter hash for contract comparison (Step 4)
+    let param_hash = extract_param_hash(node, source, lang);
+    if !param_hash.is_empty() {
+        metadata.insert("param_hash".into(), param_hash);
+    }
+    if let Some(return_type) = extract_return_type(node, source) {
+        metadata.insert("return_type".into(), return_type);
+    }
+    let imports = extract_imports(source, lang);
+    if !imports.is_empty() {
+        metadata.insert("imports".into(), imports.join(","));
+    }
+
+    // throws / rethrows detection for contract comparison
+    if let Ok(text) = node.utf8_text(source) {
+        let first = &text[..text.len().min(300)];
+        if first.contains("throws") || first.contains("rethrows") || first.contains("raise") {
+            metadata.insert("throws".into(), "true".into());
+        }
+    }
 
     Some(AstSymbol {
         line: start_line,
@@ -113,6 +347,40 @@ fn build_symbol(
         language: lang.name().into(),
         metadata,
     })
+}
+
+fn enclosing_scope(node: Node, source: &[u8]) -> Option<String> {
+    let mut parts: Vec<String> = Vec::new();
+    let mut parent = node.parent();
+    while let Some(p) = parent {
+        match p.kind() {
+            "class_declaration"
+            | "class_definition"
+            | "struct_declaration"
+            | "struct_item"
+            | "enum_declaration"
+            | "enum_item"
+            | "protocol_declaration"
+            | "trait_item"
+            | "interface_declaration"
+            | "extension_declaration"
+            | "impl_item"
+            | "object_declaration"
+            | "mod_item" => {
+                if let Some(name) = extract_name(p, source) {
+                    parts.push(name);
+                }
+            }
+            _ => {}
+        }
+        parent = p.parent();
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        parts.reverse();
+        Some(parts.join("."))
+    }
 }
 
 /// Map Tree-Sitter node kind → coarse Diffuse semantic type string.
@@ -175,7 +443,7 @@ fn extract_name(node: Node, source: &[u8]) -> Option<String> {
             _ => {}
         }
     }
-    // Fallback: for arrow functions / anonymous: grab up to 32 chars of the node text
+    // Fallback: for arrow functions / anonymous: grab up to 48 chars of the node text
     if let Ok(text) = node.utf8_text(source) {
         let snippet: String = text.chars().take(48).collect();
         let snippet = snippet.trim().to_string();
@@ -192,32 +460,32 @@ fn build_metadata(node: Node, source: &[u8], lang: SupportedLanguage) -> HashMap
 
     // Detect `async` / `override` / `public` / `private` / `open` modifiers
     let full_text = node.utf8_text(source).unwrap_or("");
-    let first_100: &str = &full_text[..full_text.len().min(200)];
+    let first_200: &str = &full_text[..full_text.len().min(200)];
 
     // Modifiers — language-agnostic heuristics on the leading text
-    if first_100.contains("async ") || first_100.contains("suspend ") {
+    if first_200.contains("async ") || first_200.contains("suspend ") {
         meta.insert("is_async".into(), "true".into());
     }
-    if first_100.contains("override ") {
+    if first_200.contains("override ") {
         meta.insert("is_override".into(), "true".into());
     }
-    if first_100.contains("public ") || first_100.contains("open ") {
+    if first_200.contains("public ") || first_200.contains("open ") {
         meta.insert("visibility".into(), "public".into());
-    } else if first_100.contains("private ") || first_100.contains("fileprivate ") {
+    } else if first_200.contains("private ") || first_200.contains("fileprivate ") {
         meta.insert("visibility".into(), "private".into());
-    } else if first_100.contains("internal ") {
+    } else if first_200.contains("internal ") {
         meta.insert("visibility".into(), "internal".into());
-    } else if first_100.contains("protected ") {
+    } else if first_200.contains("protected ") {
         meta.insert("visibility".into(), "protected".into());
     }
 
     // Test detection
     let is_test = match lang {
         SupportedLanguage::Swift => {
-            full_text.contains("func test") || first_100.contains("@Test")
+            full_text.contains("func test") || first_200.contains("@Test")
         }
         SupportedLanguage::Kotlin => {
-            first_100.contains("@Test") || first_100.contains("fun test")
+            first_200.contains("@Test") || first_200.contains("fun test")
         }
         SupportedLanguage::TypeScript
         | SupportedLanguage::TSX
@@ -234,7 +502,7 @@ fn build_metadata(node: Node, source: &[u8], lang: SupportedLanguage) -> HashMap
         }
         SupportedLanguage::Rust => {
             // #[test] attribute on the parent or sibling — simplified check
-            first_100.contains("#[test]") || first_100.contains("#[tokio::test]")
+            first_200.contains("#[test]") || first_200.contains("#[tokio::test]")
         }
     };
     if is_test {
@@ -280,6 +548,289 @@ fn tag_security_metadata(name: &str, _node: Node, _source: &[u8], meta: &mut Has
         meta.insert("semantic_area".into(), "data_deletion".into());
         meta.insert("is_critical".into(), "false".into());
     }
+}
+
+// ---------------------------------------------------------------------------
+// Step 5: Behavioral diff metadata
+// Scans the symbol body text for patterns indicating kinds of behavior change.
+// ---------------------------------------------------------------------------
+
+fn tag_behavioral_metadata(node: Node, source: &[u8], meta: &mut HashMap<String, String>) {
+    let body_text = node.utf8_text(source).unwrap_or("").to_lowercase();
+
+    // Control flow: if/guard/switch/when/match/for/while
+    if contains_any(&body_text, &["if ", "guard ", "switch ", " when ", " match ", "for ", "while "]) {
+        meta.insert("has_control_flow".into(), "true".into());
+    }
+
+    // Error handling: throws/try/catch/Result/Error
+    if contains_any(&body_text, &["throws", " try ", " catch ", "result<", "error>", "?."])  {
+        meta.insert("has_error_handling".into(), "true".into());
+    }
+
+    // Async / concurrency
+    if contains_any(&body_text, &["await ", "async ", " async{", "completionhandler", "dispatchqueue", "coroutinescope"]) {
+        meta.insert("has_async_behavior".into(), "true".into());
+    }
+
+    // Persistence writes
+    if contains_any(&body_text, &[
+        ".save(", ".insert(", ".update(", ".write(", ".persist(",
+        ".commit(", "managedcontext", "realm.write", "userdefaults",
+        "context.save", "coredatastack",
+    ]) {
+        meta.insert("has_persistence_write".into(), "true".into());
+    }
+
+    // Network calls
+    if contains_any(&body_text, &[
+        "urlsession", "fetch(", "http", ".get(", ".post(", ".put(", ".delete(",
+        "request(", "axios", "alamofire", "okhttp", "retrofit",
+        "nsurlsession", "datatask", "uploadtask",
+    ]) {
+        meta.insert("has_network_call".into(), "true".into());
+    }
+
+    // Authorization checks
+    if contains_any(&body_text, &[
+        "authorize(", "checkpermission", "requiresauth", "isauthenticated",
+        "hasrole(", "canaccess(", "guardauth", "accesscontrol",
+    ]) {
+        meta.insert("has_auth_check".into(), "true".into());
+    }
+
+    // Deletion / destructive operations
+    if contains_any(&body_text, &[
+        "delete(", ".remove(", "destroy(", "purge(", "wipe(", "drop(",
+        "deletefrom", "truncate", "harddelete",
+    ]) {
+        meta.insert("has_deletion".into(), "true".into());
+    }
+
+    // Logging / metrics / audit
+    if contains_any(&body_text, &[
+        "log(", "logger.", "print(", "nspredicate", "analytics.",
+        "metrics.", "telemetry.", "audit.", "nslog(", "debugprint",
+        "firebase.log", "crashlytics",
+    ]) {
+        meta.insert("has_logging".into(), "true".into());
+    }
+}
+
+/// Returns true if `text` contains any of the given patterns.
+fn contains_any(text: &str, patterns: &[&str]) -> bool {
+    patterns.iter().any(|p| text.contains(p))
+}
+
+// ---------------------------------------------------------------------------
+// Step 6: Direct callee extraction
+// Walks the symbol body for call expressions and collects callee names.
+// ---------------------------------------------------------------------------
+
+fn extract_callees(node: Node, source: &[u8], lang: SupportedLanguage) -> Vec<String> {
+    let call_kinds = call_expression_kinds(lang);
+    let mut callees: Vec<String> = Vec::new();
+    collect_calls(node, source, &call_kinds, &mut callees);
+
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    callees.retain(|c| seen.insert(c.clone()));
+
+    // Cap at 20 callees to keep JSON compact
+    callees.truncate(20);
+    callees
+}
+
+/// Language-specific node kinds that represent a function/method call.
+fn call_expression_kinds(lang: SupportedLanguage) -> &'static [&'static str] {
+    match lang {
+        SupportedLanguage::Swift => &[
+            "call_expression",
+            "function_call_expression",
+        ],
+        SupportedLanguage::Kotlin => &[
+            "call_expression",
+            "function_call_expression",
+        ],
+        SupportedLanguage::TypeScript
+        | SupportedLanguage::TSX
+        | SupportedLanguage::JavaScript
+        | SupportedLanguage::JSX => &[
+            "call_expression",
+            "new_expression",
+        ],
+        SupportedLanguage::Python => &[
+            "call",
+        ],
+        SupportedLanguage::Rust => &[
+            "call_expression",
+            "macro_invocation",
+            "method_call_expression",
+        ],
+    }
+}
+
+fn collect_calls(node: Node, source: &[u8], call_kinds: &[&str], out: &mut Vec<String>) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if call_kinds.contains(&child.kind()) {
+            // Try to get the callee name from the function/identifier child
+            if let Some(name) = callee_name(child, source) {
+                if !name.is_empty() && name != "<anonymous>" {
+                    out.push(name);
+                }
+            }
+        }
+        // Recurse into all children
+        collect_calls(child, source, call_kinds, out);
+    }
+}
+
+/// Extract the callee name from a call_expression node.
+fn callee_name(node: Node, source: &[u8]) -> Option<String> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            // Swift / Kotlin: direct identifier
+            "identifier" | "simple_identifier" => {
+                if let Ok(text) = child.utf8_text(source) {
+                    return Some(text.to_string());
+                }
+            }
+            // TS/JS: call_expression → identifier or member_expression
+            "member_expression" | "field_expression" => {
+                // Get the property/method name (right side of the dot)
+                let mut mc = child.walk();
+                for mc_child in child.children(&mut mc) {
+                    if mc_child.kind() == "property_identifier"
+                        || mc_child.kind() == "identifier"
+                        || mc_child.kind() == "field_identifier"
+                    {
+                        if let Ok(text) = mc_child.utf8_text(source) {
+                            return Some(text.to_string());
+                        }
+                    }
+                }
+            }
+            // Python: call → identifier or attribute
+            "attribute" => {
+                let mut ac = child.walk();
+                for ac_child in child.children(&mut ac) {
+                    if ac_child.kind() == "identifier" {
+                        if let Ok(text) = ac_child.utf8_text(source) {
+                            return Some(text.to_string());
+                        }
+                    }
+                }
+            }
+            // Rust macro_invocation: the macro path (scoped only — identifier already matched above)
+            "scoped_identifier" => {
+                if let Ok(text) = child.utf8_text(source) {
+                    return Some(text.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: Parameter hash extraction (signature fingerprint support)
+// ---------------------------------------------------------------------------
+
+/// Extract a compact hash of the parameter list to detect signature changes.
+/// Returns an empty string if the grammar does not expose a parameter node;
+/// body text is intentionally never used as a fallback.
+fn extract_param_hash(node: Node, source: &[u8], _lang: SupportedLanguage) -> String {
+    // First try to find a structured parameter node
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "parameter_clause"
+            | "parameters"
+            | "formal_parameters"
+            | "function_value_parameters"
+            | "parameter_list" => {
+                if let Ok(text) = child.utf8_text(source) {
+                    let hash: u32 = text.bytes().fold(0u32, |acc, b| acc.wrapping_add(b as u32));
+                    return format!("{hash:04x}");
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Ok(text) = node.utf8_text(source) {
+        let header = text.split('{').next().unwrap_or(text).trim();
+        if !header.is_empty() && header.len() < text.len() {
+            let hash: u32 = header.bytes().fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
+            return format!("{hash:08x}");
+        }
+    }
+    String::new()
+}
+
+fn extract_return_type(node: Node, source: &[u8]) -> Option<String> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "return_type"
+            | "type"
+            | "type_identifier"
+            | "user_type"
+            | "function_type"
+            | "generic_type" => {
+                if let Ok(text) = child.utf8_text(source) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        return Some(trimmed.to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Ok(text) = node.utf8_text(source) {
+        let header = text.split('{').next().unwrap_or(text).trim();
+        if let Some(idx) = header.rfind("->") {
+            let ret = header[idx + 2..].trim();
+            if !ret.is_empty() {
+                return Some(ret.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_imports(source: &[u8], lang: SupportedLanguage) -> Vec<String> {
+    let Ok(text) = std::str::from_utf8(source) else { return vec![] };
+    let mut imports = Vec::new();
+    for line in text.lines().map(str::trim) {
+        let candidate = match lang {
+            SupportedLanguage::Swift if line.starts_with("import ") => Some(line.trim_start_matches("import ").trim()),
+            SupportedLanguage::Kotlin if line.starts_with("import ") => Some(line.trim_start_matches("import ").trim()),
+            SupportedLanguage::Python if line.starts_with("import ") => Some(line.trim_start_matches("import ").trim()),
+            SupportedLanguage::Python if line.starts_with("from ") => Some(line.trim_start_matches("from ").split_whitespace().next().unwrap_or("")),
+            SupportedLanguage::Rust if line.starts_with("use ") => Some(line.trim_start_matches("use ").trim_end_matches(';').trim()),
+            SupportedLanguage::TypeScript
+            | SupportedLanguage::TSX
+            | SupportedLanguage::JavaScript
+            | SupportedLanguage::JSX if line.starts_with("import ") => {
+                line.split(" from ")
+                    .nth(1)
+                    .map(|s| s.trim().trim_matches(';').trim_matches('"').trim_matches('\''))
+            }
+            _ => None,
+        };
+        if let Some(value) = candidate {
+            if !value.is_empty() {
+                imports.push(value.to_string());
+            }
+        }
+    }
+    imports.sort();
+    imports.dedup();
+    imports
 }
 
 // ---------------------------------------------------------------------------
@@ -408,5 +959,66 @@ class AuthService {
         assert!(!results.is_empty());
         assert_eq!(results[0].semantic_type, "function_definition");
         assert_eq!(results[0].metadata.get("semantic_area").map(|s| s.as_str()), Some("data_deletion"));
+    }
+
+    #[test]
+    fn test_behavioral_metadata_network_call() {
+        let src = "func fetchUser(id: Int) async -> User? {\n    let data = await URLSession.shared.data(from: url)\n    return data\n}\n";
+        let f = write_tmp(src, "swift");
+        let results = analyze(f.path(), &[1, 2, 3]);
+        assert!(!results.is_empty());
+        let sym = &results[0];
+        assert_eq!(sym.metadata.get("has_network_call").map(|s| s.as_str()), Some("true"), "Expected network call metadata");
+        assert_eq!(sym.metadata.get("has_async_behavior").map(|s| s.as_str()), Some("true"), "Expected async behavior metadata");
+    }
+
+    #[test]
+    fn test_behavioral_metadata_persistence_write() {
+        let src = "func saveUser(user: User) {\n    context.save()\n}\n";
+        let f = write_tmp(src, "swift");
+        let results = analyze(f.path(), &[1, 2]);
+        assert!(!results.is_empty());
+        assert_eq!(
+            results[0].metadata.get("has_persistence_write").map(|s| s.as_str()),
+            Some("true"),
+            "Expected persistence write metadata"
+        );
+    }
+
+    #[test]
+    fn test_callee_extraction_rust() {
+        let src = "pub fn process(x: i32) -> i32 {\n    let a = validate(x);\n    let b = transform(a);\n    persist(b)\n}\n";
+        let f = write_tmp(src, "rs");
+        let results = analyze(f.path(), &[1, 2, 3, 4]);
+        assert!(!results.is_empty());
+        let callees = results[0].metadata.get("callees").unwrap_or(&String::new()).clone();
+        assert!(!callees.is_empty(), "Expected callees to be populated");
+    }
+
+    #[test]
+    fn test_compare_files_signature_change() {
+        let base_src = "public func greet(name: String) -> String {\n    return \"Hello \\(name)\"\n}\n";
+        let head_src = "public func greet(name: String, greeting: String) -> String {\n    return \"\\(greeting) \\(name)\"\n}\n";
+        let base_f = write_tmp(base_src, "swift");
+        let head_f = write_tmp(head_src, "swift");
+        let results = compare_files(base_f.path(), head_f.path(), &[1, 2, 3]);
+        // greet changed signature — should be flagged
+        let flagged = results.iter().any(|s| {
+            s.metadata.get("contract_signature_changed").map(|v| v == "true").unwrap_or(false)
+        });
+        assert!(flagged, "Expected contract_signature_changed for greet");
+    }
+
+    #[test]
+    fn test_compare_files_new_public_symbol() {
+        let base_src = "func helper() {}\n";
+        let head_src = "func helper() {}\npublic func newApi() -> Int { 42 }\n";
+        let base_f = write_tmp(base_src, "swift");
+        let head_f = write_tmp(head_src, "swift");
+        let results = compare_files(base_f.path(), head_f.path(), &[2]);
+        let flagged = results.iter().any(|s| {
+            s.metadata.get("contract_is_new_public").map(|v| v == "true").unwrap_or(false)
+        });
+        assert!(flagged, "Expected contract_is_new_public for newApi");
     }
 }

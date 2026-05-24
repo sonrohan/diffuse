@@ -259,6 +259,29 @@ struct ChangeBucket: Identifiable, Codable {
     var reviewOrder: Int
 }
 
+// MARK: - Symbol Review Map
+
+/// A group of changed symbols sharing the same semantic area.
+/// Used in the symbol-first review map (AST Application Plan Step 1).
+struct SymbolReviewGroup: Identifiable, Codable {
+    let id: UUID
+    /// Raw area key from AST sidecar (e.g. "security_authentication", "payment", "general").
+    var semanticArea: String
+    /// Human-readable label shown in the review map header.
+    var displayLabel: String
+    /// SF Symbol icon name for the group.
+    var iconName: String
+    var symbols: [ChangedSymbol]
+
+    init(id: UUID = UUID(), semanticArea: String, displayLabel: String, iconName: String, symbols: [ChangedSymbol]) {
+        self.id = id
+        self.semanticArea = semanticArea
+        self.displayLabel = displayLabel
+        self.iconName = iconName
+        self.symbols = symbols
+    }
+}
+
 enum RiskCategory: String, Codable {
     case security, contract, data, testGap = "test-gap", coupling, runtime, reviewLoad = "review-load"
 
@@ -316,6 +339,8 @@ struct AnalysisDetails {
     var riskHighlights: [RiskHighlight]
     var skimTargets: [SkimTarget]
     var riskFactors: [String]
+    /// Symbol-first review map grouped by semantic area (Step 1).
+    var symbolReviewGroups: [SymbolReviewGroup]
 }
 
 // MARK: - Git Navigation Models

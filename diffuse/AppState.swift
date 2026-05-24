@@ -251,7 +251,10 @@ class AppState {
             )
         }
         
-        let ruleResults = RulesEngine.runDeterministicRules(files: parsedFiles, symbols: [])
+        let ruleResults = RulesEngine.runDeterministicRules(
+            files: parsedFiles, symbols: [],
+            filePathMap: Dictionary(uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) })
+        )
         var allFindings: [Finding] = []
         for (path, rulefindings) in ruleResults {
             let matchFile = changedFiles.first { $0.path == path }
@@ -284,7 +287,8 @@ class AppState {
             changeBuckets: triage.changeBuckets,
             riskHighlights: triage.riskHighlights,
             skimTargets: triage.skimTargets,
-            riskFactors: triage.riskFactors
+            riskFactors: triage.riskFactors,
+            symbolReviewGroups: triage.symbolReviewGroups
         )
     }
 

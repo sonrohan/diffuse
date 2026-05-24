@@ -175,7 +175,13 @@ struct RulesEngine {
         var factors: [String]
     }
 
-    static func runDeterministicRules(files: [DiffParser.ParsedFile], symbols: [ChangedSymbol]) -> [String: [RuleFinding]] {
+    // FIX 1: filePathMap resolves sym.changedFileId → file path so every
+    // AST-powered rule finding is attached to the correct file.
+    static func runDeterministicRules(
+        files: [DiffParser.ParsedFile],
+        symbols: [ChangedSymbol],
+        filePathMap: [UUID: String]
+    ) -> [String: [RuleFinding]] {
         var fileFindings: [String: [RuleFinding]] = [:]
 
         func addFinding(_ path: String, _ finding: RuleFinding) {
@@ -247,19 +253,50 @@ struct RulesEngine {
             }
         }
 
-        // Check 3: Forbidden frontend imports
-        for file in files {
-            guard let path = file.newPath, file.classification == .source else { continue }
-            let isFrontend = path.contains("frontend/") || path.contains("components/")
-            guard isFrontend else { continue }
-            let relevantSymbols = symbols.filter { $0.changedFileId == UUID() } // we don't have file-symbol mapping here, skip
-            _ = relevantSymbols
+        // Check 3 (FIX 1): Removed — was a dead placeholder using UUID() that never matched.
+        // Replaced with AST import-based architectural boundary checks below.
+        var emittedImportViolations = Set<String>()
+        for sym in symbols {
+            guard let path = filePathMap[sym.changedFileId] else { continue }
+            let lowerPath = path.lowercased()
+            let isUISurface = lowerPath.contains("/ui/")
+                || lowerPath.contains("/components/")
+                || lowerPath.contains("/frontend/")
+                || lowerPath.hasSuffix(".tsx")
+                || lowerPath.hasSuffix(".jsx")
+                || lowerPath.hasSuffix("view.swift")
+                || lowerPath.hasSuffix("screen.kt")
+            guard isUISurface else { continue }
+
+            let imports = (sym.metadata["imports"] ?? "")
+                .split(separator: ",")
+                .map { String($0).lowercased() }
+            let forbidden = imports.first {
+                $0.contains("/db")
+                    || $0.contains(".db")
+                    || $0.contains("database")
+                    || $0.contains("repository")
+                    || $0.contains("persistence")
+                    || $0.contains("coredata")
+            }
+            if let forbidden {
+                let violationKey = "\(path)::\(forbidden)"
+                guard emittedImportViolations.insert(violationKey).inserted else { continue }
+                addFinding(path, RuleFinding(
+                    severity: .medium,
+                    category: .architecture,
+                    message: "UI symbol '\(sym.name)' imports lower-level data infrastructure. Keep presentation code behind view models or service interfaces.",
+                    lineStart: sym.startLine,
+                    lineEnd: sym.endLine,
+                    ruleSource: "architecture/ui-import-boundary",
+                    evidence: "Import detected by AST sidecar: \(forbidden)"
+                ))
+            }
         }
 
         // Check 4 (AST-powered): Authentication / security symbol change
-        // Uses structured metadata from diffuse-core rather than brittle path/text heuristics.
         for sym in symbols where sym.metadata["semantic_area"] == "security_authentication" {
-            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            let path = filePathMap[sym.changedFileId] ?? "unknown"
             addFinding(path, RuleFinding(
                 severity: .high,
                 category: .security,
@@ -273,7 +310,7 @@ struct RulesEngine {
 
         // Check 5 (AST-powered): Cryptography symbol change
         for sym in symbols where sym.metadata["semantic_area"] == "security_cryptography" {
-            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            let path = filePathMap[sym.changedFileId] ?? "unknown"
             addFinding(path, RuleFinding(
                 severity: .high,
                 category: .security,
@@ -287,7 +324,7 @@ struct RulesEngine {
 
         // Check 6 (AST-powered): Payment flow change
         for sym in symbols where sym.metadata["semantic_area"] == "payment" {
-            let path = sym.metadata["file_path"] ?? (files.first?.newPath ?? "unknown")
+            let path = filePathMap[sym.changedFileId] ?? "unknown"
             addFinding(path, RuleFinding(
                 severity: .medium,
                 category: .security,
@@ -297,6 +334,90 @@ struct RulesEngine {
                 ruleSource: "security/payment-ast",
                 evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType)) in payment path."
             ))
+        }
+
+        // Check 7 (AST-powered / Step 4): Contract change detection
+        for sym in symbols {
+            let path = filePathMap[sym.changedFileId] ?? "unknown"
+
+            if sym.metadata["contract_signature_changed"] == "true" {
+                addFinding(path, RuleFinding(
+                    severity: .medium,
+                    category: .architecture,
+                    message: "Public API contract change: '\(sym.name)' signature modified. Verify all callers are compatible.",
+                    lineStart: sym.startLine,
+                    lineEnd: sym.endLine,
+                    ruleSource: "contract/signature-changed",
+                    evidence: "AST comparison detected signature change in '\(sym.name)' (\(sym.semanticType))."
+                ))
+            }
+
+            if sym.metadata["contract_return_type_changed"] == "true" {
+                let oldType = sym.metadata["contract_old_return_type"] ?? "unknown"
+                let newType = sym.metadata["contract_new_return_type"] ?? "unknown"
+                addFinding(path, RuleFinding(
+                    severity: .medium,
+                    category: .architecture,
+                    message: "Public API contract change: '\(sym.name)' return type changed. Verify callers and serialization boundaries.",
+                    lineStart: sym.startLine,
+                    lineEnd: sym.endLine,
+                    ruleSource: "contract/return-type-changed",
+                    evidence: "AST comparison: return type changed from \(oldType) to \(newType)."
+                ))
+            }
+
+            if sym.metadata["contract_is_new_public"] == "true" {
+                let wasVisChanged = sym.metadata["contract_visibility_changed"] == "true"
+                let oldVis = sym.metadata["contract_old_visibility"] ?? "private"
+                let severity: Severity = wasVisChanged ? .high : .low
+                let msg = wasVisChanged
+                    ? "Visibility change: '\(sym.name)' promoted from \(oldVis) to public. Existing callers must be validated; this is a potential breaking change."
+                    : "New public symbol '\(sym.name)' added to the API surface."
+                addFinding(path, RuleFinding(
+                    severity: severity,
+                    category: .architecture,
+                    message: msg,
+                    lineStart: sym.startLine,
+                    lineEnd: sym.endLine,
+                    ruleSource: wasVisChanged ? "contract/visibility-changed" : "contract/new-public",
+                    evidence: "AST comparison: '\(sym.name)' (\(sym.semanticType)) is now public."
+                ))
+            }
+        }
+
+        // Check 8: Symbol-aware test coverage mapping
+        let testSymbols = symbols.filter { sym in
+            sym.metadata["is_test"] == "true" || (filePathMap[sym.changedFileId] ?? "").lowercased().contains("test")
+        }
+        let productionSymbols = symbols.filter { sym in
+            guard let path = filePathMap[sym.changedFileId]?.lowercased() else { return false }
+            return !path.contains("test") && sym.metadata["is_test"] != "true"
+        }
+        for sym in productionSymbols {
+            let isRisky = sym.metadata["is_critical"] == "true"
+                || sym.metadata.keys.contains { $0.starts(with: "contract_") }
+                || sym.metadata.keys.contains { $0.hasSuffix("_added") }
+            guard isRisky, let path = filePathMap[sym.changedFileId] else { continue }
+
+            let normalizedName = sym.name.lowercased()
+            let hasRelatedTest = testSymbols.contains { testSym in
+                let testPath = (filePathMap[testSym.changedFileId] ?? "").lowercased()
+                let testName = testSym.name.lowercased()
+                return testName.contains(normalizedName)
+                    || testPath.contains(normalizedName)
+                    || testSym.callees.contains(where: { $0.caseInsensitiveCompare(sym.name) == .orderedSame })
+            }
+            if !hasRelatedTest {
+                addFinding(path, RuleFinding(
+                    severity: .low,
+                    category: .test,
+                    message: "Risky production symbol '\(sym.name)' changed without a related test symbol update.",
+                    lineStart: sym.startLine,
+                    lineEnd: sym.endLine,
+                    ruleSource: "testing/symbol-coverage",
+                    evidence: "No changed test symbol references '\(sym.name)' by name or direct callee metadata."
+                ))
+            }
         }
 
         return fileFindings
@@ -366,16 +487,25 @@ struct RulesEngine {
                 factors.append("No test file additions or updates included with source changes (+20)")
             }
 
-            let hasCoupledSymbols = symbols.contains { $0.callers.count > 5 }
-            if hasCoupledSymbols {
-                score += 10
-                factors.append("Heavily coupled symbol with >5 callers modified (+10)")
-            }
-
             let hasArchViolations = findings.contains { $0.severity == .high || $0.category == .architecture }
             if hasArchViolations {
                 score += 20
                 factors.append("High-severity architectural rule violation found (+20)")
+            }
+
+            if symbols.contains(where: { $0.callers.count > 5 }) {
+                score += 10
+                factors.append("High fan-in symbol modified (+10)")
+            }
+
+            if symbols.contains(where: { $0.metadata.keys.contains { $0.starts(with: "contract_") } }) {
+                score += 10
+                factors.append("AST contract surface changed (+10)")
+            }
+
+            if symbols.contains(where: { $0.metadata.keys.contains { $0.hasSuffix("_added") } }) {
+                score += 10
+                factors.append("AST detected newly introduced behavior (+10)")
             }
 
             if hasTestChanges {
@@ -398,7 +528,8 @@ struct TriageEngine {
         changeBuckets: [ChangeBucket],
         riskHighlights: [RiskHighlight],
         skimTargets: [SkimTarget],
-        riskFactors: [String]
+        riskFactors: [String],
+        symbolReviewGroups: [SymbolReviewGroup]
     ) {
         // Re-classify using path rules
         let effectiveFiles = files.map { f -> ChangedFile in
@@ -581,7 +712,67 @@ struct TriageEngine {
                                   classification: f.classification, additions: f.additions, deletions: f.deletions)
             }
 
-        return (reviewTargets, changeBuckets, riskHighlights, skimTargets, riskFactors)
+        // Build symbol-first review map (Step 1)
+        let symbolReviewGroups = buildSymbolReviewGroups(symbols: symbols, files: effectiveFiles)
+
+        return (reviewTargets, changeBuckets, riskHighlights, skimTargets, riskFactors, symbolReviewGroups)
+    }
+
+    // MARK: - Step 1: Symbol-first review map
+
+    /// Group changed symbols by semantic area for the symbol-first review map.
+    static func buildSymbolReviewGroups(
+        symbols: [ChangedSymbol],
+        files: [ChangedFile]
+    ) -> [SymbolReviewGroup] {
+        let fileById = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
+
+        // Include symbols from source and test files; skip generated/config/docs.
+        let reviewSymbols = symbols.filter { sym in
+            guard let classification = fileById[sym.changedFileId]?.classification else { return false }
+            return classification == .source || classification == .test
+        }
+
+        guard !reviewSymbols.isEmpty else { return [] }
+
+        // Ordered group definitions
+        let groupDefs: [(area: String, label: String, icon: String)] = [
+            ("security_authentication", "Authentication",  "lock.shield"),
+            ("security_cryptography",  "Cryptography",    "key"),
+            ("payment",                "Payment",          "creditcard"),
+            ("data_deletion",          "Data Deletion",   "trash"),
+            ("is_test",                "Tests",            "checkmark.seal"),
+            ("general",                "Logic Changes",   "cpu"),
+        ]
+
+        var groups: [SymbolReviewGroup] = []
+        var assignedIds = Set<UUID>()
+
+        for def in groupDefs {
+            let groupSymbols: [ChangedSymbol]
+            if def.area == "is_test" {
+                groupSymbols = reviewSymbols.filter {
+                    $0.metadata["is_test"] == "true" && !assignedIds.contains($0.id)
+                }
+            } else if def.area == "general" {
+                groupSymbols = reviewSymbols.filter { !assignedIds.contains($0.id) }
+            } else {
+                groupSymbols = reviewSymbols.filter {
+                    $0.metadata["semantic_area"] == def.area && !assignedIds.contains($0.id)
+                }
+            }
+            if !groupSymbols.isEmpty {
+                assignedIds.formUnion(groupSymbols.map { $0.id })
+                groups.append(SymbolReviewGroup(
+                    semanticArea: def.area,
+                    displayLabel: def.label,
+                    iconName: def.icon,
+                    symbols: groupSymbols
+                ))
+            }
+        }
+
+        return groups
     }
 
     // MARK: - Private helpers
@@ -733,7 +924,58 @@ struct TriageEngine {
                     }
                 }
             }
-        }
+
+            // --- Step 5: Behavioral body metadata highlights ---
+            // These fire for any symbol, in addition to the semantic area checks above.
+
+            if sym.metadata["network_call_added"] == "true" {
+                add(filePath: filePath, severity: .low, category: .coupling,
+                    title: "'\(sym.name)' adds a network call",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: ["AST comparison: '\(sym.name)' introduces a network request. Verify error handling, timeouts, and retry logic."],
+                    confidence: "medium",
+                    source: "behavioral-scanner")
+            }
+
+            if sym.metadata["persistence_write_added"] == "true" {
+                add(filePath: filePath, severity: .medium, category: .data,
+                    title: "'\(sym.name)' adds a persistent write",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: ["AST comparison: '\(sym.name)' introduces a persistence write. Confirm data model compatibility and migration."],
+                    confidence: "medium",
+                    source: "behavioral-scanner")
+            }
+
+            if sym.metadata["auth_check_added"] == "true" && sym.metadata["semantic_area"] != "security_authentication" {
+                // Only emit if not already covered by the auth semantic area highlight
+                add(filePath: filePath, severity: .high, category: .security,
+                    title: "'\(sym.name)' adds an authorization check",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: ["AST comparison: authorization guard introduced in '\(sym.name)'. Verify the check is sufficient and cannot be bypassed."],
+                    confidence: "medium",
+                    source: "behavioral-scanner")
+            }
+
+            if sym.metadata["deletion_added"] == "true" && sym.metadata["semantic_area"] != "data_deletion" {
+                // Only emit if not already covered by the data_deletion semantic area highlight
+                add(filePath: filePath, severity: .medium, category: .data,
+                    title: "'\(sym.name)' adds a deletion or destructive operation",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: ["AST comparison: destructive operation introduced in '\(sym.name)'. Confirm scope and cascade handling."],
+                    confidence: "medium",
+                    source: "behavioral-scanner")
+            }
+
+            if sym.metadata["async_behavior_added"] == "true" {
+                add(filePath: filePath, severity: .info, category: .runtime,
+                    title: "'\(sym.name)' adds async/concurrency behavior",
+                    lineStart: sym.startLine, lineEnd: sym.endLine,
+                    evidence: ["AST comparison: async or concurrency patterns introduced in '\(sym.name)'. Verify task scheduling and cancellation."],
+                    confidence: "low",
+                    source: "behavioral-scanner")
+            }
+
+        } // end for sym in symbols
 
         // --- File-level highlights (no sidecar data available, or non-source files) ---
         // Only fires for files that produced zero symbols (binary, unsupported language, etc.)

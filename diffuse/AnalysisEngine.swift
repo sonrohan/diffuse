@@ -217,8 +217,8 @@ struct RulesEngine {
                 }
                 addFinding(path, RuleFinding(
                     severity: .low, category: .test, message: msg,
-                    lineStart: sf.hunks.first?.newStart,
-                    lineEnd: sf.hunks.first.map { $0.newStart + $0.newLines - 1 },
+                    lineStart: firstMeaningfulAddedLine(in: sf),
+                    lineEnd: nil,
                     ruleSource: "standard-conventions/testing",
                     evidence: "Modified file: \(path) (\(sf.additions) lines added)"
                 ))
@@ -257,6 +257,31 @@ struct RulesEngine {
         }
 
         return fileFindings
+    }
+
+    private static func firstMeaningfulAddedLine(in file: DiffParser.ParsedFile) -> Int? {
+        for hunk in file.hunks {
+            var newLine = hunk.newStart
+            for rawLine in hunk.lines {
+                if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
+                    let content = String(rawLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+                    if isMeaningfulAddedLine(content) {
+                        return newLine
+                    }
+                    newLine += 1
+                } else if !rawLine.hasPrefix("-") {
+                    newLine += 1
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func isMeaningfulAddedLine(_ content: String) -> Bool {
+        guard !content.isEmpty else { return false }
+        if content.hasPrefix("import ") || content.hasPrefix("package ") { return false }
+        if content.hasPrefix("//") || content.hasPrefix("/*") || content.hasPrefix("*") { return false }
+        return true
     }
 
     static func calculateRiskScore(files: [DiffParser.ParsedFile], symbols: [ChangedSymbol], findings: [RuleFinding]) -> RiskBreakdown {
@@ -569,8 +594,8 @@ struct TriageEngine {
         for hunk in file.hunks {
             var newLine = hunk.newStart
             for rawLine in hunk.lines {
-                let content = String(rawLine.dropFirst())
                 if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
+                    let content = String(rawLine.dropFirst())
                     if patterns.contains(where: { content.contains($0) }) {
                         return newLine
                     }
@@ -580,7 +605,32 @@ struct TriageEngine {
                 }
             }
         }
-        return file.hunks.first?.newStart
+        return firstMeaningfulAddedLine(in: file)
+    }
+
+    private static func firstMeaningfulAddedLine(in file: ChangedFile) -> Int? {
+        for hunk in file.hunks {
+            var newLine = hunk.newStart
+            for rawLine in hunk.lines {
+                if rawLine.hasPrefix("+") && !rawLine.hasPrefix("+++") {
+                    let content = String(rawLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+                    if isMeaningfulAddedLine(content) {
+                        return newLine
+                    }
+                    newLine += 1
+                } else if !rawLine.hasPrefix("-") {
+                    newLine += 1
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func isMeaningfulAddedLine(_ content: String) -> Bool {
+        guard !content.isEmpty else { return false }
+        if content.hasPrefix("import ") || content.hasPrefix("package ") { return false }
+        if content.hasPrefix("//") || content.hasPrefix("/*") || content.hasPrefix("*") { return false }
+        return true
     }
 
     private static func deriveSemanticHighlights(files: [ChangedFile], bucketIdForPath: (String) -> String) -> [RiskHighlight] {
@@ -607,8 +657,8 @@ struct TriageEngine {
             if file.classification == .test {
                 add(file, severity: .info, category: .testGap,
                     title: "Tests exercise newly added behavior",
-                    lineStart: file.hunks.first?.newStart,
-                    lineEnd: file.hunks.first?.newStart,
+                    lineStart: firstMeaningfulAddedLine(in: file),
+                    lineEnd: nil,
                     evidence: ["\(file.path) adds or updates test coverage."],
                     confidence: "medium")
                 continue
@@ -631,7 +681,7 @@ struct TriageEngine {
             if path.hasSuffix(".sql") || path.contains("migration") {
                 add(file, severity: .medium, category: .data,
                     title: "Database schema migration",
-                    lineStart: file.hunks.first?.newStart, lineEnd: nil,
+                    lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
                     evidence: ["Schema changes can affect existing data. Check for missing backfills or default values."])
             }
 
@@ -648,7 +698,8 @@ struct TriageEngine {
             if path.contains("viewmodel") {
                 add(file, severity: .medium, category: .contract,
                     title: "ViewModel exposes new state or actions",
-                    lineStart: file.hunks.first?.newStart, lineEnd: nil,
+                    lineStart: findAddedLine(in: file, matching: ["val ", "var ", "fun ", "StateFlow", "MutableStateFlow", "LiveData", "sealed ", "class "]),
+                    lineEnd: nil,
                     evidence: ["State-management API changed. Review how UI consumes new state."])
             }
 
@@ -661,7 +712,7 @@ struct TriageEngine {
                 if swapped {
                     add(file, severity: .medium, category: .contract,
                         title: "UI metric or display logic changed",
-                        lineStart: file.hunks.first?.newStart, lineEnd: nil,
+                        lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
                         evidence: ["A previously visible metric appears replaced. Validate this as an intentional product change."])
                 }
             }
@@ -671,7 +722,7 @@ struct TriageEngine {
                 let screenName = URL(fileURLWithPath: file.path).deletingPathExtension().lastPathComponent
                 add(file, severity: .info, category: .reviewLoad,
                     title: "\(screenName) user-facing surface changed",
-                    lineStart: file.hunks.first?.newStart, lineEnd: nil,
+                    lineStart: firstMeaningfulAddedLine(in: file), lineEnd: nil,
                     evidence: ["\(file.additions) added lines affect visible copy, controls, or layout."],
                     confidence: "medium")
             }

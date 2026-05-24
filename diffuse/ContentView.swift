@@ -649,42 +649,53 @@ struct BranchOverviewCard: View {
     let branches: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.accentBlue)
-                    .frame(width: 18, height: 18)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Menu {
-                        ForEach(branches, id: \.self) { branchName in
-                            Button(branchName) {
-                                Task { await state.selectBranch(branchName) }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(branch)
-                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.textPrimary)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundColor(.textTertiary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 9) {
+            Menu {
+                ForEach(branches, id: \.self) { branchName in
+                    Button(branchName) {
+                        Task { await state.selectBranch(branchName) }
                     }
-                    .menuStyle(.borderlessButton)
-                    .buttonStyle(.plain)
-
-                    Text(branchMeta)
-                        .font(.system(size: 10))
-                        .foregroundColor(.textTertiary)
-                        .lineLimit(1)
                 }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentBlue)
+                        .frame(width: 14)
 
+                    Text(branch)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 2)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
+            .help(branch)
+
+            if let summary {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        BranchInlineMeta(icon: "clock", text: summary.lastUpdated)
+                        BranchInlineMeta(icon: "person", text: summary.lastAuthor)
+                    }
+
+                    if let upstream = summary.upstream, !upstream.isEmpty {
+                        BranchInlineMeta(icon: "arrow.up.right", text: upstream)
+                    }
+                }
+            } else {
+                BranchInlineMeta(icon: "arrow.triangle.branch", text: "Local branch")
             }
 
             HStack(spacing: 5) {
@@ -704,11 +715,24 @@ struct BranchOverviewCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 7))
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
     }
+}
 
-    private var branchMeta: String {
-        guard let summary else { return "Local branch" }
-        let upstream = summary.upstream ?? "no upstream"
-        return "\(upstream) · \(summary.lastUpdated) by \(summary.lastAuthor)"
+struct BranchInlineMeta: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 8, weight: .semibold))
+                .frame(width: 10)
+            Text(text)
+                .font(.system(size: 10))
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .foregroundColor(.textTertiary)
+        .help(text)
     }
 }
 
@@ -906,12 +930,14 @@ struct WorkspaceRow: View {
                         Divider()
                         Button("Remove Workspace", role: .destructive) { onRemove() }
                     } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 10))
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 12))
                             .foregroundColor(.textSecondary)
                     }
                     .menuStyle(.borderlessButton)
-                    .frame(width: 14)
+                    .menuIndicator(.hidden)
+                    .frame(width: 16, height: 16)
+                    .help("Workspace actions")
                 }
             }
         }

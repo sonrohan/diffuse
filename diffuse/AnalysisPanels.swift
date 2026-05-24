@@ -8,9 +8,8 @@ struct PRHeaderBar: View {
     let run: AnalysisRun
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Main Metadata row
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
                 Image(systemName: "arrow.triangle.merge")
                     .font(.system(size: 14))
                     .foregroundColor(.successColor)
@@ -23,18 +22,6 @@ struct PRHeaderBar: View {
                 Text("#\(pr.prNumber)")
                     .font(.system(size: 12))
                     .foregroundColor(.textTertiary)
-
-                statusBadge(run.status)
-
-                Text("·")
-                    .foregroundColor(.borderDefault)
-
-                Text(pr.author)
-                    .font(.system(size: 12))
-                    .foregroundColor(.textSecondary)
-
-                Text("·")
-                    .foregroundColor(.borderDefault)
 
                 HStack(spacing: 4) {
                     Image(systemName: "point.3.connected.trianglepath.dotted")
@@ -53,6 +40,10 @@ struct PRHeaderBar: View {
 
                 Spacer()
 
+                if state.isLoadingAnalysis || state.isAnalyzing || run.status == .analyzing || run.status == .queued {
+                    LoadingSpinner(size: 13)
+                }
+
                 Button {
                     Task { await state.reRunAnalysis() }
                 } label: {
@@ -67,21 +58,6 @@ struct PRHeaderBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(Color.bgCanvas)
-    }
-
-
-    @ViewBuilder
-    func statusBadge(_ status: AnalysisRun.RunStatus) -> some View {
-        switch status {
-        case .completed:
-            BadgeView(text: "Analyzed", variant: .success)
-        case .analyzing:
-            BadgeView(text: "Analyzing", variant: .warning)
-        case .failed:
-            BadgeView(text: "Failed", variant: .danger)
-        case .queued:
-            BadgeView(text: "Queued", variant: .neutral)
-        }
     }
 }
 

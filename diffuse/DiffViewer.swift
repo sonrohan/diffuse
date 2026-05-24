@@ -917,6 +917,142 @@ struct HunkView: View {
         return aligned
     }
 
+    var unifiedLineNumbers: String {
+        diffLines.map { line in
+            let old = line.oldLineNumber.map(String.init) ?? ""
+            return old
+        }.joined(separator: "\n")
+    }
+
+    var unifiedNewLineNumbers: String {
+        diffLines.map { line in
+            let new = line.newLineNumber.map(String.init) ?? ""
+            return new
+        }.joined(separator: "\n")
+    }
+
+    var unifiedPrefixes: AttributedString {
+        var result = AttributedString()
+        for line in diffLines {
+            let char: String
+            let color: Color
+            switch line.type {
+            case .added:
+                char = "+"
+                color = Color.diffAddedFg
+            case .deleted:
+                char = "−"
+                color = Color.dangerColor
+            case .context:
+                char = " "
+                color = Color.textTertiary
+            case .metadata:
+                char = "\\"
+                color = Color.textTertiary
+            }
+            var attr = AttributedString(char + "\n")
+            attr.foregroundColor = color
+            result.append(attr)
+        }
+        return result
+    }
+
+    var unifiedCode: AttributedString {
+        var result = AttributedString()
+        for line in diffLines {
+            let lineContent = line.rawLine.isEmpty ? "" : String(line.rawLine.dropFirst())
+            var attr = AttributedString(lineContent + "\n")
+            
+            switch line.type {
+            case .added:
+                attr.foregroundColor = Color.textPrimary
+                attr.backgroundColor = Color.diffAddedBg
+            case .deleted:
+                attr.foregroundColor = Color.textPrimary
+                attr.backgroundColor = Color.diffDeletedBg
+            case .context:
+                attr.foregroundColor = Color.textPrimary.opacity(0.75)
+            case .metadata:
+                attr.foregroundColor = Color.textTertiary
+            }
+            result.append(attr)
+        }
+        return result
+    }
+
+    func splitLineNumbers(isLeft: Bool) -> String {
+        alignedDiffLines.map { alignedLine in
+            let line = isLeft ? alignedLine.oldLine : alignedLine.newLine
+            if let line {
+                let num = isLeft ? line.oldLineNumber : line.newLineNumber
+                return num.map(String.init) ?? ""
+            } else {
+                return ""
+            }
+        }.joined(separator: "\n")
+    }
+
+    func splitPrefixes(isLeft: Bool) -> AttributedString {
+        var result = AttributedString()
+        for alignedLine in alignedDiffLines {
+            let line = isLeft ? alignedLine.oldLine : alignedLine.newLine
+            if let line {
+                let char: String
+                let color: Color
+                switch line.type {
+                case .added:
+                    char = "+"
+                    color = Color.diffAddedFg
+                case .deleted:
+                    char = "−"
+                    color = Color.diffDeletedFg
+                case .context:
+                    char = " "
+                    color = Color.textTertiary
+                case .metadata:
+                    char = "\\"
+                    color = Color.textTertiary
+                }
+                var attr = AttributedString(char + "\n")
+                attr.foregroundColor = color
+                result.append(attr)
+            } else {
+                result.append(AttributedString("\n"))
+            }
+        }
+        return result
+    }
+
+    func splitCode(isLeft: Bool) -> AttributedString {
+        var result = AttributedString()
+        for alignedLine in alignedDiffLines {
+            let line = isLeft ? alignedLine.oldLine : alignedLine.newLine
+            if let line {
+                let lineContent = line.rawLine.isEmpty ? "" : String(line.rawLine.dropFirst())
+                var attr = AttributedString(lineContent + "\n")
+                
+                switch line.type {
+                case .added:
+                    attr.foregroundColor = Color.textPrimary
+                    attr.backgroundColor = Color.diffAddedBg
+                case .deleted:
+                    attr.foregroundColor = Color.textPrimary
+                    attr.backgroundColor = Color.diffDeletedBg
+                case .context:
+                    attr.foregroundColor = Color.textPrimary.opacity(0.75)
+                case .metadata:
+                    attr.foregroundColor = Color.textTertiary
+                }
+                result.append(attr)
+            } else {
+                var attr = AttributedString(" \n")
+                attr.backgroundColor = Color.bgSubtle.opacity(0.15)
+                result.append(attr)
+            }
+        }
+        return result
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Hunk header with expand controls in the gutter
@@ -998,19 +1134,100 @@ struct HunkView: View {
 
             // Hunk lines
             if !isCollapsed {
-                VStack(spacing: 0) {
-                    if state.diffLayout == .split {
-                        ForEach(alignedDiffLines) { alignedLine in
-                            SplitDiffLine(alignedLine: alignedLine)
+                if state.diffLayout == .split {
+                    HStack(spacing: 0) {
+                        // Left Pane
+                        HStack(spacing: 0) {
+                            Text(splitLineNumbers(isLeft: true))
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.textTertiary)
+                                .frame(width: 44, alignment: .trailing)
+                                .padding(.trailing, 6)
+                                .background(Color.bgSubtle.opacity(0.65))
+                                .textSelection(.disabled)
+                            
+                            Text(splitPrefixes(isLeft: true))
+                                .font(.system(size: 12, design: .monospaced))
+                                .frame(width: 18, alignment: .center)
+                                .background(Color.bgSubtle.opacity(0.65))
+                                .textSelection(.disabled)
+                            
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                Text(splitCode(isLeft: true))
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .padding(.leading, 8)
+                                    .padding(.trailing, 12)
+                            }
                         }
-                    } else {
-                        ForEach(Array(diffLines.enumerated()), id: \.offset) { _, line in
-                            DiffLine(line: line)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.bgCanvas)
+                        
+                        Rectangle()
+                            .fill(Color.borderMuted)
+                            .frame(width: 1)
+                        
+                        // Right Pane
+                        HStack(spacing: 0) {
+                            Text(splitLineNumbers(isLeft: false))
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.textTertiary)
+                                .frame(width: 44, alignment: .trailing)
+                                .padding(.trailing, 6)
+                                .background(Color.bgSubtle.opacity(0.65))
+                                .textSelection(.disabled)
+                            
+                            Text(splitPrefixes(isLeft: false))
+                                .font(.system(size: 12, design: .monospaced))
+                                .frame(width: 18, alignment: .center)
+                                .background(Color.bgSubtle.opacity(0.65))
+                                .textSelection(.disabled)
+                            
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                Text(splitCode(isLeft: false))
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .padding(.leading, 8)
+                                    .padding(.trailing, 12)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .background(Color.bgCanvas)
+                    }
+                } else {
+                    HStack(spacing: 0) {
+                        Text(unifiedLineNumbers)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                            .frame(width: 44, alignment: .trailing)
+                            .padding(.trailing, 6)
+                            .background(Color.bgSubtle.opacity(0.65))
+                            .textSelection(.disabled)
+                        
+                        Text(unifiedNewLineNumbers)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                            .frame(width: 44, alignment: .trailing)
+                            .padding(.trailing, 6)
+                            .background(Color.bgSubtle.opacity(0.65))
+                            .textSelection(.disabled)
+                        
+                        Text(unifiedPrefixes)
+                            .font(.system(size: 12, design: .monospaced))
+                            .frame(width: 18, alignment: .center)
+                            .background(Color.bgSubtle.opacity(0.65))
+                            .textSelection(.disabled)
+                        
+                        ScrollView(.horizontal, showsIndicators: true) {
+                            Text(unifiedCode)
+                                .font(.system(size: 12, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(.leading, 8)
+                                .padding(.trailing, 12)
                         }
                     }
+                    .background(Color.bgCanvas)
                 }
-                .font(.system(size: 12, design: .monospaced))
-                .background(Color.bgCanvas)
             }
         }
         .overlay(alignment: .leading) {
@@ -1026,98 +1243,7 @@ struct HunkView: View {
     }
 }
 
-struct SplitDiffLine: View {
-    let alignedLine: AlignedDiffLine
-
-    var body: some View {
-        HStack(spacing: 0) {
-            SplitDiffSideLine(line: alignedLine.oldLine, isLeft: true)
-            Rectangle()
-                .fill(Color.borderMuted)
-                .frame(width: 1)
-            SplitDiffSideLine(line: alignedLine.newLine, isLeft: false)
-        }
-    }
-}
-
-struct SplitDiffSideLine: View {
-    let line: NumberedDiffLine?
-    let isLeft: Bool
-
-    var bgColor: Color {
-        guard let line else {
-            return Color.bgSubtle.opacity(0.3) // Blank placeholder background
-        }
-        switch line.type {
-        case .added: return Color.diffAddedBg
-        case .deleted: return Color.diffDeletedBg
-        case .context, .metadata: return Color.clear
-        }
-    }
-
-    var prefixColor: Color {
-        guard let line else { return .clear }
-        switch line.type {
-        case .added: return Color.diffAddedFg
-        case .deleted: return Color.diffDeletedFg
-        case .context, .metadata: return Color.textTertiary
-        }
-    }
-
-    var prefix: String {
-        guard let line else { return "" }
-        switch line.type {
-        case .added: return "+"
-        case .deleted: return "−"
-        case .context: return " "
-        case .metadata: return "\\"
-        }
-    }
-
-    var lineContent: String {
-        guard let line else { return "" }
-        guard !line.rawLine.isEmpty else { return "" }
-        if line.type == .metadata { return String(line.rawLine.dropFirst()).trimmingCharacters(in: .whitespaces) }
-        return String(line.rawLine.dropFirst())
-    }
-
-    var lineNumber: Int? {
-        guard let line else { return nil }
-        return isLeft ? line.oldLineNumber : line.newLineNumber
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            // Line number gutter
-            Text(lineNumber.map(String.init) ?? "")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.textTertiary)
-                .frame(width: 44, alignment: .trailing)
-                .padding(.trailing, 6)
-                .background(Color.bgSubtle.opacity(0.65))
-
-            // Prefix gutter
-            Text(prefix)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(prefixColor)
-                .frame(width: 18, alignment: .center)
-                .background(Color.bgSubtle.opacity(0.65))
-
-            // Line content
-            Text(lineContent)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(line?.type == .context ? Color.textPrimary.opacity(0.75) : line?.type == .metadata ? .textTertiary : .textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 8)
-                .padding(.trailing, 12)
-        }
-        .frame(minHeight: 20)
-        .background(bgColor)
-    }
-}
-
-
-// MARK: - Diff Line
+// MARK: - Diff Line Data Model
 
 struct NumberedDiffLine {
     enum LineType {
@@ -1157,82 +1283,6 @@ struct NumberedDiffLine {
     let oldLineNumber: Int?
     let newLineNumber: Int?
     let type: LineType
-}
-
-struct DiffLine: View {
-    let line: NumberedDiffLine
-
-    var bgColor: Color {
-        switch line.type {
-        case .added: Color.diffAddedBg
-        case .deleted: Color.diffDeletedBg
-        case .context, .metadata: Color.clear
-        }
-    }
-
-    var prefixColor: Color {
-        switch line.type {
-        case .added: Color.diffAddedFg
-        case .deleted: Color.dangerColor
-        case .context, .metadata: Color.textTertiary
-        }
-    }
-
-    var prefix: String {
-        switch line.type {
-        case .added: "+"
-        case .deleted: "−"
-        case .context: " "
-        case .metadata: "\\"
-        }
-    }
-
-    var lineContent: String {
-        guard !line.rawLine.isEmpty else { return "" }
-        if line.type == .metadata { return String(line.rawLine.dropFirst()).trimmingCharacters(in: .whitespaces) }
-        return String(line.rawLine.dropFirst())
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            LineNumberText(line.oldLineNumber)
-            LineNumberText(line.newLineNumber)
-
-            // Prefix gutter
-            Text(prefix)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(prefixColor)
-                .frame(width: 18, alignment: .center)
-                .background(Color.bgSubtle.opacity(0.65))
-
-            // Line content
-            Text(lineContent)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(line.type == .context ? Color.textPrimary.opacity(0.75) : line.type == .metadata ? .textTertiary : .textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 8)
-                .padding(.trailing, 12)
-        }
-        .frame(minHeight: 20)
-        .background(bgColor)
-    }
-}
-
-struct LineNumberText: View {
-    let number: Int?
-
-    init(_ number: Int?) {
-        self.number = number
-    }
-
-    var body: some View {
-        Text(number.map(String.init) ?? "")
-            .font(.system(size: 11, design: .monospaced))
-            .foregroundColor(.textTertiary)
-            .frame(width: 44, alignment: .trailing)
-            .padding(.trailing, 6)
-            .background(Color.bgSubtle.opacity(0.65))
-    }
 }
 
 // MARK: - Sticky modifier (simulated via ZStack positioning)

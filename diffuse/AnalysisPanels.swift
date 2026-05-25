@@ -965,6 +965,8 @@ struct SelectedContextBar: View {
     let details: AnalysisDetails
     @State private var isProfileRulesPresented = false
     @State private var isProfileRulesHovered = false
+    @State private var isDebugMenuPresented = false
+    @State private var isDebugMenuHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -995,6 +997,26 @@ struct SelectedContextBar: View {
 
                 if let repo = state.selectedRepo {
                     Button {
+                        isDebugMenuPresented = true
+                    } label: {
+                        Label("Debug", systemImage: "ladybug")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color(NSColor.controlColor).opacity(isDebugMenuHovered ? 0.85 : 0.55))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isDebugMenuHovered = $0 }
+                    .help("Inspect AST and profile mapping")
+                    .sheet(isPresented: $isDebugMenuPresented) {
+                        ReviewDebugSheet(details: details, repo: repo)
+                    }
+                }
+
+                if let repo = state.selectedRepo {
+                    Button {
                         isProfileRulesPresented = true
                     } label: {
                         Label("Profile", systemImage: "slider.horizontal.3")
@@ -1017,6 +1039,448 @@ struct SelectedContextBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color.bgSubtle)
+    }
+}
+
+// MARK: - Review Debug Sheet
+
+private struct ReviewDebugSheet: View {
+    let details: AnalysisDetails
+    let repo: GitRepository
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTab: ReviewDebugTab = .ast
+
+    private var profile: AnalysisProfile {
+        AnalysisProfileStore.load(repoPath: repo.path)
+    }
+
+    private var profileSource: String {
+        AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
+            ? "Repo-defined .diffuse.json"
+            : "Built-in \(AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))"
+    }
+
+    private var symbolsByPath: [(path: String, symbols: [ChangedSymbol])] {
+        let filesById = Dictionary(uniqueKeysWithValues: details.files.map { ($0.id, $0.path) })
+        return Dictionary(grouping: details.symbols, by: { filesById[$0.changedFileId] ?? $0.metadata["file_path"] ?? "unknown" })
+            .map { ($0.key, $0.value.sorted { lhs, rhs in
+                if lhs.startLine != rhs.startLine { return lhs.startLine < rhs.startLine }
+                return lhs.name < rhs.name
+            }) }
+            .sorted { $0.path < $1.path }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "ladybug")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Review Debug")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text("\(repo.name) · \(profile.displayName) · \(profileSource)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(16)
+
+            Divider()
+
+            Picker("Debug view", selection: $selectedTab) {
+                ForEach(ReviewDebugTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(12)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    switch selectedTab {
+                    case .ast:
+                        astBreakdown
+                    case .mapping:
+                        mappingBreakdown
+                    }
+                }
+                .padding(14)
+            }
+            .background(Color.bgCanvas)
+        }
+        .frame(minWidth: 820, idealWidth: 920, minHeight: 620, idealHeight: 720)
+    }
+
+    private var astBreakdown: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DebugMetricStrip(metrics: [
+                ("Files", "\(details.files.count)"),
+                ("AST symbols", "\(details.symbols.count)"),
+                ("Findings", "\(details.findings.count)"),
+                ("Targets", "\(details.reviewTargets.count)")
+            ])
+
+            if symbolsByPath.isEmpty {
+                DebugEmptyState(text: "No AST symbols were extracted for this analysis.")
+            } else {
+                ForEach(symbolsByPath, id: \.path) { group in
+                    DebugSection(title: group.path, meta: "\(group.symbols.count) symbol\(group.symbols.count == 1 ? "" : "s")") {
+                        VStack(spacing: 8) {
+                            ForEach(group.symbols) { symbol in
+                                DebugSymbolCard(symbol: symbol)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var mappingBreakdown: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DebugSection(title: "Profile", meta: profile.id) {
+                VStack(alignment: .leading, spacing: 6) {
+                    DebugKeyValueRow(label: "Display name", value: profile.displayName)
+                    DebugKeyValueRow(label: "Source", value: profileSource)
+                    DebugKeyValueRow(label: "File rules", value: "\(profile.fileClassifications.count)")
+                    DebugKeyValueRow(label: "Bucket rules", value: "\(profile.buckets.count)")
+                    DebugKeyValueRow(label: "Symbol groups", value: "\(profile.symbolGroups.count)")
+                    DebugKeyValueRow(label: "Semantic highlights", value: "\(profile.semanticHighlights.count)")
+                    DebugKeyValueRow(label: "AST findings", value: "\(profile.rules.semanticAreaFindings.count + profile.rules.contractFindings.count)")
+                }
+            }
+
+            ForEach(details.files.sorted { $0.path < $1.path }) { file in
+                DebugFileMappingCard(file: file, details: details, profile: profile)
+            }
+        }
+    }
+}
+
+private enum ReviewDebugTab: String, CaseIterable, Identifiable {
+    case ast
+    case mapping
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .ast: "Raw AST"
+        case .mapping: "Profile Mapping"
+        }
+    }
+}
+
+private struct DebugMetricStrip: View {
+    let metrics: [(String, String)]
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(metrics, id: \.0) { metric in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(metric.0.uppercased())
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                    Text(metric.1)
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.windowBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+            }
+        }
+    }
+}
+
+private struct DebugSection<Content: View>: View {
+    let title: String
+    let meta: String?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                if let meta {
+                    Text(meta)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                }
+            }
+            content()
+        }
+        .padding(12)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+}
+
+private struct DebugSymbolCard: View {
+    let symbol: ChangedSymbol
+
+    private var metadataRows: [(String, String)] {
+        symbol.metadata
+            .sorted { $0.key < $1.key }
+            .map { ($0.key, $0.value) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                BadgeView(text: symbol.kind.rawValue, variant: .neutral)
+                Text(symbol.name)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+                Text("L\(symbol.startLine)-\(symbol.endLine)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+            }
+
+            HStack(spacing: 12) {
+                DebugInlineValue(label: "semantic_type", value: symbol.semanticType)
+                DebugInlineValue(label: "area", value: symbol.metadata["semantic_area"] ?? "none")
+                DebugInlineValue(label: "language", value: symbol.metadata["language"] ?? "unknown")
+            }
+
+            if !symbol.callees.isEmpty || !symbol.callers.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    if !symbol.callees.isEmpty {
+                        DebugKeyValueRow(label: "Callees", value: symbol.callees.joined(separator: ", "))
+                    }
+                    if !symbol.callers.isEmpty {
+                        DebugKeyValueRow(label: "Callers", value: symbol.callers.joined(separator: ", "))
+                    }
+                }
+            }
+
+            if !metadataRows.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], alignment: .leading, spacing: 6) {
+                    ForEach(metadataRows, id: \.0) { row in
+                        DebugInlineValue(label: row.0, value: row.1)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color(NSColor.controlColor).opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct DebugFileMappingCard: View {
+    let file: ChangedFile
+    let details: AnalysisDetails
+    let profile: AnalysisProfile
+
+    private var symbols: [ChangedSymbol] {
+        details.symbols
+            .filter { $0.changedFileId == file.id }
+            .sorted { lhs, rhs in
+                if lhs.startLine != rhs.startLine { return lhs.startLine < rhs.startLine }
+                return lhs.name < rhs.name
+            }
+    }
+
+    private var findings: [Finding] {
+        details.findings.filter { $0.changedFileId == file.id }
+    }
+
+    private var bucketRule: BucketRule? {
+        profile.bucketRule(for: file, findings: findings, symbols: symbols)
+    }
+
+    var body: some View {
+        DebugSection(title: file.path, meta: "\(symbols.count) AST symbol\(symbols.count == 1 ? "" : "s")") {
+            VStack(alignment: .leading, spacing: 8) {
+                DebugKeyValueRow(label: "File classification", value: "\(file.classification.rawValue) via \(classificationRuleLabel)")
+                DebugKeyValueRow(label: "Bucket rule", value: bucketRule.map { "\($0.id) → \($0.title)" } ?? "No matching bucket rule")
+                DebugKeyValueRow(label: "Findings", value: findings.isEmpty ? "none" : findings.map { "\($0.ruleSource) (\($0.severity.rawValue))" }.joined(separator: ", "))
+
+                if symbols.isEmpty {
+                    DebugEmptyState(text: "No AST symbols for this file; profile mapping is file-only.")
+                } else {
+                    VStack(spacing: 7) {
+                        ForEach(symbols) { symbol in
+                            DebugSymbolMappingRow(symbol: symbol, file: file, profile: profile)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var classificationRuleLabel: String {
+        profile.fileClassifications.first { $0.matches(path: file.path) }
+            .map { "\($0.classification) path rule" } ?? "default source"
+    }
+}
+
+private struct DebugSymbolMappingRow: View {
+    let symbol: ChangedSymbol
+    let file: ChangedFile
+    let profile: AnalysisProfile
+
+    private var groupMatches: [String] {
+        profile.symbolGroups
+            .filter { $0.matches(symbol) }
+            .map(\.id)
+    }
+
+    private var highlightMatches: [String] {
+        profile.semanticHighlights
+            .filter { $0.debugMatches(symbol: symbol, path: file.path) }
+            .map(\.id)
+    }
+
+    private var semanticFindingMatches: [String] {
+        profile.rules.semanticAreaFindings
+            .filter { $0.debugMatches(symbol: symbol, path: file.path) }
+            .map(\.id)
+    }
+
+    private var contractFindingMatches: [String] {
+        profile.rules.contractFindings
+            .filter { rule in
+                rule.metadataEquals.allSatisfy { symbol.metadata[$0.key] == $0.value }
+            }
+            .map(\.id)
+    }
+
+    private var bucketMatches: [String] {
+        profile.buckets
+            .filter { $0.matches(file: file, findings: [], symbols: [symbol]) }
+            .map(\.id)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(symbol.name)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                Text(symbol.semanticType)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+                Spacer()
+                Text("L\(symbol.startLine)-\(symbol.endLine)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading, spacing: 6) {
+                DebugInlineValue(label: "symbol groups", value: debugList(groupMatches))
+                DebugInlineValue(label: "bucket rules", value: debugList(bucketMatches))
+                DebugInlineValue(label: "semantic highlights", value: debugList(highlightMatches))
+                DebugInlineValue(label: "semantic findings", value: debugList(semanticFindingMatches))
+                DebugInlineValue(label: "contract findings", value: debugList(contractFindingMatches))
+            }
+        }
+        .padding(9)
+        .background(Color(NSColor.controlColor).opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+
+    private func debugList(_ values: [String]) -> String {
+        values.isEmpty ? "none" : values.joined(separator: ", ")
+    }
+}
+
+private struct DebugInlineValue: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.textTertiary)
+                .lineLimit(1)
+            Text(value.isEmpty ? "empty" : value)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.textSecondary)
+                .lineLimit(2)
+                .truncationMode(.middle)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct DebugKeyValueRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.textTertiary)
+                .frame(width: 120, alignment: .leading)
+            Text(value)
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+                .textSelection(.enabled)
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct DebugEmptyState: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "info.circle")
+                .foregroundColor(.textTertiary)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+            Spacer()
+        }
+        .padding(10)
+        .background(Color(NSColor.controlColor).opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private extension SemanticHighlightRule {
+    func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
+        if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
+        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) { return false }
+        if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
+        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) { return false }
+        return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
+    }
+}
+
+private extension SemanticAreaFindingRule {
+    func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
+        if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
+        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) { return false }
+        if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
+        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) { return false }
+        return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
     }
 }
 

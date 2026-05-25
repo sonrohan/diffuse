@@ -27,6 +27,16 @@
         }
       }
     },
+    "%@ · %@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        }
+      }
+    },
     "%@ across %lld %@" : {
       "localizations" : {
         "en" : {
@@ -707,6 +717,12 @@
     "Create .diffuse.json before first analysis" : {
 
     },
+    "Debug" : {
+
+    },
+    "Debug view" : {
+
+    },
     "Detected" : {
 
     },
@@ -861,6 +877,19 @@
     },
     "id" : {
 
+    },
+    "Inspect AST and profile mapping" : {
+
+    },
+    "L%lld-%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "L%1$lld-%2$lld"
+          }
+        }
+      }
     },
     "Label" : {
 
@@ -1263,6 +1292,9 @@
       }
     },
     "Reset" : {
+
+    },
+    "Review Debug" : {
 
     },
     "Review Map" : {

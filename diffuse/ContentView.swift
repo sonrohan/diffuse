@@ -43,6 +43,9 @@ struct AppHeaderView: View {
     @State private var newName = ""
     @State private var showDeleteConfirmation = false
     @State private var showSettingsSheet = false
+    @State private var isWorkspacePickerPresented = false
+    @State private var isBranchPickerPresented = false
+    @State private var isCommitPickerPresented = false
     
     var body: some View {
         HStack(spacing: 0) {
@@ -75,53 +78,7 @@ struct AppHeaderView: View {
                 .padding(.trailing, 16)
             
             // Workspace selector
-            Menu {
-                // List workspaces
-                ForEach(state.repositories) { repo in
-                    Button {
-                        Task { await state.selectRepo(repo.id) }
-                    } label: {
-                        if state.selectedRepoId == repo.id {
-                            Text("✓ \(repo.name)")
-                        } else {
-                            Text(repo.name)
-                        }
-                    }
-                }
-                
-                if let selectedRepo = state.selectedRepo {
-                    Divider()
-                    Button("Open in Finder") {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
-                    }
-                    Button("Rename Workspace…") {
-                        newName = selectedRepo.name
-                        showRenameAlert = true
-                    }
-                    if selectedRepo.autoAnalyzeEnabled {
-                        Button("Turn Off Auto-Analyze") {
-                            Task {
-                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: false)
-                            }
-                        }
-                    } else {
-                        Button("Turn On Auto-Analyze") {
-                            Task {
-                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: true)
-                            }
-                        }
-                    }
-                    Divider()
-                    Button("Remove Workspace", role: .destructive) {
-                        showDeleteConfirmation = true
-                    }
-                }
-                
-                Divider()
-                Button("Add Workspace…") {
-                    showAnalyzeSheet = true
-                }
-            } label: {
+            HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {
                 HStack(spacing: 5) {
                     Image(systemName: "folder.fill")
                         .font(.system(size: 11))
@@ -141,8 +98,16 @@ struct AppHeaderView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
-            .buttonStyle(.plain)
+            .popover(isPresented: $isWorkspacePickerPresented, arrowEdge: .bottom) {
+                WorkspacePickerPopover(
+                    isPresented: $isWorkspacePickerPresented,
+                    showAnalyzeSheet: $showAnalyzeSheet,
+                    showRenameAlert: $showRenameAlert,
+                    showDeleteConfirmation: $showDeleteConfirmation,
+                    newName: $newName
+                )
+                .environment(\.locale, locale)
+            }
             .padding(.trailing, 16)
             
             // Branch Selector
@@ -151,19 +116,7 @@ struct AppHeaderView: View {
                     .frame(height: 20)
                     .padding(.trailing, 16)
                 
-                Menu {
-                    ForEach(state.localBranches, id: \.self) { branch in
-                        Button {
-                            Task { await state.selectBranch(branch) }
-                        } label: {
-                            if state.selectedBranch == branch {
-                                Text("✓ \(branch)")
-                            } else {
-                                Text(branch)
-                            }
-                        }
-                    }
-                } label: {
+                HeaderPickerButton(isPresented: $isBranchPickerPresented) {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.triangle.branch")
                             .font(.system(size: 11))
@@ -188,8 +141,10 @@ struct AppHeaderView: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
-                .buttonStyle(.plain)
+                .popover(isPresented: $isBranchPickerPresented, arrowEdge: .bottom) {
+                    BranchPickerPopover(isPresented: $isBranchPickerPresented)
+                        .environment(\.locale, locale)
+                }
                 .padding(.trailing, 16)
                 
                 // Commit / Review Scope cycling controls
@@ -218,32 +173,8 @@ struct AppHeaderView: View {
                         .disabled(!canGoToPreviousCommit)
                         .help("Previous Commit")
                         
-                        // Custom Dropdown menu showing current commit / scope
-                        Menu {
-                            Button {
-                                Task { await state.selectCommit(nil) }
-                            } label: {
-                                if state.selectedCommitSha == nil {
-                                    Text("✓ All Changes")
-                                } else {
-                                    Text("All Changes")
-                                }
-                            }
-                            
-                            Divider()
-                            
-                            ForEach(Array(state.commits.enumerated()), id: \.element.sha) { idx, commit in
-                                Button {
-                                    Task { await state.selectCommit(commit.sha) }
-                                } label: {
-                                    if state.selectedCommitSha == commit.sha {
-                                        Text("✓ C\(idx + 1): \(commit.subject)")
-                                    } else {
-                                        Text("C\(idx + 1): \(commit.subject)")
-                                    }
-                                }
-                            }
-                        } label: {
+                        // Review scope picker
+                        HeaderPickerButton(isPresented: $isCommitPickerPresented) {
                             ViewThatFits(in: .horizontal) {
                                 // Expanded layout: shows badge + commit subject + custom chevron
                                 HStack(spacing: 5) {
@@ -310,9 +241,10 @@ struct AppHeaderView: View {
                                     .stroke(Color.borderDefault.opacity(0.8), lineWidth: 0.5)
                             )
                         }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .buttonStyle(.plain)
+                        .popover(isPresented: $isCommitPickerPresented, arrowEdge: .bottom) {
+                            CommitScopePickerPopover(isPresented: $isCommitPickerPresented)
+                                .environment(\.locale, locale)
+                        }
                         
                         // Next commit
                         Button {
@@ -457,6 +389,720 @@ struct AppHeaderView: View {
     }
 }
 
+// MARK: - Header Pickers
+
+struct HeaderPickerButton<Label: View>: View {
+    @Binding var isPresented: Bool
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private enum WorkspaceFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case auto = "Auto"
+    case manual = "Manual"
+
+    var id: String { rawValue }
+}
+
+struct WorkspacePickerPopover: View {
+    @Environment(AppState.self) private var state
+    @Binding var isPresented: Bool
+    @Binding var showAnalyzeSheet: Bool
+    @Binding var showRenameAlert: Bool
+    @Binding var showDeleteConfirmation: Bool
+    @Binding var newName: String
+
+    @State private var query = ""
+    @State private var filter: WorkspaceFilter = .all
+
+    private var visibleRepositories: [GitRepository] {
+        state.repositories
+            .filter { repo in
+                switch filter {
+                case .all: true
+                case .auto: repo.autoAnalyzeEnabled
+                case .manual: !repo.autoAnalyzeEnabled
+                }
+            }
+            .filter { repo in
+                query.isEmpty || repo.name.fuzzyContains(query) || repo.path.fuzzyContains(query)
+            }
+            .sorted { lhs, rhs in
+                if lhs.id == state.selectedRepoId { return true }
+                if rhs.id == state.selectedRepoId { return false }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PickerHeader(
+                title: "Workspaces",
+                count: state.repositories.count,
+                query: $query,
+                placeholder: "Search names or paths"
+            )
+
+            Picker("Workspace filter", selection: $filter) {
+                ForEach(WorkspaceFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+
+            PickerDivider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(visibleRepositories) { repo in
+                            WorkspaceRow(repo: repo, isSelected: repo.id == state.selectedRepoId) {
+                                Task { await state.selectRepo(repo.id) }
+                                isPresented = false
+                            }
+                            .id(repo.id)
+                        }
+
+                        if visibleRepositories.isEmpty {
+                            EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 280)
+                .onAppear {
+                    if let selected = state.selectedRepoId {
+                        proxy.scrollTo(selected, anchor: .center)
+                    }
+                }
+            }
+
+            PickerDivider()
+
+            HStack(spacing: 8) {
+                Button {
+                    showAnalyzeSheet = true
+                    isPresented = false
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                if let selectedRepo = state.selectedRepo {
+                    Button {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "arrow.up.forward.app")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in Finder")
+
+                    Button {
+                        newName = selectedRepo.name
+                        showRenameAlert = true
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Rename Workspace")
+
+                    Button {
+                        Task {
+                            await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                        }
+                    } label: {
+                        Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove Workspace")
+                }
+            }
+            .padding(12)
+        }
+        .frame(width: 420)
+    }
+}
+
+struct WorkspaceRow: View {
+    let repo: GitRepository
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "folder")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(repo.name)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                        if repo.autoAnalyzeEnabled {
+                            PickerBadge("Live", color: .accentBlue)
+                        }
+                    }
+                    Text(repo.path)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private enum BranchFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case current = "Current"
+    case dirty = "Dirty"
+    case ahead = "Ahead"
+    case behind = "Behind"
+    case pullRequest = "PR"
+
+    var id: String { rawValue }
+}
+
+struct BranchPickerPopover: View {
+    @Environment(AppState.self) private var state
+    @Binding var isPresented: Bool
+
+    @State private var query = ""
+    @State private var filter: BranchFilter = .all
+
+    private var summaries: [LocalBranchSummary] {
+        if !state.localBranchSummaries.isEmpty { return state.localBranchSummaries }
+        return state.localBranches.map {
+            LocalBranchSummary(
+                branch: $0,
+                isCurrent: $0 == state.selectedBranch,
+                isDirty: false,
+                aheadCount: 0,
+                behindCount: 0,
+                upstream: nil,
+                relatedPRNumber: nil,
+                relatedPRTitle: nil,
+                lastAuthor: "unknown",
+                lastUpdated: "unknown"
+            )
+        }
+    }
+
+    private var visibleSummaries: [LocalBranchSummary] {
+        summaries
+            .filter { branch in
+                switch filter {
+                case .all: true
+                case .current: branch.branch == state.selectedBranch || branch.isCurrent
+                case .dirty: branch.isDirty
+                case .ahead: branch.aheadCount > 0
+                case .behind: branch.behindCount > 0
+                case .pullRequest: branch.relatedPRNumber != nil
+                }
+            }
+            .filter { branch in
+                query.isEmpty
+                || branch.branch.fuzzyContains(query)
+                || branch.lastAuthor.fuzzyContains(query)
+                || (branch.relatedPRTitle?.fuzzyContains(query) ?? false)
+                || (branch.upstream?.fuzzyContains(query) ?? false)
+            }
+            .sorted { lhs, rhs in
+                if lhs.branch == state.selectedBranch { return true }
+                if rhs.branch == state.selectedBranch { return false }
+                if lhs.isDirty != rhs.isDirty { return lhs.isDirty }
+                let lhsChanged = lhs.aheadCount + lhs.behindCount
+                let rhsChanged = rhs.aheadCount + rhs.behindCount
+                if lhsChanged != rhsChanged { return lhsChanged > rhsChanged }
+                return lhs.branch.localizedCaseInsensitiveCompare(rhs.branch) == .orderedAscending
+            }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PickerHeader(
+                title: "Branches",
+                count: summaries.count,
+                query: $query,
+                placeholder: "Search branch, author, PR, upstream"
+            )
+
+            Picker("Branch filter", selection: $filter) {
+                ForEach(BranchFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+
+            PickerDivider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(visibleSummaries) { summary in
+                            BranchRow(summary: summary, isSelected: summary.branch == state.selectedBranch) {
+                                Task { await state.selectBranch(summary.branch) }
+                                isPresented = false
+                            }
+                            .id(summary.branch)
+                        }
+
+                        if visibleSummaries.isEmpty {
+                            EmptyPickerState(icon: "arrow.triangle.branch", text: "No branches match")
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 330)
+                .onAppear {
+                    if let selected = state.selectedBranch {
+                        proxy.scrollTo(selected, anchor: .center)
+                    }
+                }
+            }
+        }
+        .frame(width: 500)
+    }
+}
+
+struct BranchRow: View {
+    let summary: LocalBranchSummary
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "arrow.triangle.branch")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(summary.branch)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        if summary.isDirty { PickerBadge("Dirty", color: .warningColor) }
+                        if summary.aheadCount > 0 { PickerBadge("↑\(summary.aheadCount)", color: .successColor) }
+                        if summary.behindCount > 0 { PickerBadge("↓\(summary.behindCount)", color: .dangerColor) }
+                        if let number = summary.relatedPRNumber { PickerBadge("#\(number)", color: .accentPurple) }
+                    }
+
+                    HStack(spacing: 4) {
+                        Text(summary.lastUpdated)
+                        Text("by \(summary.lastAuthor)")
+                        if let upstream = summary.upstream {
+                            Text("• \(upstream)")
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    .font(.system(size: 10))
+                    .foregroundColor(.textSecondary)
+
+                    if let title = summary.relatedPRTitle {
+                        Text(title)
+                            .font(.system(size: 10))
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private enum CommitFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case selected = "Selected"
+    case mine = "Mine"
+
+    var id: String { rawValue }
+}
+
+struct CommitScopePickerPopover: View {
+    @Environment(AppState.self) private var state
+    @Binding var isPresented: Bool
+
+    @State private var query = ""
+    @State private var filter: CommitFilter = .all
+
+    private var selectedAuthor: String? {
+        guard let sha = state.selectedCommitSha else { return nil }
+        return state.commits.first(where: { $0.sha == sha })?.author
+    }
+
+    private var visibleCommits: [(offset: Int, element: GitCommit)] {
+        Array(state.commits.enumerated())
+            .filter { pair in
+                switch filter {
+                case .all:
+                    return true
+                case .selected:
+                    return pair.element.sha == state.selectedCommitSha
+                case .mine:
+                    guard let selectedAuthor else { return false }
+                    return pair.element.author == selectedAuthor
+                }
+            }
+            .filter { pair in
+                query.isEmpty
+                || pair.element.subject.fuzzyContains(query)
+                || pair.element.author.fuzzyContains(query)
+                || pair.element.sha.fuzzyContains(query)
+                || pair.element.date.fuzzyContains(query)
+                || "c\(pair.offset + 1)".fuzzyContains(query)
+            }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PickerHeader(
+                title: "Review Scope",
+                count: state.commits.count,
+                query: $query,
+                placeholder: "Search C#, subject, author, sha"
+            )
+
+            Picker("Commit filter", selection: $filter) {
+                ForEach(CommitFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+
+            PickerDivider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        CommitAllChangesRow(isSelected: state.selectedCommitSha == nil) {
+                            Task { await state.selectCommit(nil) }
+                            isPresented = false
+                        }
+                        .id("all-changes")
+
+                        if !visibleCommits.isEmpty {
+                            SectionLabel("Commits")
+                        }
+
+                        ForEach(visibleCommits, id: \.element.sha) { idx, commit in
+                            CommitRow(
+                                index: idx + 1,
+                                commit: commit,
+                                isSelected: commit.sha == state.selectedCommitSha
+                            ) {
+                                Task { await state.selectCommit(commit.sha) }
+                                isPresented = false
+                            }
+                            .id(commit.sha)
+                        }
+
+                        if visibleCommits.isEmpty {
+                            EmptyPickerState(icon: "clock.arrow.circlepath", text: "No commits match")
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 360)
+                .onAppear {
+                    proxy.scrollTo(state.selectedCommitSha ?? "all-changes", anchor: .center)
+                }
+            }
+
+            PickerDivider()
+
+            HStack(spacing: 8) {
+                Button {
+                    query = ""
+                    filter = .all
+                } label: {
+                    Label("Reset", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button {
+                    if let first = state.commits.first {
+                        Task { await state.selectCommit(first.sha) }
+                        isPresented = false
+                    }
+                } label: {
+                    Label("First", systemImage: "backward.end")
+                }
+                .buttonStyle(.borderless)
+                .disabled(state.commits.isEmpty)
+
+                Button {
+                    if let last = state.commits.last {
+                        Task { await state.selectCommit(last.sha) }
+                        isPresented = false
+                    }
+                } label: {
+                    Label("Latest", systemImage: "forward.end")
+                }
+                .buttonStyle(.borderless)
+                .disabled(state.commits.isEmpty)
+            }
+            .padding(12)
+        }
+        .frame(width: 520)
+    }
+}
+
+struct CommitAllChangesRow: View {
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "sum")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("All Changes")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text("Review the full branch diff")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct CommitRow: View {
+    let index: Int
+    let commit: GitCommit
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .frame(width: 18)
+
+                Text("C\(index)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.accentPurple)
+                    .frame(width: 40, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(commit.subject)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 5) {
+                        Text(commit.author)
+                        Text("• \(commit.date)")
+                        Text("• \(commit.sha.prefix(8))")
+                            .font(.system(size: 10, design: .monospaced))
+                    }
+                    .font(.system(size: 10))
+                    .foregroundColor(.textSecondary)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PickerHeader: View {
+    let title: String
+    let count: Int
+    @Binding var query: String
+    let placeholder: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text("\(count) total")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.textTertiary)
+                TextField(placeholder, text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(Color.bgSidebarPanel)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+        }
+        .padding(12)
+    }
+}
+
+struct PickerBadge: View {
+    let text: String
+    let color: Color
+
+    init(_ text: String, color: Color) {
+        self.text = text
+        self.color = color
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+    }
+}
+
+struct SectionLabel: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        HStack {
+            Text(text.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+    }
+}
+
+struct EmptyPickerState: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(.textTertiary)
+            Text(text)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+    }
+}
+
+struct PickerDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.borderMuted)
+            .frame(height: 0.5)
+    }
+}
+
+private extension String {
+    func fuzzyContains(_ query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        let haystack = localizedLowercase
+        let needles = trimmed.localizedLowercase.split(whereSeparator: \.isWhitespace)
+        return needles.allSatisfy { haystack.contains($0) }
+    }
+}
 
 // MARK: - Detail View
 

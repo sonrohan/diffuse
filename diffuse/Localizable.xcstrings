@@ -17,6 +17,16 @@
     "#%lld" : {
 
     },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
@@ -59,6 +69,9 @@
     "%lld signals" : {
 
     },
+    "%lld total" : {
+
+    },
     "%lld/%lld" : {
       "localizations" : {
         "en" : {
@@ -68,6 +81,9 @@
           }
         }
       }
+    },
+    "• %@" : {
+
     },
     "+%lld" : {
 
@@ -84,22 +100,6 @@
     },
     "−%lld" : {
 
-    },
-    "✓ %@" : {
-
-    },
-    "✓ All Changes" : {
-
-    },
-    "✓ C%lld: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "✓ C%1$lld: %2$@"
-          }
-        }
-      }
     },
     "✓ Split" : {
 
@@ -178,6 +178,9 @@
           }
         }
       }
+    },
+    "Add" : {
+
     },
     "Add Workspace…" : {
       "extractionState" : "manual",
@@ -490,6 +493,9 @@
         }
       }
     },
+    "Branch filter" : {
+
+    },
     "Browse" : {
 
     },
@@ -516,18 +522,14 @@
         }
       }
     },
-    "C%lld" : {
+    "Bucket files with this symbol" : {
 
     },
-    "C%lld: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "C%1$lld: %2$@"
-          }
-        }
-      }
+    "by %@" : {
+
+    },
+    "C%lld" : {
+
     },
     "Cancel" : {
       "extractionState" : "manual",
@@ -564,6 +566,9 @@
     "Choose" : {
 
     },
+    "Choose a preset to copy into this workspace profile" : {
+
+    },
     "Choose your preferred aesthetic style for diffuse." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -586,6 +591,9 @@
           }
         }
       }
+    },
+    "Choosing a preset copies its rules into .diffuse.json at creation time. After that, the profile is explicit and self-contained." : {
+
     },
     "Clear All Local Data" : {
       "extractionState" : "manual",
@@ -668,6 +676,9 @@
     "Cleared!" : {
 
     },
+    "Commit filter" : {
+
+    },
     "Configuration, documentation, generated, or boilerplate files that are usually safe to skim." : {
 
     },
@@ -684,6 +695,9 @@
 
     },
     "diffuse v1.0.0" : {
+
+    },
+    "Diffuse will copy %@ into a flat .diffuse.json." : {
 
     },
     "Diffuse will use this repo's configured rules and groupings." : {
@@ -750,6 +764,9 @@
     "Expand context up (20 lines)" : {
 
     },
+    "Fallback" : {
+
+    },
     "File filters" : {
 
     },
@@ -757,6 +774,12 @@
 
     },
     "Filter files..." : {
+
+    },
+    "First" : {
+
+    },
+    "flat profile" : {
 
     },
     "Folder Path" : {
@@ -805,7 +828,22 @@
         }
       }
     },
+    "Generated from a preset, then edited as one file" : {
+
+    },
+    "Group symbols like this" : {
+
+    },
+    "Icon" : {
+
+    },
     "id" : {
+
+    },
+    "Label" : {
+
+    },
+    "Latest" : {
 
     },
     "Live" : {
@@ -1014,6 +1052,9 @@
         }
       }
     },
+    "Preset to copy" : {
+
+    },
     "Previous Commit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1202,6 +1243,9 @@
     "REVIEW SCOPE" : {
 
     },
+    "Review the full branch diff" : {
+
+    },
     "Run diffuse analysis on a local git repository." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1248,7 +1292,13 @@
         }
       }
     },
-    "Save Profile" : {
+    "Save Changes" : {
+
+    },
+    "Saved" : {
+
+    },
+    "Saving" : {
 
     },
     "Select a file to view its diff" : {
@@ -1346,6 +1396,9 @@
         }
       }
     },
+    "Semantic area" : {
+
+    },
     "Semantic Views" : {
 
     },
@@ -1400,6 +1453,12 @@
           }
         }
       }
+    },
+    "Symbol matches" : {
+
+    },
+    "Teach" : {
+
     },
     "Teach diffuse how to classify this path" : {
 
@@ -1598,6 +1657,9 @@
     "Warn when source changes do not include matching tests" : {
 
     },
+    "Warn when this changes" : {
+
+    },
     "Welcome to diffuse" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1646,6 +1708,9 @@
           }
         }
       }
+    },
+    "Workspace filter" : {
+
     },
     "Workspace Management" : {
       "extractionState" : "manual",
@@ -1739,7 +1804,7 @@
         }
       }
     },
-    "Writes" : {
+    "Writes %@" : {
 
     }
   },

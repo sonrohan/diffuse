@@ -581,7 +581,10 @@ struct TriageEngine {
             profile: profile
         )
 
-        let riskHighlights = (semanticHighlights + ruleHighlights).sorted {
+        let riskHighlights = consolidateRiskHighlights(
+            semanticHighlights + ruleHighlights,
+            files: effectiveFiles
+        ).sorted {
             if $0.severity != $1.severity { return $0.severity > $1.severity }
             return $0.category.weight > $1.category.weight
         }
@@ -708,6 +711,78 @@ struct TriageEngine {
             line >= h.newStart && line <= h.newStart + h.newLines - 1
         }
         return idx
+    }
+
+    private static func consolidateRiskHighlights(_ highlights: [RiskHighlight], files: [ChangedFile]) -> [RiskHighlight] {
+        let fileByPath = Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0) })
+        let indexedHighlights: [(index: Int, key: String, highlight: RiskHighlight)] = highlights.enumerated().map { index, highlight in
+            let hunkIndex = fileByPath[highlight.filePath].flatMap { getHunkIndex($0, lineStart: highlight.lineStart) }
+            let lineGroup = hunkIndex.map { "hunk-\($0)" } ?? highlight.lineStart.map { "line-\($0)" } ?? normalizedSignalText(highlight.title)
+            let key = [
+                highlight.bucketId,
+                highlight.filePath,
+                highlight.category.rawValue,
+                lineGroup
+            ].joined(separator: "|")
+            return (index: index, key: key, highlight: highlight)
+        }
+
+        let grouped = Dictionary(grouping: indexedHighlights, by: \.key)
+
+        return grouped.values.map { group in
+            let ordered = group.sorted { lhs, rhs in
+                if lhs.highlight.severity != rhs.highlight.severity {
+                    return lhs.highlight.severity > rhs.highlight.severity
+                }
+                if lhs.highlight.category.weight != rhs.highlight.category.weight {
+                    return lhs.highlight.category.weight > rhs.highlight.category.weight
+                }
+                return lhs.index < rhs.index
+            }
+
+            let primary = ordered[0].highlight
+            let members = ordered.map(\.highlight)
+            let mergedEvidence = uniqueStrings(
+                (members.count > 1 ? ["Includes \(members.count) related signal\(members.count == 1 ? "" : "s") in this diff block."] : []) +
+                members.flatMap(\.evidence)
+            )
+            let mergedTitle = members.count > 1 ? "\(primary.title) (+\(members.count - 1) related)" : primary.title
+
+            return RiskHighlight(
+                id: "signal-group-\(normalizedSignalText(ordered[0].key))",
+                bucketId: primary.bucketId,
+                severity: maxSeverity(members.map(\.severity)),
+                category: primary.category,
+                title: mergedTitle,
+                filePath: primary.filePath,
+                lineStart: members.compactMap(\.lineStart).min(),
+                lineEnd: members.compactMap(\.lineEnd).max(),
+                evidence: mergedEvidence,
+                source: uniqueStrings(members.map(\.source)).joined(separator: " + "),
+                confidence: members.contains { $0.confidence == "high" } ? "high" : primary.confidence
+            )
+        }
+    }
+
+    private static func uniqueStrings(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for value in values where !value.isEmpty && seen.insert(value).inserted {
+            result.append(value)
+        }
+        return result
+    }
+
+    private static func normalizedSignalText(_ value: String) -> String {
+        value
+            .lowercased()
+            .map { $0.isLetter || $0.isNumber ? $0 : "-" }
+            .reduce(into: "") { partial, character in
+                if character != "-" || partial.last != "-" {
+                    partial.append(character)
+                }
+            }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 
     private static func riskCategoryForFinding(_ f: Finding) -> RiskCategory {

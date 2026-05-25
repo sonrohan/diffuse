@@ -799,7 +799,7 @@ struct AnalyzeRepoSheet: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.textSecondary)
                 Spacer()
-                Text(hasProfile ? "Repo-defined" : "Suggested baseline")
+                Text(hasProfile ? "Repo-defined" : "Preset to copy")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(hasProfile ? .successColor : .accentBlue)
             }
@@ -814,7 +814,7 @@ struct AnalyzeRepoSheet: View {
                     Text(hasProfile ? ".diffuse.json found" : presetDisplayName(selectedPresetId))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
-                    Text(hasProfile ? "Diffuse will use this repo's configured rules and groupings." : "Diffuse can create .diffuse.json extending \(selectedPresetId).")
+                    Text(hasProfile ? "Diffuse will use this repo's configured rules and groupings." : "Diffuse will copy \(selectedPresetId) into a flat .diffuse.json.")
                         .font(.system(size: 10.5))
                         .foregroundColor(.textSecondary)
                 }
@@ -828,7 +828,7 @@ struct AnalyzeRepoSheet: View {
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.bordered)
-                .help("View active rules and groupings")
+                .help("Edit active analysis profile")
 
                 if !hasProfile {
                     Button {

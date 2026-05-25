@@ -916,7 +916,7 @@ struct SelectedContextBar: View {
                     Button {
                         isProfileRulesPresented = true
                     } label: {
-                        Label("Rules", systemImage: "list.bullet.rectangle")
+                        Label("Profile", systemImage: "slider.horizontal.3")
                             .font(.system(size: 11))
                             .foregroundColor(.textSecondary)
                             .padding(.horizontal, 7)
@@ -926,7 +926,7 @@ struct SelectedContextBar: View {
                     }
                     .buttonStyle(.plain)
                     .onHover { isProfileRulesHovered = $0 }
-                    .help("View active analysis rules and groupings")
+                    .help("Edit active analysis profile")
                     .sheet(isPresented: $isProfileRulesPresented) {
                         AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
                     }

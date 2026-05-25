@@ -484,13 +484,13 @@ struct SettingsSheet: View {
                                         isProfileRulesPresented = true
                                     } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: "list.bullet.rectangle")
-                                            Text("View")
+                                            Image(systemName: "slider.horizontal.3")
+                                            Text("Profile")
                                         }
                                         .font(.system(size: 11, weight: .semibold))
                                     }
                                     .buttonStyle(.bordered)
-                                    .help("View active analysis groups and rules")
+                                    .help("Edit active analysis profile")
 
                                     Button {
                                         isProfileWizardPresented = true
@@ -503,7 +503,7 @@ struct SettingsSheet: View {
                                     }
                                     .buttonStyle(.bordered)
                                     .disabled(AnalysisProfileStore.hasRepoProfile(repoPath: repo.path))
-                                    .help("Choose a baseline analysis profile for this workspace")
+                                    .help("Choose a preset to copy into this workspace profile")
                                 }
                             }
                             
@@ -848,41 +848,9 @@ struct AnalysisProfileWizard: View {
 struct AnalysisProfileRulesSheet: View {
     let repoName: String
     let repoPath: String
-    @Environment(\.dismiss) private var dismiss
-
-    var profile: AnalysisProfile {
-        AnalysisProfileStore.load(repoPath: repoPath)
-    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "list.bullet.rectangle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.accentBlue)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Analysis Rules")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.textPrimary)
-                    Text(repoName)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-                Button("Done") { dismiss() }
-                    .buttonStyle(.bordered)
-            }
-
-            ScrollView {
-                AnalysisProfileSummaryView(profile: profile)
-                    .padding(.trailing, 6)
-            }
-        }
-        .padding(18)
-        .frame(width: 560, height: 560)
-        .background(Color.bgCanvas)
+        AnalysisProfileStudioView(repoName: repoName, repoPath: repoPath, onSaved: nil)
     }
 }
 
@@ -895,7 +863,7 @@ struct AnalysisProfileSummaryView: View {
                 Text(profile.displayName)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.textPrimary)
-                Text(profile.extends.isEmpty ? profile.id : "\(profile.id) extends \(profile.extends.joined(separator: ", "))")
+                Text(profile.id)
                     .font(.system(size: 10.5, design: .monospaced))
                     .foregroundColor(.textSecondary)
             }

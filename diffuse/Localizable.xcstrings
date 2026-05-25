@@ -251,7 +251,7 @@
     "Analysis Profile" : {
 
     },
-    "Analysis Rules" : {
+    "Analysis Profile Studio" : {
 
     },
     "Analyze" : {
@@ -552,6 +552,9 @@
         }
       }
     },
+    "Category" : {
+
+    },
     "Change diff layout" : {
 
     },
@@ -559,9 +562,6 @@
 
     },
     "Choose" : {
-
-    },
-    "Choose a baseline analysis profile for this workspace" : {
 
     },
     "Choose your preferred aesthetic style for diffuse." : {
@@ -683,9 +683,6 @@
     "diffuse" : {
 
     },
-    "Diffuse can create .diffuse.json extending %@." : {
-
-    },
     "diffuse v1.0.0" : {
 
     },
@@ -714,6 +711,9 @@
           }
         }
       }
+    },
+    "Edit active analysis profile" : {
+
     },
     "Enable Live Auto-Analysis" : {
       "extractionState" : "manual",
@@ -805,6 +805,9 @@
         }
       }
     },
+    "id" : {
+
+    },
     "Live" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -879,6 +882,18 @@
           }
         }
       }
+    },
+    "Mark this path as API surface" : {
+
+    },
+    "Mark this path as sensitive" : {
+
+    },
+    "Message" : {
+
+    },
+    "Minimum added source lines: %lld" : {
+
     },
     "Next Commit" : {
       "extractionState" : "manual",
@@ -1021,6 +1036,15 @@
           }
         }
       }
+    },
+    "Profile" : {
+
+    },
+    "PROFILE" : {
+
+    },
+    "Reload" : {
+
     },
     "Remove from diffuse" : {
       "extractionState" : "manual",
@@ -1178,9 +1202,6 @@
     "REVIEW SCOPE" : {
 
     },
-    "Rules" : {
-
-    },
     "Run diffuse analysis on a local git repository." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1226,6 +1247,9 @@
           }
         }
       }
+    },
+    "Save Profile" : {
+
     },
     "Select a file to view its diff" : {
 
@@ -1348,6 +1372,9 @@
         }
       }
     },
+    "Severity" : {
+
+    },
     "Split" : {
 
     },
@@ -1374,7 +1401,7 @@
         }
       }
     },
-    "Suggested baseline" : {
+    "Teach diffuse how to classify this path" : {
 
     },
     "Theme Selection" : {
@@ -1469,6 +1496,18 @@
         }
       }
     },
+    "Title" : {
+
+    },
+    "Treat this file as config" : {
+
+    },
+    "Treat this file as generated" : {
+
+    },
+    "Treat this file as test code" : {
+
+    },
     "Turn Off Auto-Analyze" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1515,6 +1554,9 @@
         }
       }
     },
+    "Type" : {
+
+    },
     "Unfiltered" : {
 
     },
@@ -1550,19 +1592,10 @@
     "via %@" : {
 
     },
-    "View" : {
-
-    },
-    "View active analysis groups and rules" : {
-
-    },
-    "View active analysis rules and groupings" : {
-
-    },
-    "View active rules and groupings" : {
-
-    },
     "View diff" : {
+
+    },
+    "Warn when source changes do not include matching tests" : {
 
     },
     "Welcome to diffuse" : {
@@ -1705,6 +1738,9 @@
           }
         }
       }
+    },
+    "Writes" : {
+
     }
   },
   "version" : "1.0"

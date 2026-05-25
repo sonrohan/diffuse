@@ -403,6 +403,79 @@ enum AnalysisProfileStore {
         loadRepoProfile(repoPath: repoPath) != nil
     }
 
+    static func repoProfileURL(repoPath: String) -> URL {
+        let root = URL(fileURLWithPath: repoPath)
+        let primary = root.appendingPathComponent(repoConfigPath)
+        if FileManager.default.fileExists(atPath: primary.path) {
+            return primary
+        }
+        let nested = root.appendingPathComponent(".diffuse/config.json")
+        if FileManager.default.fileExists(atPath: nested.path) {
+            return nested
+        }
+        return primary
+    }
+
+    static func loadEditableDocument(repoPath: String) throws -> EditableAnalysisProfileDocument {
+        let url = repoProfileURL(repoPath: repoPath)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return editableDocument(from: loadBuiltIn(id: detectBuiltInProfileId(repoPath: repoPath)))
+        }
+        let data = try Data(contentsOf: url)
+        let document = try JSONDecoder().decode(EditableAnalysisProfileDocument.self, from: data)
+        guard !document.extends.isEmpty else { return document.flattenedForEditing() }
+        return editableDocument(from: document.resolvedProfile())
+    }
+
+    static func writeEditableDocument(_ document: EditableAnalysisProfileDocument, repoPath: String) throws {
+        let url = repoProfileURL(repoPath: repoPath)
+        let parent = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(document.normalized())
+        try data.write(to: url, options: .atomic)
+    }
+
+    static func teachFileClassification(repoPath: String, path: String, classification: ChangedFile.FileClassification) throws {
+        var document = try loadEditableDocument(repoPath: repoPath)
+        var rules = document.fileClassifications ?? []
+        if let index = rules.firstIndex(where: { $0.classification == classification.rawValue }) {
+            if !rules[index].paths.contains(path) {
+                rules[index].paths.append(path)
+                rules[index].paths.sort()
+            }
+        } else {
+            rules.append(FileClassificationRule(classification: classification.rawValue, paths: [path]))
+        }
+        document.fileClassifications = rules
+        try writeEditableDocument(document, repoPath: repoPath)
+    }
+
+    static func teachRiskPath(repoPath: String, path: String, kind: EditableRiskPathKind) throws {
+        var document = try loadEditableDocument(repoPath: repoPath)
+        if document.riskScoring == nil {
+            document.riskScoring = RiskScoringProfile()
+        }
+        switch kind {
+        case .api:
+            var paths = document.riskScoring?.apiPaths ?? []
+            if !paths.contains(path) {
+                paths.append(path)
+                paths.sort()
+            }
+            document.riskScoring?.apiPaths = paths
+        case .sensitive:
+            var paths = document.riskScoring?.sensitivePaths ?? []
+            if !paths.contains(path) {
+                paths.append(path)
+                paths.sort()
+            }
+            document.riskScoring?.sensitivePaths = paths
+        }
+        try writeEditableDocument(document, repoPath: repoPath)
+    }
+
     nonisolated static func writeDefaultProfile(repoPath: String) throws {
         try writeProfile(repoPath: repoPath, presetId: detectBuiltInProfileId(repoPath: repoPath))
     }
@@ -412,13 +485,11 @@ enum AnalysisProfileStore {
         let destination = root.appendingPathComponent(repoConfigPath)
         guard !FileManager.default.fileExists(atPath: destination.path) else { return }
 
-        let template: [String: Any] = [
-            "version": 1,
-            "id": "repo",
-            "displayName": "Repo analysis profile",
-            "extends": [presetId]
-        ]
-        let data = try JSONSerialization.data(withJSONObject: template, options: [.prettyPrinted, .sortedKeys])
+        let profile = loadBuiltIn(id: presetId)
+        let template = editableDocument(from: profile)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(template.normalized())
         try data.write(to: destination, options: .withoutOverwriting)
     }
 
@@ -488,7 +559,7 @@ enum AnalysisProfileStore {
         return nil
     }
 
-    nonisolated private static func resolve(_ profile: AnalysisProfile) -> AnalysisProfile {
+    nonisolated static func resolve(_ profile: AnalysisProfile) -> AnalysisProfile {
         guard !profile.extends.isEmpty else { return profile }
         let parent = profile.extends
             .map(loadBuiltIn)
@@ -496,6 +567,197 @@ enum AnalysisProfileStore {
                 $0.merging(overrides: $1)
             }
         return parent.merging(overrides: profile)
+    }
+
+    nonisolated static func editableDocument(from profile: AnalysisProfile) -> EditableAnalysisProfileDocument {
+        let resolved = resolve(profile)
+        return EditableAnalysisProfileDocument(
+            version: resolved.version,
+            id: "repo",
+            displayName: "Repo analysis profile",
+            extends: [],
+            fileClassifications: resolved.fileClassifications,
+            buckets: resolved.buckets,
+            symbolGroups: resolved.symbolGroups,
+            rules: EditableRuleProfile(
+                missingTests: resolved.rules.missingTests,
+                schemaSync: resolved.rules.schemaSync,
+                importBoundaries: resolved.rules.importBoundaries,
+                semanticAreaFindings: resolved.rules.semanticAreaFindings,
+                contractFindings: resolved.rules.contractFindings,
+                symbolCoverage: resolved.rules.symbolCoverage
+            ),
+            semanticHighlights: resolved.semanticHighlights,
+            fileHighlights: resolved.fileHighlights,
+            riskScoring: resolved.riskScoring
+        )
+    }
+}
+
+enum EditableRiskPathKind {
+    case api
+    case sensitive
+}
+
+struct EditableAnalysisProfileDocument: Codable {
+    var version: Int
+    var id: String
+    var displayName: String
+    var extends: [String]
+    var fileClassifications: [FileClassificationRule]?
+    var buckets: [BucketRule]?
+    var symbolGroups: [SymbolGroupRule]?
+    var rules: EditableRuleProfile?
+    var semanticHighlights: [SemanticHighlightRule]?
+    var fileHighlights: [FileHighlightRule]?
+    var riskScoring: RiskScoringProfile?
+
+    enum DecodeKeys: String, CodingKey {
+        case version, id, displayName, extends, fileClassifications, buckets, symbolGroups, rules, semanticHighlights, fileHighlights, riskScoring
+    }
+
+    enum EncodeKeys: String, CodingKey {
+        case version, id, displayName, fileClassifications, buckets, symbolGroups, rules, semanticHighlights, fileHighlights, riskScoring
+    }
+
+    nonisolated init(
+        version: Int = 1,
+        id: String = "repo",
+        displayName: String = "Repo analysis profile",
+        extends: [String] = [],
+        fileClassifications: [FileClassificationRule]? = nil,
+        buckets: [BucketRule]? = nil,
+        symbolGroups: [SymbolGroupRule]? = nil,
+        rules: EditableRuleProfile? = nil,
+        semanticHighlights: [SemanticHighlightRule]? = nil,
+        fileHighlights: [FileHighlightRule]? = nil,
+        riskScoring: RiskScoringProfile? = nil
+    ) {
+        self.version = version
+        self.id = id
+        self.displayName = displayName
+        self.extends = extends
+        self.fileClassifications = fileClassifications
+        self.buckets = buckets
+        self.symbolGroups = symbolGroups
+        self.rules = rules
+        self.semanticHighlights = semanticHighlights
+        self.fileHighlights = fileHighlights
+        self.riskScoring = riskScoring
+    }
+
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DecodeKeys.self)
+        self.version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? "repo"
+        self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? "Repo analysis profile"
+        self.extends = try container.decodeIfPresent([String].self, forKey: .extends) ?? []
+        self.fileClassifications = try container.decodeIfPresent([FileClassificationRule].self, forKey: .fileClassifications)
+        self.buckets = try container.decodeIfPresent([BucketRule].self, forKey: .buckets)
+        self.symbolGroups = try container.decodeIfPresent([SymbolGroupRule].self, forKey: .symbolGroups)
+        self.rules = try container.decodeIfPresent(EditableRuleProfile.self, forKey: .rules)
+        self.semanticHighlights = try container.decodeIfPresent([SemanticHighlightRule].self, forKey: .semanticHighlights)
+        self.fileHighlights = try container.decodeIfPresent([FileHighlightRule].self, forKey: .fileHighlights)
+        self.riskScoring = try container.decodeIfPresent(RiskScoringProfile.self, forKey: .riskScoring)
+    }
+
+    nonisolated func encode(to encoder: Encoder) throws {
+        let copy = normalized()
+        var container = encoder.container(keyedBy: EncodeKeys.self)
+        try container.encode(copy.version, forKey: .version)
+        try container.encode(copy.id, forKey: .id)
+        try container.encode(copy.displayName, forKey: .displayName)
+        try container.encodeIfPresent(copy.fileClassifications, forKey: .fileClassifications)
+        try container.encodeIfPresent(copy.buckets, forKey: .buckets)
+        try container.encodeIfPresent(copy.symbolGroups, forKey: .symbolGroups)
+        try container.encodeIfPresent(copy.rules, forKey: .rules)
+        try container.encodeIfPresent(copy.semanticHighlights, forKey: .semanticHighlights)
+        try container.encodeIfPresent(copy.fileHighlights, forKey: .fileHighlights)
+        try container.encodeIfPresent(copy.riskScoring, forKey: .riskScoring)
+    }
+
+    nonisolated func normalized() -> EditableAnalysisProfileDocument {
+        var copy = self
+        copy.extends = []
+        copy.fileClassifications = copy.fileClassifications?.filter { !$0.paths.isEmpty }
+        copy.buckets = copy.buckets?.filter { rule in
+            !(rule.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+              rule.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        copy.symbolGroups = copy.symbolGroups?.filter {
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        copy.rules = copy.rules?.normalized()
+        copy.semanticHighlights = copy.semanticHighlights?.filter {
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        copy.fileHighlights = copy.fileHighlights?.filter {
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return copy
+    }
+
+    nonisolated func flattenedForEditing() -> EditableAnalysisProfileDocument {
+        normalized()
+    }
+
+    nonisolated func resolvedProfile() -> AnalysisProfile {
+        AnalysisProfileStore.resolve(AnalysisProfile(
+            version: version,
+            id: id,
+            displayName: displayName,
+            extends: [],
+            fileClassifications: fileClassifications ?? [],
+            buckets: buckets ?? [],
+            symbolGroups: symbolGroups ?? [],
+            rules: rules?.ruleProfile ?? RuleProfile(),
+            semanticHighlights: semanticHighlights ?? [],
+            fileHighlights: fileHighlights ?? [],
+            riskScoring: riskScoring ?? RiskScoringProfile()
+        ))
+    }
+}
+
+struct EditableRuleProfile: Codable {
+    var missingTests: MissingTestsRule?
+    var schemaSync: SchemaSyncRule?
+    var importBoundaries: [ImportBoundaryRule]?
+    var semanticAreaFindings: [SemanticAreaFindingRule]?
+    var contractFindings: [MetadataFindingRule]?
+    var symbolCoverage: SymbolCoverageRule?
+
+    nonisolated func normalized() -> EditableRuleProfile? {
+        let copy = EditableRuleProfile(
+            missingTests: missingTests,
+            schemaSync: schemaSync,
+            importBoundaries: importBoundaries?.filter { !$0.sourcePaths.isEmpty && !$0.forbiddenImports.isEmpty },
+            semanticAreaFindings: semanticAreaFindings,
+            contractFindings: contractFindings,
+            symbolCoverage: symbolCoverage
+        )
+        if copy.missingTests == nil,
+           copy.schemaSync == nil,
+           copy.importBoundaries?.isEmpty != false,
+           copy.semanticAreaFindings?.isEmpty != false,
+           copy.contractFindings?.isEmpty != false,
+           copy.symbolCoverage == nil {
+            return nil
+        }
+        return copy
+    }
+
+    nonisolated var ruleProfile: RuleProfile {
+        RuleProfile(
+            missingTests: missingTests,
+            schemaSync: schemaSync,
+            importBoundaries: importBoundaries ?? [],
+            semanticAreaFindings: semanticAreaFindings ?? [],
+            contractFindings: contractFindings ?? [],
+            symbolCoverage: symbolCoverage
+        )
     }
 }
 

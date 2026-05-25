@@ -85,11 +85,15 @@ struct AnalysisProfileStudioView: View {
                         Text(section.rawValue)
                         Spacer()
                     }
-                    .font(.system(size: 12, weight: selectedSection == section ? .semibold : .medium))
+                    .font(
+                        .system(size: 12, weight: selectedSection == section ? .semibold : .medium)
+                    )
                     .foregroundColor(selectedSection == section ? .textPrimary : .textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(selectedSection == section ? Color.accentBlue.opacity(0.10) : Color.clear)
+                    .background(
+                        selectedSection == section ? Color.accentBlue.opacity(0.10) : Color.clear
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
@@ -192,7 +196,8 @@ struct AnalysisProfileStudioView: View {
         VStack(alignment: .leading, spacing: 14) {
             StudioSectionHeader(
                 title: "Flat Profile",
-                subtitle: "Every rule shown here is written directly into this repo's .diffuse.json. Nothing is hidden in another profile."
+                subtitle:
+                    "Every rule shown here is written directly into this repo's .diffuse.json. Nothing is hidden in another profile."
             )
 
             StudioRuleCard {
@@ -208,10 +213,12 @@ struct AnalysisProfileStudioView: View {
                         Text("Generated from a preset, then edited as one file")
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.textPrimary)
-                        Text("Choosing a preset copies its rules into .diffuse.json at creation time. After that, the profile is explicit and self-contained.")
-                            .font(.system(size: 10.5))
-                            .foregroundColor(.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Text(
+                            "Choosing a preset copies its rules into .diffuse.json at creation time. After that, the profile is explicit and self-contained."
+                        )
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
 
                     Spacer()
@@ -219,24 +226,36 @@ struct AnalysisProfileStudioView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                StudioMetric(title: "File type rules", value: "\(profile.fileClassifications.count)", icon: "doc.text")
-                StudioMetric(title: "Review buckets", value: "\(profile.buckets.count)", icon: "tray.full")
-                StudioMetric(title: "Symbol groups", value: "\(profile.symbolGroups.count)", icon: "point.3.connected.trianglepath.dotted")
-                StudioMetric(title: "Boundary rules", value: "\(profile.rules.importBoundaries.count)", icon: "arrow.left.arrow.right")
-                StudioMetric(title: "Review signals", value: "\(profile.semanticHighlights.count + profile.fileHighlights.count)", icon: "exclamationmark.shield")
+                StudioMetric(
+                    title: "File type rules", value: "\(profile.fileClassifications.count)",
+                    icon: "doc.text")
+                StudioMetric(
+                    title: "Review buckets", value: "\(profile.buckets.count)", icon: "tray.full")
+                StudioMetric(
+                    title: "Symbol groups", value: "\(profile.symbolGroups.count)",
+                    icon: "point.3.connected.trianglepath.dotted")
+                StudioMetric(
+                    title: "Boundary rules", value: "\(profile.rules.importBoundaries.count)",
+                    icon: "arrow.left.arrow.right")
+                StudioMetric(
+                    title: "Review signals",
+                    value: "\(profile.semanticHighlights.count + profile.fileHighlights.count)",
+                    icon: "exclamationmark.shield")
             }
 
             if let details = state.analysisDetails {
                 StudioSectionHeader(
                     title: "Current Diff Preview",
-                    subtitle: "This preview uses the open analysis data and the unsaved editor state."
+                    subtitle:
+                        "This preview uses the open analysis data and the unsaved editor state."
                 )
                 previewRows(details: details)
             } else {
                 StudioEmptyState(
                     icon: "chart.bar.doc.horizontal",
                     title: "No open analysis to preview",
-                    detail: "Run an analysis, then reopen this studio to see how these rules classify the current diff."
+                    detail:
+                        "Run an analysis, then reopen this studio to see how these rules classify the current diff."
                 )
             }
         }
@@ -246,7 +265,8 @@ struct AnalysisProfileStudioView: View {
         VStack(alignment: .leading, spacing: 12) {
             StudioSectionHeader(
                 title: "File Type Overrides",
-                subtitle: "Teach diffuse which paths are source, tests, config, docs, generated files, or boilerplate."
+                subtitle:
+                    "Teach diffuse which paths are source, tests, config, docs, generated files, or boilerplate."
             )
 
             ForEach(fileClassificationRules.indices, id: \.self) { index in
@@ -393,7 +413,8 @@ struct AnalysisProfileStudioView: View {
         VStack(alignment: .leading, spacing: 12) {
             StudioSectionHeader(
                 title: "Symbols",
-                subtitle: "Use AST symbols to group, flag, and bucket behavior changes without relying only on file paths."
+                subtitle:
+                    "Use AST symbols to group, flag, and bucket behavior changes without relying only on file paths."
             )
 
             if let details = state.analysisDetails, !details.symbols.isEmpty {
@@ -415,7 +436,8 @@ struct AnalysisProfileStudioView: View {
                 StudioEmptyState(
                     icon: "point.3.connected.trianglepath.dotted",
                     title: "No changed symbols to preview",
-                    detail: "Run an analysis with supported source files to teach symbol rules from real examples."
+                    detail:
+                        "Run an analysis with supported source files to teach symbol rules from real examples."
                 )
             }
 
@@ -552,24 +574,33 @@ struct AnalysisProfileStudioView: View {
         VStack(alignment: .leading, spacing: 12) {
             StudioSectionHeader(
                 title: "Missing Test Signal",
-                subtitle: "Control when diffuse warns about production changes without nearby test changes."
+                subtitle:
+                    "Control when diffuse warns about production changes without nearby test changes."
             )
 
             StudioRuleCard {
-                Toggle("Warn when source changes do not include matching tests", isOn: missingTestsEnabledBinding)
-                    .toggleStyle(.checkbox)
+                Toggle(
+                    "Warn when source changes do not include matching tests",
+                    isOn: missingTestsEnabledBinding
+                )
+                .toggleStyle(.checkbox)
 
                 Stepper(value: missingTestsMinimumBinding, in: 1...250) {
-                    Text("Minimum added source lines: \(document.rules?.missingTests?.minimumAdditions ?? defaultMissingTestsRule.minimumAdditions)")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                    Text(
+                        "Minimum added source lines: \(document.rules?.missingTests?.minimumAdditions ?? defaultMissingTestsRule.minimumAdditions)"
+                    )
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.textPrimary)
                 }
 
                 PatternListEditor(
                     title: "Source classifications",
                     placeholder: "source",
                     text: patternsBinding(
-                        get: { document.rules?.missingTests?.sourceClassifications ?? defaultMissingTestsRule.sourceClassifications },
+                        get: {
+                            document.rules?.missingTests?.sourceClassifications
+                                ?? defaultMissingTestsRule.sourceClassifications
+                        },
                         set: { updateMissingTestsSourceClasses($0) }
                     )
                 )
@@ -578,7 +609,10 @@ struct AnalysisProfileStudioView: View {
                     title: "Test classifications",
                     placeholder: "test",
                     text: patternsBinding(
-                        get: { document.rules?.missingTests?.testClassifications ?? defaultMissingTestsRule.testClassifications },
+                        get: {
+                            document.rules?.missingTests?.testClassifications
+                                ?? defaultMissingTestsRule.testClassifications
+                        },
                         set: { updateMissingTestsTestClasses($0) }
                     )
                 )
@@ -590,7 +624,8 @@ struct AnalysisProfileStudioView: View {
         VStack(alignment: .leading, spacing: 12) {
             StudioSectionHeader(
                 title: "Architecture Boundaries",
-                subtitle: "Warn when symbols in one path layer import forbidden lower-level modules."
+                subtitle:
+                    "Warn when symbols in one path layer import forbidden lower-level modules."
             )
 
             ForEach(importBoundaryRules.indices, id: \.self) { index in
@@ -653,20 +688,20 @@ struct AnalysisProfileStudioView: View {
     }
 }
 
-private extension AnalysisProfileStudioView {
-    var profileFileName: String {
+extension AnalysisProfileStudioView {
+    fileprivate var profileFileName: String {
         AnalysisProfileStore.repoProfileURL(repoPath: repoPath).lastPathComponent
     }
 
-    var currentSignature: String? {
+    fileprivate var currentSignature: String? {
         profileSignature(document)
     }
 
-    var hasUnsavedChanges: Bool {
+    fileprivate var hasUnsavedChanges: Bool {
         currentSignature != lastSavedSignature
     }
 
-    var saveStatusText: String {
+    fileprivate var saveStatusText: String {
         switch savePhase {
         case .saving:
             return "Saving changes..."
@@ -677,7 +712,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    var saveStatusIcon: String {
+    fileprivate var saveStatusIcon: String {
         switch savePhase {
         case .saving:
             return "arrow.triangle.2.circlepath"
@@ -688,7 +723,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    var saveStatusColor: Color {
+    fileprivate var saveStatusColor: Color {
         switch savePhase {
         case .saving:
             return .accentBlue
@@ -700,7 +735,7 @@ private extension AnalysisProfileStudioView {
     }
 
     @ViewBuilder
-    var saveButtonLabel: some View {
+    fileprivate var saveButtonLabel: some View {
         switch savePhase {
         case .saving:
             HStack(spacing: 6) {
@@ -712,49 +747,53 @@ private extension AnalysisProfileStudioView {
         case .saved:
             Label("Saved", systemImage: "checkmark")
         case .idle:
-            Label(hasUnsavedChanges ? "Save Changes" : "Saved", systemImage: hasUnsavedChanges ? "square.and.arrow.down" : "checkmark")
+            Label(
+                hasUnsavedChanges ? "Save Changes" : "Saved",
+                systemImage: hasUnsavedChanges ? "square.and.arrow.down" : "checkmark")
         }
     }
 
-    var fileClassificationOptions: [String] {
+    fileprivate var fileClassificationOptions: [String] {
         ["source", "test", "config", "documentation", "generated", "boilerplate"]
     }
 
-    var findingCategoryOptions: [String] {
+    fileprivate var findingCategoryOptions: [String] {
         ["architecture", "test", "security", "performance", "clean-code"]
     }
 
-    var fileClassificationRules: [FileClassificationRule] {
+    fileprivate var fileClassificationRules: [FileClassificationRule] {
         document.fileClassifications ?? []
     }
 
-    var bucketRules: [BucketRule] {
+    fileprivate var bucketRules: [BucketRule] {
         document.buckets ?? []
     }
 
-    var symbolGroupRules: [SymbolGroupRule] {
+    fileprivate var symbolGroupRules: [SymbolGroupRule] {
         document.symbolGroups ?? []
     }
 
-    var symbolSignalRules: [SemanticAreaFindingRule] {
+    fileprivate var symbolSignalRules: [SemanticAreaFindingRule] {
         document.rules?.semanticAreaFindings ?? []
     }
 
-    var importBoundaryRules: [ImportBoundaryRule] {
+    fileprivate var importBoundaryRules: [ImportBoundaryRule] {
         document.rules?.importBoundaries ?? []
     }
 
-    var defaultMissingTestsRule: MissingTestsRule {
-        profile.rules.missingTests ?? MissingTestsRule(
-            enabled: true,
-            minimumAdditions: 10,
-            sourceClassifications: ["source"],
-            testClassifications: ["test"],
-            message: "Significant logic change ({additions} additions) without any matching test file additions or updates in this PR."
-        )
+    fileprivate var defaultMissingTestsRule: MissingTestsRule {
+        profile.rules.missingTests
+            ?? MissingTestsRule(
+                enabled: true,
+                minimumAdditions: 10,
+                sourceClassifications: ["source"],
+                testClassifications: ["test"],
+                message:
+                    "Significant logic change ({additions} additions) without any matching test file additions or updates in this PR."
+            )
     }
 
-    var missingTestsEnabledBinding: Binding<Bool> {
+    fileprivate var missingTestsEnabledBinding: Binding<Bool> {
         Binding {
             document.rules?.missingTests?.enabled ?? defaultMissingTestsRule.enabled
         } set: { value in
@@ -763,16 +802,17 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    var missingTestsMinimumBinding: Binding<Int> {
+    fileprivate var missingTestsMinimumBinding: Binding<Int> {
         Binding {
-            document.rules?.missingTests?.minimumAdditions ?? defaultMissingTestsRule.minimumAdditions
+            document.rules?.missingTests?.minimumAdditions
+                ?? defaultMissingTestsRule.minimumAdditions
         } set: { value in
             ensureMissingTestsRule()
             document.rules?.missingTests?.minimumAdditions = value
         }
     }
 
-    func loadDocument() {
+    fileprivate func loadDocument() {
         do {
             document = try AnalysisProfileStore.loadEditableDocument(repoPath: repoPath)
             errorMessage = nil
@@ -783,7 +823,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func saveDocument() {
+    fileprivate func saveDocument() {
         savePhase = .saving
         errorMessage = nil
         do {
@@ -803,14 +843,16 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func profileSignature(_ document: EditableAnalysisProfileDocument) -> String? {
+    fileprivate func profileSignature(_ document: EditableAnalysisProfileDocument) -> String? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(document.normalized()) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    func addButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    fileprivate func addButton(_ title: String, icon: String, action: @escaping () -> Void)
+        -> some View
+    {
         Button(action: action) {
             Label(title, systemImage: icon)
                 .font(.system(size: 11, weight: .semibold))
@@ -818,7 +860,7 @@ private extension AnalysisProfileStudioView {
         .buttonStyle(.bordered)
     }
 
-    func previewRows(details: AnalysisDetails) -> some View {
+    fileprivate func previewRows(details: AnalysisDetails) -> some View {
         let classified = Dictionary(grouping: details.files) { file in
             profile.classifyFile(file.path).rawValue
         }
@@ -839,18 +881,22 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func previewBucketCounts(details: AnalysisDetails) -> [(title: String, count: Int)] {
+    fileprivate func previewBucketCounts(details: AnalysisDetails) -> [(title: String, count: Int)]
+    {
         var counts: [String: (title: String, count: Int)] = [:]
-        let findingsByPath = Dictionary(grouping: details.findings, by: { finding in
-            details.files.first { $0.id == finding.changedFileId }?.path ?? ""
-        })
+        let findingsByPath = Dictionary(
+            grouping: details.findings,
+            by: { finding in
+                details.files.first { $0.id == finding.changedFileId }?.path ?? ""
+            })
 
         for file in details.files {
             var previewFile = file
             previewFile.classification = profile.classifyFile(file.path)
             let fileFindings = findingsByPath[file.path] ?? []
             let fileSymbols = details.symbols.filter { $0.changedFileId == file.id }
-            let rule = profile.bucketRule(for: previewFile, findings: fileFindings, symbols: fileSymbols)
+            let rule = profile.bucketRule(
+                for: previewFile, findings: fileFindings, symbols: fileSymbols)
             let key = rule?.id ?? ChangeBucketType.behavior.rawValue
             let title = rule?.title ?? ChangeBucketType.behavior.displayTitle
             counts[key] = (title, (counts[key]?.count ?? 0) + 1)
@@ -859,11 +905,14 @@ private extension AnalysisProfileStudioView {
         return counts.values.sorted { $0.title < $1.title }
     }
 
-    func patternsBinding(get: @escaping () -> [String], set: @escaping ([String]) -> Void) -> Binding<String> {
+    fileprivate func patternsBinding(
+        get: @escaping () -> [String], set: @escaping ([String]) -> Void
+    ) -> Binding<String> {
         Binding {
             get().joined(separator: "\n")
         } set: { text in
-            let values = text
+            let values =
+                text
                 .components(separatedBy: .newlines)
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
@@ -871,19 +920,24 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func keyValueBinding(get: @escaping () -> [String: String], set: @escaping ([String: String]) -> Void) -> Binding<String> {
+    fileprivate func keyValueBinding(
+        get: @escaping () -> [String: String], set: @escaping ([String: String]) -> Void
+    ) -> Binding<String> {
         Binding {
             get()
                 .map { "\($0.key)=\($0.value)" }
                 .sorted()
                 .joined(separator: "\n")
         } set: { text in
-            let values = text
+            let values =
+                text
                 .components(separatedBy: .newlines)
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
                 .reduce(into: [String: String]()) { result, line in
-                    let parts = line.split(separator: "=", maxSplits: 1).map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                    let parts = line.split(separator: "=", maxSplits: 1).map {
+                        String($0).trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
                     guard parts.count == 2, !parts[0].isEmpty else { return }
                     result[parts[0]] = parts[1]
                 }
@@ -891,14 +945,16 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func symbolPreviewRows(details: AnalysisDetails) -> [SymbolPreviewRow] {
+    fileprivate func symbolPreviewRows(details: AnalysisDetails) -> [SymbolPreviewRow] {
         let filesById = Dictionary(uniqueKeysWithValues: details.files.map { ($0.id, $0.path) })
         let grouped = Dictionary(grouping: details.symbols) { symbol in
             symbol.metadata["semantic_area"] ?? symbol.semanticType
         }
 
         return grouped.map { key, symbols in
-            let sample = symbols.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }.first
+            let sample = symbols.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }.first
             return SymbolPreviewRow(
                 id: key.isEmpty ? "general" : key,
                 label: key.isEmpty ? "general" : key,
@@ -913,38 +969,39 @@ private extension AnalysisProfileStudioView {
     }
 }
 
-private extension AnalysisProfileStudioView {
-    func ensureRules() {
+extension AnalysisProfileStudioView {
+    fileprivate func ensureRules() {
         if document.rules == nil {
             document.rules = EditableRuleProfile()
         }
     }
 
-    func ensureRiskScoring() {
+    fileprivate func ensureRiskScoring() {
         if document.riskScoring == nil {
             document.riskScoring = RiskScoringProfile()
         }
     }
 
-    func ensureMissingTestsRule() {
+    fileprivate func ensureMissingTestsRule() {
         ensureRules()
         if document.rules?.missingTests == nil {
             document.rules?.missingTests = defaultMissingTestsRule
         }
     }
 
-    func addFileClassification() {
+    fileprivate func addFileClassification() {
         var rules = document.fileClassifications ?? []
-        rules.append(FileClassificationRule(classification: "generated", paths: ["**/generated/**"]))
+        rules.append(
+            FileClassificationRule(classification: "generated", paths: ["**/generated/**"]))
         document.fileClassifications = rules
     }
 
-    func removeFileClassification(at index: Int) {
+    fileprivate func removeFileClassification(at index: Int) {
         guard document.fileClassifications?.indices.contains(index) == true else { return }
         document.fileClassifications?.remove(at: index)
     }
 
-    func classificationBinding(_ index: Int) -> Binding<String> {
+    fileprivate func classificationBinding(_ index: Int) -> Binding<String> {
         Binding {
             fileClassificationRules[safe: index]?.classification ?? "source"
         } set: { value in
@@ -953,36 +1010,37 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func updateFileClassificationPaths(index: Int, paths: [String]) {
+    fileprivate func updateFileClassificationPaths(index: Int, paths: [String]) {
         guard document.fileClassifications?.indices.contains(index) == true else { return }
         document.fileClassifications?[index].paths = paths
     }
 
-    func addBucket() {
+    fileprivate func addBucket() {
         var rules = document.buckets ?? []
-        rules.append(BucketRule(
-            id: "custom-\(rules.count + 1)",
-            type: ChangeBucketType.behavior.rawValue,
-            title: "Custom review bucket",
-            paths: ["**/feature/**"],
-            classifications: nil,
-            findingCategories: nil,
-            symbolSemanticAreas: nil,
-            symbolSemanticTypes: nil,
-            symbolNames: nil,
-            symbolMetadataEquals: nil,
-            symbolMetadataMatches: nil,
-            symbolCallees: nil
-        ))
+        rules.append(
+            BucketRule(
+                id: "custom-\(rules.count + 1)",
+                type: ChangeBucketType.behavior.rawValue,
+                title: "Custom review bucket",
+                paths: ["**/feature/**"],
+                classifications: nil,
+                findingCategories: nil,
+                symbolSemanticAreas: nil,
+                symbolSemanticTypes: nil,
+                symbolNames: nil,
+                symbolMetadataEquals: nil,
+                symbolMetadataMatches: nil,
+                symbolCallees: nil
+            ))
         document.buckets = rules
     }
 
-    func removeBucket(at index: Int) {
+    fileprivate func removeBucket(at index: Int) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?.remove(at: index)
     }
 
-    func bucketIdBinding(_ index: Int) -> Binding<String> {
+    fileprivate func bucketIdBinding(_ index: Int) -> Binding<String> {
         Binding {
             bucketRules[safe: index]?.id ?? ""
         } set: { value in
@@ -991,7 +1049,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func bucketTitleBinding(_ index: Int) -> Binding<String> {
+    fileprivate func bucketTitleBinding(_ index: Int) -> Binding<String> {
         Binding {
             bucketRules[safe: index]?.title ?? ""
         } set: { value in
@@ -1000,7 +1058,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func bucketTypeBinding(_ index: Int) -> Binding<String> {
+    fileprivate func bucketTypeBinding(_ index: Int) -> Binding<String> {
         Binding {
             bucketRules[safe: index]?.type ?? ChangeBucketType.behavior.rawValue
         } set: { value in
@@ -1009,75 +1067,76 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func updateBucketPaths(index: Int, paths: [String]) {
+    fileprivate func updateBucketPaths(index: Int, paths: [String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].paths = paths
     }
 
-    func updateBucketSymbolSemanticAreas(index: Int, values: [String]) {
+    fileprivate func updateBucketSymbolSemanticAreas(index: Int, values: [String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].symbolSemanticAreas = values.isEmpty ? nil : values
     }
 
-    func updateBucketSymbolSemanticTypes(index: Int, values: [String]) {
+    fileprivate func updateBucketSymbolSemanticTypes(index: Int, values: [String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].symbolSemanticTypes = values.isEmpty ? nil : values
     }
 
-    func updateBucketSymbolNames(index: Int, values: [String]) {
+    fileprivate func updateBucketSymbolNames(index: Int, values: [String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].symbolNames = values.isEmpty ? nil : values
     }
 
-    func updateBucketSymbolCallees(index: Int, values: [String]) {
+    fileprivate func updateBucketSymbolCallees(index: Int, values: [String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].symbolCallees = values.isEmpty ? nil : values
     }
 
-    func updateBucketSymbolMetadataEquals(index: Int, values: [String: String]) {
+    fileprivate func updateBucketSymbolMetadataEquals(index: Int, values: [String: String]) {
         guard document.buckets?.indices.contains(index) == true else { return }
         document.buckets?[index].symbolMetadataEquals = values.isEmpty ? nil : values
     }
 
-    func updateApiPaths(_ paths: [String]) {
+    fileprivate func updateApiPaths(_ paths: [String]) {
         ensureRiskScoring()
         document.riskScoring?.apiPaths = paths
     }
 
-    func updateSensitivePaths(_ paths: [String]) {
+    fileprivate func updateSensitivePaths(_ paths: [String]) {
         ensureRiskScoring()
         document.riskScoring?.sensitivePaths = paths
     }
 
-    func updateMissingTestsSourceClasses(_ values: [String]) {
+    fileprivate func updateMissingTestsSourceClasses(_ values: [String]) {
         ensureMissingTestsRule()
         document.rules?.missingTests?.sourceClassifications = values
     }
 
-    func updateMissingTestsTestClasses(_ values: [String]) {
+    fileprivate func updateMissingTestsTestClasses(_ values: [String]) {
         ensureMissingTestsRule()
         document.rules?.missingTests?.testClassifications = values
     }
 
-    func addSymbolGroup() {
+    fileprivate func addSymbolGroup() {
         var groups = document.symbolGroups ?? []
-        groups.append(SymbolGroupRule(
-            id: "custom-symbol-\(groups.count + 1)",
-            label: "Custom Symbols",
-            icon: "point.3.connected.trianglepath.dotted",
-            semanticAreas: ["custom_area"],
-            metadataEquals: nil,
-            fallback: nil
-        ))
+        groups.append(
+            SymbolGroupRule(
+                id: "custom-symbol-\(groups.count + 1)",
+                label: "Custom Symbols",
+                icon: "point.3.connected.trianglepath.dotted",
+                semanticAreas: ["custom_area"],
+                metadataEquals: nil,
+                fallback: nil
+            ))
         document.symbolGroups = groups
     }
 
-    func removeSymbolGroup(at index: Int) {
+    fileprivate func removeSymbolGroup(at index: Int) {
         guard document.symbolGroups?.indices.contains(index) == true else { return }
         document.symbolGroups?.remove(at: index)
     }
 
-    func symbolGroupIdBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolGroupIdBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolGroupRules[safe: index]?.id ?? ""
         } set: { value in
@@ -1086,7 +1145,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func symbolGroupLabelBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolGroupLabelBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolGroupRules[safe: index]?.label ?? ""
         } set: { value in
@@ -1095,7 +1154,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func symbolGroupIconBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolGroupIconBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolGroupRules[safe: index]?.icon ?? "point.3.connected.trianglepath.dotted"
         } set: { value in
@@ -1104,7 +1163,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func symbolGroupFallbackBinding(_ index: Int) -> Binding<Bool> {
+    fileprivate func symbolGroupFallbackBinding(_ index: Int) -> Binding<Bool> {
         Binding {
             symbolGroupRules[safe: index]?.fallback == true
         } set: { value in
@@ -1113,102 +1172,116 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func updateSymbolGroupSemanticAreas(index: Int, values: [String]) {
+    fileprivate func updateSymbolGroupSemanticAreas(index: Int, values: [String]) {
         guard document.symbolGroups?.indices.contains(index) == true else { return }
         document.symbolGroups?[index].semanticAreas = values.isEmpty ? nil : values
     }
 
-    func updateSymbolGroupMetadataEquals(index: Int, values: [String: String]) {
+    fileprivate func updateSymbolGroupMetadataEquals(index: Int, values: [String: String]) {
         guard document.symbolGroups?.indices.contains(index) == true else { return }
         document.symbolGroups?[index].metadataEquals = values.isEmpty ? nil : values
     }
 
-    func addSymbolSignal() {
+    fileprivate func addSymbolSignal() {
         ensureRules()
         var rules = document.rules?.semanticAreaFindings ?? []
-        rules.append(SemanticAreaFindingRule(
-            id: "symbols/custom-\(rules.count + 1)",
-            semanticArea: "custom_area",
-            paths: nil,
-            symbolNames: nil,
-            metadataEquals: nil,
-            severity: Severity.medium.rawValue,
-            category: "architecture",
-            message: "Symbol '{symbol}' changed in a configured semantic area."
-        ))
+        rules.append(
+            SemanticAreaFindingRule(
+                id: "symbols/custom-\(rules.count + 1)",
+                semanticArea: "custom_area",
+                paths: nil,
+                symbolNames: nil,
+                metadataEquals: nil,
+                severity: Severity.medium.rawValue,
+                category: "architecture",
+                message: "Symbol '{symbol}' changed in a configured semantic area."
+            ))
         document.rules?.semanticAreaFindings = rules
     }
 
-    func removeSymbolSignal(at index: Int) {
+    fileprivate func removeSymbolSignal(at index: Int) {
         guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
         document.rules?.semanticAreaFindings?.remove(at: index)
     }
 
-    func symbolSignalIdBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolSignalIdBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolSignalRules[safe: index]?.id ?? ""
         } set: { value in
-            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
+            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else {
+                return
+            }
             document.rules?.semanticAreaFindings?[index].id = value
         }
     }
 
-    func symbolSignalSemanticAreaBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolSignalSemanticAreaBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolSignalRules[safe: index]?.semanticArea ?? ""
         } set: { value in
-            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
-            document.rules?.semanticAreaFindings?[index].semanticArea = value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value
+            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else {
+                return
+            }
+            document.rules?.semanticAreaFindings?[index].semanticArea =
+                value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value
         }
     }
 
-    func symbolSignalSeverityBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolSignalSeverityBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolSignalRules[safe: index]?.severity ?? Severity.medium.rawValue
         } set: { value in
-            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
+            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else {
+                return
+            }
             document.rules?.semanticAreaFindings?[index].severity = value
         }
     }
 
-    func symbolSignalCategoryBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolSignalCategoryBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolSignalRules[safe: index]?.category ?? "architecture"
         } set: { value in
-            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
+            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else {
+                return
+            }
             document.rules?.semanticAreaFindings?[index].category = value
         }
     }
 
-    func symbolSignalMessageBinding(_ index: Int) -> Binding<String> {
+    fileprivate func symbolSignalMessageBinding(_ index: Int) -> Binding<String> {
         Binding {
             symbolSignalRules[safe: index]?.message ?? ""
         } set: { value in
-            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else { return }
+            guard document.rules?.semanticAreaFindings?.indices.contains(index) == true else {
+                return
+            }
             document.rules?.semanticAreaFindings?[index].message = value
         }
     }
 
-    func teachSymbolGroup(from row: SymbolPreviewRow) {
+    fileprivate func teachSymbolGroup(from row: SymbolPreviewRow) {
         guard !row.semanticArea.isEmpty else { return }
         var groups = document.symbolGroups ?? []
-        guard !groups.contains(where: { $0.semanticAreas?.contains(row.semanticArea) == true }) else {
+        guard !groups.contains(where: { $0.semanticAreas?.contains(row.semanticArea) == true })
+        else {
             errorMessage = nil
             return
         }
-        groups.append(SymbolGroupRule(
-            id: row.semanticArea,
-            label: row.semanticArea.replacingOccurrences(of: "_", with: " ").capitalized,
-            icon: "point.3.connected.trianglepath.dotted",
-            semanticAreas: [row.semanticArea],
-            metadataEquals: nil,
-            fallback: nil
-        ))
+        groups.append(
+            SymbolGroupRule(
+                id: row.semanticArea,
+                label: row.semanticArea.replacingOccurrences(of: "_", with: " ").capitalized,
+                icon: "point.3.connected.trianglepath.dotted",
+                semanticAreas: [row.semanticArea],
+                metadataEquals: nil,
+                fallback: nil
+            ))
         document.symbolGroups = groups
         errorMessage = nil
     }
 
-    func teachSymbolSignal(from row: SymbolPreviewRow) {
+    fileprivate func teachSymbolSignal(from row: SymbolPreviewRow) {
         guard !row.semanticArea.isEmpty else { return }
         ensureRules()
         var rules = document.rules?.semanticAreaFindings ?? []
@@ -1216,65 +1289,70 @@ private extension AnalysisProfileStudioView {
             errorMessage = nil
             return
         }
-        rules.append(SemanticAreaFindingRule(
-            id: "symbols/\(row.semanticArea)",
-            semanticArea: row.semanticArea,
-            paths: nil,
-            symbolNames: nil,
-            metadataEquals: nil,
-            severity: Severity.medium.rawValue,
-            category: "architecture",
-            message: "Symbol '{symbol}' changed in \(row.semanticArea.replacingOccurrences(of: "_", with: " "))."
-        ))
+        rules.append(
+            SemanticAreaFindingRule(
+                id: "symbols/\(row.semanticArea)",
+                semanticArea: row.semanticArea,
+                paths: nil,
+                symbolNames: nil,
+                metadataEquals: nil,
+                severity: Severity.medium.rawValue,
+                category: "architecture",
+                message:
+                    "Symbol '{symbol}' changed in \(row.semanticArea.replacingOccurrences(of: "_", with: " "))."
+            ))
         document.rules?.semanticAreaFindings = rules
         errorMessage = nil
     }
 
-    func teachSymbolBucket(from row: SymbolPreviewRow) {
+    fileprivate func teachSymbolBucket(from row: SymbolPreviewRow) {
         guard !row.semanticArea.isEmpty else { return }
         var rules = document.buckets ?? []
-        guard !rules.contains(where: { $0.symbolSemanticAreas?.contains(row.semanticArea) == true }) else {
+        guard !rules.contains(where: { $0.symbolSemanticAreas?.contains(row.semanticArea) == true })
+        else {
             errorMessage = nil
             return
         }
-        rules.append(BucketRule(
-            id: "symbols-\(row.semanticArea)",
-            type: ChangeBucketType.behavior.rawValue,
-            title: row.semanticArea.replacingOccurrences(of: "_", with: " ").capitalized,
-            paths: nil,
-            classifications: nil,
-            findingCategories: nil,
-            symbolSemanticAreas: [row.semanticArea],
-            symbolSemanticTypes: nil,
-            symbolNames: nil,
-            symbolMetadataEquals: nil,
-            symbolMetadataMatches: nil,
-            symbolCallees: nil
-        ))
+        rules.append(
+            BucketRule(
+                id: "symbols-\(row.semanticArea)",
+                type: ChangeBucketType.behavior.rawValue,
+                title: row.semanticArea.replacingOccurrences(of: "_", with: " ").capitalized,
+                paths: nil,
+                classifications: nil,
+                findingCategories: nil,
+                symbolSemanticAreas: [row.semanticArea],
+                symbolSemanticTypes: nil,
+                symbolNames: nil,
+                symbolMetadataEquals: nil,
+                symbolMetadataMatches: nil,
+                symbolCallees: nil
+            ))
         document.buckets = rules
         errorMessage = nil
     }
 
-    func addBoundary() {
+    fileprivate func addBoundary() {
         ensureRules()
         var rules = document.rules?.importBoundaries ?? []
-        rules.append(ImportBoundaryRule(
-            id: "architecture/custom-\(rules.count + 1)",
-            sourcePaths: ["**/components/**"],
-            forbiddenImports: ["*database*"],
-            severity: Severity.medium.rawValue,
-            category: "architecture",
-            message: "Symbol '{symbol}' imports a forbidden lower-level dependency."
-        ))
+        rules.append(
+            ImportBoundaryRule(
+                id: "architecture/custom-\(rules.count + 1)",
+                sourcePaths: ["**/components/**"],
+                forbiddenImports: ["*database*"],
+                severity: Severity.medium.rawValue,
+                category: "architecture",
+                message: "Symbol '{symbol}' imports a forbidden lower-level dependency."
+            ))
         document.rules?.importBoundaries = rules
     }
 
-    func removeBoundary(at index: Int) {
+    fileprivate func removeBoundary(at index: Int) {
         guard document.rules?.importBoundaries?.indices.contains(index) == true else { return }
         document.rules?.importBoundaries?.remove(at: index)
     }
 
-    func boundaryIdBinding(_ index: Int) -> Binding<String> {
+    fileprivate func boundaryIdBinding(_ index: Int) -> Binding<String> {
         Binding {
             importBoundaryRules[safe: index]?.id ?? ""
         } set: { value in
@@ -1283,7 +1361,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func boundarySeverityBinding(_ index: Int) -> Binding<String> {
+    fileprivate func boundarySeverityBinding(_ index: Int) -> Binding<String> {
         Binding {
             importBoundaryRules[safe: index]?.severity ?? Severity.medium.rawValue
         } set: { value in
@@ -1292,7 +1370,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func boundaryCategoryBinding(_ index: Int) -> Binding<String> {
+    fileprivate func boundaryCategoryBinding(_ index: Int) -> Binding<String> {
         Binding {
             importBoundaryRules[safe: index]?.category ?? "architecture"
         } set: { value in
@@ -1301,7 +1379,7 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func boundaryMessageBinding(_ index: Int) -> Binding<String> {
+    fileprivate func boundaryMessageBinding(_ index: Int) -> Binding<String> {
         Binding {
             importBoundaryRules[safe: index]?.message ?? ""
         } set: { value in
@@ -1310,12 +1388,12 @@ private extension AnalysisProfileStudioView {
         }
     }
 
-    func updateBoundarySourcePaths(index: Int, paths: [String]) {
+    fileprivate func updateBoundarySourcePaths(index: Int, paths: [String]) {
         guard document.rules?.importBoundaries?.indices.contains(index) == true else { return }
         document.rules?.importBoundaries?[index].sourcePaths = paths
     }
 
-    func updateBoundaryForbiddenImports(index: Int, paths: [String]) {
+    fileprivate func updateBoundaryForbiddenImports(index: Int, paths: [String]) {
         guard document.rules?.importBoundaries?.indices.contains(index) == true else { return }
         document.rules?.importBoundaries?[index].forbiddenImports = paths
     }
@@ -1440,7 +1518,9 @@ struct PatternListEditor: View {
                 .padding(6)
                 .background(Color.bgSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5)
+                )
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
                         Text(placeholder)
@@ -1520,8 +1600,8 @@ struct StudioEmptyState: View {
     }
 }
 
-private extension Array {
-    subscript(safe index: Index) -> Element? {
+extension Array {
+    fileprivate subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
 }

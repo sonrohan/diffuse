@@ -1,5 +1,6 @@
 import SwiftUI
 
+// swift-format-ignore: TypeNamesShouldBeCapitalized
 @main
 struct diffuseApp: App {
     @State private var appState = AppState()

@@ -1,0 +1,26 @@
+name: Swift Format Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    name: Lint Swift Files
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Swift Toolchain
+        run: |
+          swift --version
+          swift format --version
+
+      - name: Run Swift-Format Linter
+        run: |
+          chmod +x scripts/lint.sh
+          ./scripts/lint.sh

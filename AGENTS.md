@@ -55,6 +55,71 @@ When adding new files, place them strictly inside the corresponding domain subfo
 
 ---
 
+## 🎨 Code Style & Formatting Standards
+
+To ensure a cohesive and readable codebase, Diffuse enforces strict code formatting using Apple's official `swift-format` engine.
+
+### 1. Formatting Configuration
+*   We use a central [`.swift-format`](.swift-format) configuration at the repository root.
+*   **Indentation Rule**: Diffuse enforces **4-space indentation** for Swift files to match the existing code layout. Do not use 2-space or tab indentation.
+
+### 2. Available Formatting Scripts
+Always check and format your code before pushing or requesting reviews using the provided bash scripts under `scripts/`:
+*   **Auto-Format**: Run `./scripts/format.sh` to recursively format all Swift files in-place.
+*   **Lint Check**: Run `./scripts/lint.sh` to perform a dry-run check of the codebase's style (this check is enforced by GitHub Actions on every Pull Request and will fail if files violate style rules).
+*   **Git Pre-Commit Hook**: Run `./scripts/setup-git-hooks.sh` once to configure a Git hook that automatically runs `swift-format` on staged Swift files whenever you commit.
+
+### 3. Style Exceptions & Ignores
+When writing code that explicitly requires exceptions to style rules (e.g., matching external snake_case JSON representations from the Rust sidecar or retaining lowercase application entry points), use standard `swift-format` ignore annotations:
+*   `// swift-format-ignore: RuleName` placed directly above the target declaration.
+*   *Example*: Use `// swift-format-ignore: AlwaysUseLowerCamelCase` above snake_case API data structures.
+
+---
+
+## ✍️ Commit Message Standards (Conventional Commits)
+
+Diffuse enforces the **Conventional Commits 1.0.0** specification. All commit messages and pull request titles MUST follow this structure to facilitate automated changelog generation and semantic versioning.
+
+### 1. Commit Structure
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### 2. Primary Types
+*   `feat`: Introduces a new feature to the codebase (corresponds to `MINOR` in SemVer).
+*   `fix`: Patches a bug in the codebase (corresponds to `PATCH` in SemVer).
+*   `docs`: Documentation-only changes.
+*   `style`: Changes that do not affect the meaning of the code (formatting, white-space, missing semi-colons, etc.).
+*   `refactor`: A code change that neither fixes a bug nor adds a feature.
+*   `perf`: A code change that improves performance.
+*   `test`: Adding missing tests or correcting existing tests.
+*   `build`: Changes that affect the build system or external dependencies (e.g. Xcode project settings, Cargo configurations).
+*   `ci`: Changes to CI configuration files and scripts (e.g., GitHub Actions workflows).
+*   `chore`: Other changes that do not modify source or test files (e.g., updating `.gitignore`).
+
+### 3. Breaking Changes
+A breaking API change (corresponding to `MAJOR` in SemVer) MUST be indicated by adding a `!` immediately after the type/scope, or by including `BREAKING CHANGE:` as a footer entry:
+*   *Example with `!`*: `feat(parser)!: rewrite ast node parsing engine`
+*   *Example with footer*: 
+    ```
+    fix: update default repository resolution path
+    
+    BREAKING CHANGE: the default repository directory has changed from local documents to the system application support directory.
+    ```
+
+### 4. Common Scopes
+Always use parenthesized scopes to specify the module or component affected when applicable:
+*   `feat(views): ...` for visual/UI modifications.
+*   `fix(core): ...` for sidecar or analyzer adjustments.
+*   `refactor(viewmodel): ...` for reactive view models.
+*   `ci(workflow): ...` for GitHub Actions modifications.
+
+---
+
 ## 🧪 Testing and Verification Protocol
 
 ### Target Constraints

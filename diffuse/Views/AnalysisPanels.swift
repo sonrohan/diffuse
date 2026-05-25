@@ -15,12 +15,15 @@ struct AnalysisNavigationRail: View {
             RailSectionHeader(
                 title: "Review Scope",
                 count: nil,
-                help: "Choose the set of files shown in the review. Areas are focused scopes; targets below are jumps inside the selected scope."
+                help:
+                    "Choose the set of files shown in the review. Areas are focused scopes; targets below are jumps inside the selected scope."
             )
 
             AllChangesNavRow(
                 fileCount: details.files.count,
-                isSelected: viewModel.selectedBucketId == nil && !viewModel.isLowerSignalViewSelected && !viewModel.isNeedsAttentionViewSelected
+                isSelected: viewModel.selectedBucketId == nil
+                    && !viewModel.isLowerSignalViewSelected
+                    && !viewModel.isNeedsAttentionViewSelected
             ) {
                 viewModel.selectAllChanges()
             }
@@ -47,7 +50,8 @@ struct AnalysisNavigationRail: View {
             RailSectionHeader(
                 title: "Areas",
                 count: details.changeBuckets.count,
-                help: "Files grouped by the kind of work they represent, so you can review related changes together."
+                help:
+                    "Files grouped by the kind of work they represent, so you can review related changes together."
             )
 
             if details.changeBuckets.isEmpty {
@@ -57,7 +61,9 @@ struct AnalysisNavigationRail: View {
                     ForEach(details.changeBuckets) { bucket in
                         AreaNavRow(
                             bucket: bucket,
-                            targetCount: details.reviewTargets.filter { bucket.files.contains($0.filePath) }.count,
+                            targetCount: details.reviewTargets.filter {
+                                bucket.files.contains($0.filePath)
+                            }.count,
                             isSelected: viewModel.selectedBucketId == bucket.id
                         ) {
                             viewModel.selectBucket(bucket.id)
@@ -69,7 +75,8 @@ struct AnalysisNavigationRail: View {
             RailSectionHeader(
                 title: "In This View",
                 count: viewModel.bucketTargets.count,
-                help: "Concrete review entry points inside the selected scope, ordered by severity and analyzer confidence."
+                help:
+                    "Concrete review entry points inside the selected scope, ordered by severity and analyzer confidence."
             )
 
             if viewModel.bucketTargets.isEmpty {
@@ -80,7 +87,10 @@ struct AnalysisNavigationRail: View {
                         TargetNavRow(target: target, index: index)
                     }
                     if viewModel.bucketTargets.count > visibleTargets.count {
-                        RailMoreRow(text: "\(viewModel.bucketTargets.count - visibleTargets.count) more targets in this view")
+                        RailMoreRow(
+                            text:
+                                "\(viewModel.bucketTargets.count - visibleTargets.count) more targets in this view"
+                        )
                     }
                 }
             }
@@ -173,7 +183,10 @@ struct AllChangesNavRow: View {
             .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -217,11 +230,16 @@ struct LowerSignalNavRow: View {
             .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .help("Configuration, documentation, generated, or boilerplate files that are usually safe to skim.")
+        .help(
+            "Configuration, documentation, generated, or boilerplate files that are usually safe to skim."
+        )
     }
 
     private var rowBackground: Color {
@@ -251,10 +269,12 @@ struct NeedsAttentionNavRow: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(1)
-                    Text("\(severitySummary) across \(fileCount) \(fileCount == 1 ? "file" : "files")")
-                        .font(.system(size: 10))
-                        .foregroundColor(.textTertiary)
-                        .lineLimit(1)
+                    Text(
+                        "\(severitySummary) across \(fileCount) \(fileCount == 1 ? "file" : "files")"
+                    )
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
                 }
 
                 Spacer()
@@ -264,7 +284,10 @@ struct NeedsAttentionNavRow: View {
             .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -288,10 +311,13 @@ struct SignalNavRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     signal.severity.badgeView
-                    Text(signal.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.textTertiary)
-                        .textCase(.uppercase)
+                    Text(
+                        signal.category.rawValue.replacingOccurrences(of: "-", with: " ")
+                            .capitalized
+                    )
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
                     Spacer()
                 }
 
@@ -351,7 +377,9 @@ struct AreaNavRow: View {
             .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -411,7 +439,9 @@ struct TargetNavRow: View {
             .contentShape(Rectangle())
             .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.warningColor.opacity(0.45) : Color.clear, lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.warningColor.opacity(0.45) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(target.changedFileId == nil)
@@ -529,10 +559,13 @@ struct SignalCard: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     signal.severity.badgeView
-                    Text(signal.category.rawValue.replacingOccurrences(of: "-", with: " ").capitalized)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.textTertiary)
-                        .textCase(.uppercase)
+                    Text(
+                        signal.category.rawValue.replacingOccurrences(of: "-", with: " ")
+                            .capitalized
+                    )
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
                 }
                 Text(signal.title)
                     .font(.system(size: 12, weight: .medium))
@@ -553,7 +586,9 @@ struct SignalCard: View {
             .contentShape(Rectangle())
             .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor))
             .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -576,16 +611,20 @@ struct SemanticBucketsPanel: View {
                     Text("Semantic Views")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
-                    Text("\(details.changeBuckets.count) area\(details.changeBuckets.count == 1 ? "" : "s")")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
+                    Text(
+                        "\(details.changeBuckets.count) area\(details.changeBuckets.count == 1 ? "" : "s")"
+                    )
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
                 }
 
                 VStack(spacing: 6) {
                     AllChangesCard(
                         fileCount: details.files.count,
                         signalCount: details.riskHighlights.filter { $0.severity >= .medium }.count,
-                        isSelected: viewModel.selectedBucketId == nil && !viewModel.isLowerSignalViewSelected && !viewModel.isNeedsAttentionViewSelected
+                        isSelected: viewModel.selectedBucketId == nil
+                            && !viewModel.isLowerSignalViewSelected
+                            && !viewModel.isNeedsAttentionViewSelected
                     ) {
                         viewModel.selectAllChanges()
                     }
@@ -657,11 +696,19 @@ struct AllChangesCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .contentShape(Rectangle())
-            .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
+            .background(
+                isSelected
+                    ? Color.accentBlue.opacity(0.08)
+                    : (isHovered
+                        ? Color(NSColor.controlColor).opacity(0.8)
+                        : Color(NSColor.controlColor).opacity(0.4))
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5)
+                    .stroke(
+                        isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted,
+                        lineWidth: isSelected ? 1 : 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -684,7 +731,8 @@ struct BucketCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 7) {
                 HStack {
-                    BadgeView(text: bucket.riskLevel.displayName, variant: bucket.riskLevel.badgeColor)
+                    BadgeView(
+                        text: bucket.riskLevel.displayName, variant: bucket.riskLevel.badgeColor)
                     Spacer()
                     HStack(spacing: 4) {
                         Image(systemName: bucket.type.icon)
@@ -726,11 +774,19 @@ struct BucketCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .contentShape(Rectangle())
-            .background(isSelected ? Color.accentBlue.opacity(0.08) : (isHovered ? Color(NSColor.controlColor).opacity(0.8) : Color(NSColor.controlColor).opacity(0.4)))
+            .background(
+                isSelected
+                    ? Color.accentBlue.opacity(0.08)
+                    : (isHovered
+                        ? Color(NSColor.controlColor).opacity(0.8)
+                        : Color(NSColor.controlColor).opacity(0.4))
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5)
+                    .stroke(
+                        isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted,
+                        lineWidth: isSelected ? 1 : 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -747,8 +803,9 @@ struct ReviewTargetsPanel: View {
     var body: some View {
         Panel {
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeading("Selected View Targets", icon: "shield.lefthalf.filled",
-                               meta: "\(targets.count) target\(targets.count == 1 ? "" : "s")")
+                SectionHeading(
+                    "Selected View Targets", icon: "shield.lefthalf.filled",
+                    meta: "\(targets.count) target\(targets.count == 1 ? "" : "s")")
 
                 if targets.isEmpty {
                     HStack(spacing: 8) {
@@ -816,9 +873,12 @@ struct ReviewTargetCard: View {
                     Button {
                         viewModel.toggleTarget(target)
                     } label: {
-                        Label(viewModel.activeTargetId == target.id ? "Clear" : "View diff",
-                              systemImage: viewModel.activeTargetId == target.id ? "xmark" : "arrow.right")
-                            .font(.system(size: 11))
+                        Label(
+                            viewModel.activeTargetId == target.id ? "Clear" : "View diff",
+                            systemImage: viewModel.activeTargetId == target.id
+                                ? "xmark" : "arrow.right"
+                        )
+                        .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
                 }
@@ -829,11 +889,14 @@ struct ReviewTargetCard: View {
                     Image(systemName: "doc.text")
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
-                    Text(target.filePath + (target.lineStart.map { " · L\($0)–\(target.lineEnd ?? $0)" } ?? ""))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    Text(
+                        target.filePath
+                            + (target.lineStart.map { " · L\($0)–\(target.lineEnd ?? $0)" } ?? "")
+                    )
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 }
                 if !target.evidence.isEmpty {
                     Text(target.evidence)
@@ -852,8 +915,10 @@ struct ReviewTargetCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(viewModel.activeTargetId == target.id ? Color.warningColor.opacity(0.65) : Color.borderMuted,
-                        lineWidth: viewModel.activeTargetId == target.id ? 1.5 : 0.5)
+                .stroke(
+                    viewModel.activeTargetId == target.id
+                        ? Color.warningColor.opacity(0.65) : Color.borderMuted,
+                    lineWidth: viewModel.activeTargetId == target.id ? 1.5 : 0.5)
         )
         .overlay(alignment: .leading) {
             Rectangle()
@@ -903,9 +968,12 @@ struct SafeToSkimPanel: View {
                 if !isExpanded && !targets.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
-                            ForEach(grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { cls in
+                            ForEach(
+                                grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self
+                            ) { cls in
                                 let items = grouped[cls]!
-                                BadgeView(text: "\(items.count) \(items[0].groupName)", variant: .neutral)
+                                BadgeView(
+                                    text: "\(items.count) \(items[0].groupName)", variant: .neutral)
                             }
                         }
                         .padding(.horizontal, 12)
@@ -916,7 +984,8 @@ struct SafeToSkimPanel: View {
                 if isExpanded {
                     Divider()
                     VStack(alignment: .leading, spacing: 12) {
-                        ForEach(grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { cls in
+                        ForEach(grouped.keys.sorted(by: { $0.rawValue < $1.rawValue }), id: \.self)
+                        { cls in
                             let items = grouped[cls]!
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(items[0].groupName.uppercased())
@@ -925,7 +994,8 @@ struct SafeToSkimPanel: View {
                                     .kerning(0.5)
 
                                 VStack(spacing: 0) {
-                                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                                    ForEach(Array(items.enumerated()), id: \.element.id) {
+                                        idx, item in
                                         HStack {
                                             Image(systemName: "doc.text")
                                                 .font(.system(size: 10))
@@ -947,7 +1017,9 @@ struct SafeToSkimPanel: View {
                                 }
                                 .background(Color(NSColor.controlColor))
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6).stroke(
+                                        Color.borderMuted, lineWidth: 0.5))
                             }
                         }
                     }
@@ -990,10 +1062,13 @@ struct SelectedContextBar: View {
             HStack(spacing: 7) {
                 ContextStatChip(icon: "doc.text.fill", text: "\(viewModel.bucketFiles.count) files")
                 if viewModel.selectedScopeSignalCount > 0 {
-                    ContextStatChip(icon: "exclamationmark.shield.fill", text: "\(viewModel.selectedScopeSignalCount) signals")
+                    ContextStatChip(
+                        icon: "exclamationmark.shield.fill",
+                        text: "\(viewModel.selectedScopeSignalCount) signals")
                 }
                 if viewModel.bucketTargets.count > 0 {
-                    ContextStatChip(icon: "target", text: "\(viewModel.bucketTargets.count) targets")
+                    ContextStatChip(
+                        icon: "target", text: "\(viewModel.bucketTargets.count) targets")
                 }
 
                 if let repo = state.selectedRepo {
@@ -1005,7 +1080,10 @@ struct SelectedContextBar: View {
                             .foregroundColor(.textSecondary)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Color(NSColor.controlColor).opacity(isDebugMenuHovered ? 0.85 : 0.55))
+                            .background(
+                                Color(NSColor.controlColor).opacity(
+                                    isDebugMenuHovered ? 0.85 : 0.55)
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
@@ -1025,7 +1103,10 @@ struct SelectedContextBar: View {
                             .foregroundColor(.textSecondary)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Color(NSColor.controlColor).opacity(isProfileRulesHovered ? 0.85 : 0.55))
+                            .background(
+                                Color(NSColor.controlColor).opacity(
+                                    isProfileRulesHovered ? 0.85 : 0.55)
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
@@ -1063,12 +1144,20 @@ private struct ReviewDebugSheet: View {
 
     private var symbolsByPath: [(path: String, symbols: [ChangedSymbol])] {
         let filesById = Dictionary(uniqueKeysWithValues: details.files.map { ($0.id, $0.path) })
-        return Dictionary(grouping: details.symbols, by: { filesById[$0.changedFileId] ?? $0.metadata["file_path"] ?? "unknown" })
-            .map { ($0.key, $0.value.sorted { lhs, rhs in
-                if lhs.startLine != rhs.startLine { return lhs.startLine < rhs.startLine }
-                return lhs.name < rhs.name
-            }) }
-            .sorted { $0.path < $1.path }
+        return Dictionary(
+            grouping: details.symbols,
+            by: { filesById[$0.changedFileId] ?? $0.metadata["file_path"] ?? "unknown" }
+        )
+        .map {
+            (
+                $0.key,
+                $0.value.sorted { lhs, rhs in
+                    if lhs.startLine != rhs.startLine { return lhs.startLine < rhs.startLine }
+                    return lhs.name < rhs.name
+                }
+            )
+        }
+        .sorted { $0.path < $1.path }
     }
 
     var body: some View {
@@ -1128,14 +1217,17 @@ private struct ReviewDebugSheet: View {
                 ("Files", "\(details.files.count)"),
                 ("AST symbols", "\(details.symbols.count)"),
                 ("Findings", "\(details.findings.count)"),
-                ("Targets", "\(details.reviewTargets.count)")
+                ("Targets", "\(details.reviewTargets.count)"),
             ])
 
             if symbolsByPath.isEmpty {
                 DebugEmptyState(text: "No AST symbols were extracted for this analysis.")
             } else {
                 ForEach(symbolsByPath, id: \.path) { group in
-                    DebugSection(title: group.path, meta: "\(group.symbols.count) symbol\(group.symbols.count == 1 ? "" : "s")") {
+                    DebugSection(
+                        title: group.path,
+                        meta: "\(group.symbols.count) symbol\(group.symbols.count == 1 ? "" : "s")"
+                    ) {
                         VStack(spacing: 8) {
                             ForEach(group.symbols) { symbol in
                                 DebugSymbolCard(symbol: symbol)
@@ -1153,11 +1245,17 @@ private struct ReviewDebugSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     DebugKeyValueRow(label: "Display name", value: profile.displayName)
                     DebugKeyValueRow(label: "Source", value: profileSource)
-                    DebugKeyValueRow(label: "File rules", value: "\(profile.fileClassifications.count)")
+                    DebugKeyValueRow(
+                        label: "File rules", value: "\(profile.fileClassifications.count)")
                     DebugKeyValueRow(label: "Bucket rules", value: "\(profile.buckets.count)")
                     DebugKeyValueRow(label: "Symbol groups", value: "\(profile.symbolGroups.count)")
-                    DebugKeyValueRow(label: "Semantic highlights", value: "\(profile.semanticHighlights.count)")
-                    DebugKeyValueRow(label: "AST findings", value: "\(profile.rules.semanticAreaFindings.count + profile.rules.contractFindings.count)")
+                    DebugKeyValueRow(
+                        label: "Semantic highlights", value: "\(profile.semanticHighlights.count)")
+                    DebugKeyValueRow(
+                        label: "AST findings",
+                        value:
+                            "\(profile.rules.semanticAreaFindings.count + profile.rules.contractFindings.count)"
+                    )
                 }
             }
 
@@ -1200,7 +1298,8 @@ private struct DebugMetricStrip: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(NSColor.windowBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
             }
         }
     }
@@ -1267,16 +1366,21 @@ private struct DebugSymbolCard: View {
             if !symbol.callees.isEmpty || !symbol.callers.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     if !symbol.callees.isEmpty {
-                        DebugKeyValueRow(label: "Callees", value: symbol.callees.joined(separator: ", "))
+                        DebugKeyValueRow(
+                            label: "Callees", value: symbol.callees.joined(separator: ", "))
                     }
                     if !symbol.callers.isEmpty {
-                        DebugKeyValueRow(label: "Callers", value: symbol.callers.joined(separator: ", "))
+                        DebugKeyValueRow(
+                            label: "Callers", value: symbol.callers.joined(separator: ", "))
                     }
                 }
             }
 
             if !metadataRows.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], alignment: .leading, spacing: 6) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], alignment: .leading,
+                    spacing: 6
+                ) {
                     ForEach(metadataRows, id: \.0) { row in
                         DebugInlineValue(label: row.0, value: row.1)
                     }
@@ -1312,14 +1416,26 @@ private struct DebugFileMappingCard: View {
     }
 
     var body: some View {
-        DebugSection(title: file.path, meta: "\(symbols.count) AST symbol\(symbols.count == 1 ? "" : "s")") {
+        DebugSection(
+            title: file.path, meta: "\(symbols.count) AST symbol\(symbols.count == 1 ? "" : "s")"
+        ) {
             VStack(alignment: .leading, spacing: 8) {
-                DebugKeyValueRow(label: "File classification", value: "\(file.classification.rawValue) via \(classificationRuleLabel)")
-                DebugKeyValueRow(label: "Bucket rule", value: bucketRule.map { "\($0.id) → \($0.title)" } ?? "No matching bucket rule")
-                DebugKeyValueRow(label: "Findings", value: findings.isEmpty ? "none" : findings.map { "\($0.ruleSource) (\($0.severity.rawValue))" }.joined(separator: ", "))
+                DebugKeyValueRow(
+                    label: "File classification",
+                    value: "\(file.classification.rawValue) via \(classificationRuleLabel)")
+                DebugKeyValueRow(
+                    label: "Bucket rule",
+                    value: bucketRule.map { "\($0.id) → \($0.title)" } ?? "No matching bucket rule")
+                DebugKeyValueRow(
+                    label: "Findings",
+                    value: findings.isEmpty
+                        ? "none"
+                        : findings.map { "\($0.ruleSource) (\($0.severity.rawValue))" }.joined(
+                            separator: ", "))
 
                 if symbols.isEmpty {
-                    DebugEmptyState(text: "No AST symbols for this file; profile mapping is file-only.")
+                    DebugEmptyState(
+                        text: "No AST symbols for this file; profile mapping is file-only.")
                 } else {
                     VStack(spacing: 7) {
                         ForEach(symbols) { symbol in
@@ -1390,12 +1506,17 @@ private struct DebugSymbolMappingRow: View {
                     .foregroundColor(.textTertiary)
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading, spacing: 6) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading,
+                spacing: 6
+            ) {
                 DebugInlineValue(label: "symbol groups", value: debugList(groupMatches))
                 DebugInlineValue(label: "bucket rules", value: debugList(bucketMatches))
                 DebugInlineValue(label: "semantic highlights", value: debugList(highlightMatches))
-                DebugInlineValue(label: "semantic findings", value: debugList(semanticFindingMatches))
-                DebugInlineValue(label: "contract findings", value: debugList(contractFindingMatches))
+                DebugInlineValue(
+                    label: "semantic findings", value: debugList(semanticFindingMatches))
+                DebugInlineValue(
+                    label: "contract findings", value: debugList(contractFindingMatches))
             }
         }
         .padding(9)
@@ -1465,35 +1586,41 @@ private struct DebugEmptyState: View {
     }
 }
 
-private extension SemanticHighlightRule {
-    func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
+extension SemanticHighlightRule {
+    fileprivate func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
         if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
-        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) { return false }
+        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) {
+            return false
+        }
         if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
-        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) { return false }
+        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
+            return false
+        }
         return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
     }
 }
 
-private extension SemanticAreaFindingRule {
-    func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
+extension SemanticAreaFindingRule {
+    fileprivate func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
         if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
-        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) { return false }
+        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) {
+            return false
+        }
         if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
-        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) { return false }
+        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
+            return false
+        }
         return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
     }
 }
 
-
-
-private extension Array where Element == ReviewTarget {
-    var severitySummary: String {
+extension Array where Element == ReviewTarget {
+    fileprivate var severitySummary: String {
         let severities: [(Severity, String)] = [
             (.high, "high"),
             (.medium, "medium"),
             (.low, "low"),
-            (.info, "info")
+            (.info, "info"),
         ]
         let parts = severities.compactMap { severity, label -> String? in
             let count = filter { $0.severity == severity }.count

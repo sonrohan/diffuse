@@ -45,6 +45,18 @@ ArchitectureTests.swift          # Compile-ready unit testing harness for MVVM V
 
 ---
 
+## 🎨 Style, Formatting & Commits
+
+Diffuse uses Apple's official `swift-format` engine to ensure style consistency, and enforces Conventional Commits to automate changelog generation.
+*   **Indentation**: Enforced **4-space indentation** for all Swift files.
+*   **Scripts**:
+    *   `./scripts/format.sh`: Format Swift files locally.
+    *   `./scripts/lint.sh`: Perform style check.
+    *   `./scripts/setup-git-hooks.sh`: Install a pre-commit auto-formatting git hook.
+*   **Commit Messages**: Follows the **Conventional Commits 1.0.0** standard (e.g. `feat(views): ...`, `fix(core): ...`).
+
+---
+
 ## 🤖 Agentic & AI Coding Guidance
 
 Are you an AI coding agent or an external contributor looking to extend Diffuse? Please review our specialized instructions for preserving architectural boundaries, testing models, and implementing clean data flows.

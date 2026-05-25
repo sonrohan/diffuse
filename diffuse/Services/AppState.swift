@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - App State
 
@@ -14,7 +14,7 @@ class AppState {
     var pullRequests: [PullRequest] = []
     var selectedPRId: UUID?
     var analysisDetails: AnalysisDetails?
-    
+
     // Local Git State
     var localBranches: [String] = []
     var localBranchSummaries: [LocalBranchSummary] = []
@@ -22,7 +22,7 @@ class AppState {
 
     // Commit Timeline
     var commits: [GitCommit] = []
-    var selectedCommitSha: String? = nil // nil = "All Changes"
+    var selectedCommitSha: String? = nil  // nil = "All Changes"
 
     // UI Loading & Navigation States
     var isLoadingPRs = false
@@ -52,22 +52,20 @@ class AppState {
         return localBranchSummaries.first { $0.branch == selectedBranch }
     }
 
-
-
     // MARK: - Core Load & Refresh
 
     func load() async {
         isLoadingPRs = true
-        
+
         repositories = await coordinator.allRepositories()
-        
+
         if selectedRepoId == nil {
             selectedRepoId = repositories.first?.id
         }
-        
+
         await refreshActiveRepo()
         isLoadingPRs = false
-        
+
         startGitWatcher()
     }
 
@@ -79,7 +77,7 @@ class AppState {
         commits = []
         localBranchSummaries = []
         selectedCommitSha = nil
-        
+
         isLoadingPRs = true
         await refreshActiveRepo()
         isLoadingPRs = false
@@ -97,10 +95,10 @@ class AppState {
 
     func refreshActiveRepo() async {
         guard let repo = selectedRepo else { return }
-        
+
         // Load local branches
         localBranches = await coordinator.listLocalBranches(repoPath: repo.path)
-        
+
         let activeBranch = GitService.run("git rev-parse --abbrev-ref HEAD", cwd: repo.path)
         selectedBranch = activeBranch.isEmpty ? "main" : activeBranch
 
@@ -133,7 +131,7 @@ class AppState {
     func selectPR(_ id: UUID) async {
         selectedPRId = id
         analysisDetails = nil
-        selectedCommitSha = nil // Reset timeline to "All Changes"
+        selectedCommitSha = nil  // Reset timeline to "All Changes"
         await loadDetails(for: id)
     }
 
@@ -141,14 +139,16 @@ class AppState {
         guard let repo = selectedRepo else { return }
         isAnalyzing = true
         analysisError = nil
-        
+
         // Checkout local branch
         _ = GitService.run("git checkout \(branch)", cwd: repo.path)
         selectedBranch = branch
-        
+
         // Run full analysis on this branch compared to main
         if let pr = await coordinator.analyzeRepo(path: repo.path, baseRef: "main") {
-            pullRequests = await coordinator.allPullRequests().filter { $0.repository == "local/\(repo.name)" }
+            pullRequests = await coordinator.allPullRequests().filter {
+                $0.repository == "local/\(repo.name)"
+            }
             await selectPR(pr.id)
         } else {
             analysisError = coordinator.analysisError ?? "Branch analysis failed"
@@ -158,12 +158,14 @@ class AppState {
 
     func loadDetails(for prId: UUID) async {
         guard let pr = pullRequests.first(where: { $0.id == prId }),
-              let run = pr.latestRun else { return }
+            let run = pr.latestRun
+        else { return }
         isLoadingAnalysis = true
-        
+
         // Fetch chronological commits for timeline
         if let repo = selectedRepo {
-            commits = await coordinator.listCommits(repoPath: repo.path, baseRef: pr.baseSha, headRef: pr.headSha)
+            commits = await coordinator.listCommits(
+                repoPath: repo.path, baseRef: pr.baseSha, headRef: pr.headSha)
         } else {
             commits = []
         }
@@ -174,15 +176,17 @@ class AppState {
                 await analyzeSingleCommit(repoPath: repo.path, sha: sha, pr: pr, run: run)
             }
         } else {
-            analysisDetails = await coordinator.getDetails(for: run.id, repoPath: selectedRepo?.path)
+            analysisDetails = await coordinator.getDetails(
+                for: run.id, repoPath: selectedRepo?.path)
         }
-        
-        isLoadingAnalysis = false
 
+        isLoadingAnalysis = false
 
     }
 
-    private func analyzeSingleCommit(repoPath: String, sha: String, pr: PullRequest, run: AnalysisRun) async {
+    private func analyzeSingleCommit(
+        repoPath: String, sha: String, pr: PullRequest, run: AnalysisRun
+    ) async {
         let commitDiff = GitService.run("git diff \(sha)~1..\(sha)", cwd: repoPath)
         guard !commitDiff.isEmpty else {
             self.analysisDetails = nil
@@ -211,7 +215,7 @@ class AppState {
             analysisRunId: run.id,
             changedFiles: changedFiles
         )
-        
+
         let ruleResults = RulesEngine.runDeterministicRules(
             files: parsedFiles, symbols: allSymbols,
             filePathMap: Dictionary(uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) }),
@@ -231,18 +235,24 @@ class AppState {
             }
             allFindings.append(contentsOf: dbFindings)
         }
-        
-        let breakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: allSymbols, findings:
-            allFindings.map {
-                RulesEngine.RuleFinding(severity: $0.severity, category: $0.category, message: $0.message,
-                                       lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource, evidence: $0.evidence)
-            }, profile: profile)
-            
-        let triage = TriageEngine.deriveTriage(files: changedFiles, symbols: allSymbols, findings: allFindings, riskScore: breakdown.score, profile: profile)
-        
+
+        let breakdown = RulesEngine.calculateRiskScore(
+            files: parsedFiles, symbols: allSymbols,
+            findings:
+                allFindings.map {
+                    RulesEngine.RuleFinding(
+                        severity: $0.severity, category: $0.category, message: $0.message,
+                        lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource,
+                        evidence: $0.evidence)
+                }, profile: profile)
+
+        let triage = TriageEngine.deriveTriage(
+            files: changedFiles, symbols: allSymbols, findings: allFindings,
+            riskScore: breakdown.score, profile: profile)
+
         var mockRun = run
         mockRun.riskScore = breakdown.score
-        
+
         self.analysisDetails = AnalysisDetails(
             run: mockRun, pr: pr, files: changedFiles, symbols: allSymbols, findings: allFindings,
             reviewTargets: triage.reviewTargets,
@@ -266,10 +276,10 @@ class AppState {
     func startGitWatcher() {
         guard !isWatcherRunning else { return }
         isWatcherRunning = true
-        
+
         Task { [weak self] in
             while true {
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
+                try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
                 guard let self = self, self.isWatcherRunning else { break }
                 await self.checkGitIndex()
             }
@@ -306,9 +316,6 @@ class AppState {
         return "\(head)\n\(status)"
     }
 
-
-
-
     func analyzeRepo(path: String, baseRef: String? = nil, autoAnalyzeEnabled: Bool = true) async {
         isAnalyzing = true
         analysisError = nil
@@ -327,7 +334,8 @@ class AppState {
         }
 
         if existing == nil {
-            let newRepo = await coordinator.addRepository(name: repoName, path: resolvedPath, autoAnalyzeEnabled: autoAnalyzeEnabled)
+            let newRepo = await coordinator.addRepository(
+                name: repoName, path: resolvedPath, autoAnalyzeEnabled: autoAnalyzeEnabled)
             repositories = await coordinator.allRepositories()
             selectedRepoId = newRepo.id
         } else {
@@ -350,7 +358,6 @@ class AppState {
         isAnalyzing = false
     }
 
-
     func reRunAnalysis() async {
         guard let repo = selectedRepo else { return }
         isAnalyzing = true
@@ -361,7 +368,9 @@ class AppState {
         selectedCommitSha = nil
 
         if let pr = await coordinator.analyzeRepo(path: repo.path, baseRef: baseRef) {
-            pullRequests = await coordinator.allPullRequests().filter { $0.repository == "local/\(repo.name)" }
+            pullRequests = await coordinator.allPullRequests().filter {
+                $0.repository == "local/\(repo.name)"
+            }
             selectedPRId = pr.id
 
             await refreshActiveRepo()
@@ -385,7 +394,6 @@ class AppState {
         }
         return selectedPR?.baseSha.isEmpty == false ? selectedPR?.baseSha : nil
     }
-
 
 }
 

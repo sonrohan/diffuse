@@ -1,23 +1,23 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct SettingsSheet: View {
     @Binding var isPresented: Bool
     @Environment(AppState.self) private var state
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
-    
+
     @State private var selectedTab: SettingsTab = .general
     @State private var hoveredTab: SettingsTab? = nil
     @State private var hoveredTheme: AppTheme? = nil
-    
+
     // Cache clearing states
     @State private var showClearConfirmation = false
     @State private var cacheClearedSuccessfully = false
-    
+
     // Status dot animation state
     @State private var pulseScale: CGFloat = 1.0
-    
+
     // Workspace Management States
     @State private var selectedRepoId: UUID? = nil
     @State private var repoAlias: String = ""
@@ -26,14 +26,14 @@ struct SettingsSheet: View {
     @State private var isProfileWizardPresented = false
     @State private var isProfileRulesPresented = false
     @State private var profileStatusMessage: String = ""
-    
+
     enum SettingsTab: String, CaseIterable, Identifiable {
         case general = "General"
         case workspaces = "Workspaces"
         case appearance = "Appearance"
-        
+
         var id: String { self.rawValue }
-        
+
         var iconName: String {
             switch self {
             case .general: return "slider.horizontal.3"
@@ -42,15 +42,15 @@ struct SettingsSheet: View {
             }
         }
     }
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // Left Sidebar Navigation Pane
             sidebarPane
-            
+
             // Vertical Divider
             Divider()
-            
+
             // Right Details Panel
             detailsPane
         }
@@ -64,7 +64,8 @@ struct SettingsSheet: View {
         }
         .sheet(isPresented: $isProfileWizardPresented) {
             if let repoId = selectedRepoId,
-               let repo = state.repositories.first(where: { $0.id == repoId }) {
+                let repo = state.repositories.first(where: { $0.id == repoId })
+            {
                 AnalysisProfileWizard(repoName: repo.name, repoPath: repo.path) { presetId in
                     profileStatusMessage = "Created .diffuse.json using \(presetId)"
                 }
@@ -72,34 +73,37 @@ struct SettingsSheet: View {
         }
         .sheet(isPresented: $isProfileRulesPresented) {
             if let repoId = selectedRepoId,
-               let repo = state.repositories.first(where: { $0.id == repoId }) {
+                let repo = state.repositories.first(where: { $0.id == repoId })
+            {
                 AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
             }
         }
     }
-    
+
     // MARK: - Initializer Helpers
-    
+
     private func initializeWorkspaceSelection() {
         if selectedRepoId == nil {
             selectedRepoId = state.selectedRepoId ?? state.repositories.first?.id
         }
         loadSelectedWorkspaceDetails(selectedRepoId)
     }
-    
+
     private func loadSelectedWorkspaceDetails(_ id: UUID?) {
         guard let repoId = id,
-              let repo = state.repositories.first(where: { $0.id == repoId }) else { return }
+            let repo = state.repositories.first(where: { $0.id == repoId })
+        else { return }
         repoAlias = repo.name
         isAutoAnalyzeEnabled = repo.autoAnalyzeEnabled
         let detectedPreset = AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path)
-        profileStatusMessage = AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
+        profileStatusMessage =
+            AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
             ? "Using repo-defined .diffuse.json"
             : "Using detected \(detectedPreset) preset"
     }
-    
+
     // MARK: - Sidebar Navigation Pane
-    
+
     private var sidebarPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Sidebar Header / Brand
@@ -114,13 +118,13 @@ struct SettingsSheet: View {
             .padding(.horizontal, 16)
             .padding(.top, 24)
             .padding(.bottom, 20)
-            
+
             // Vertical list of menu items
             VStack(spacing: 4) {
                 ForEach(SettingsTab.allCases) { tab in
                     let isSelected = selectedTab == tab
                     let isHovered = hoveredTab == tab
-                    
+
                     Button {
                         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                             selectedTab = tab
@@ -131,18 +135,21 @@ struct SettingsSheet: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(isSelected ? .accentBlue : .textSecondary)
                                 .frame(width: 16, height: 16)
-                            
+
                             Text(LocalizedStringKey(tab.rawValue))
                                 .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                                 .foregroundColor(isSelected ? .textPrimary : .textSecondary)
-                            
+
                             Spacer()
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(isSelected ? Color.accentBlue.opacity(0.12) : (isHovered ? Color.bgSubtle : Color.clear))
+                                .fill(
+                                    isSelected
+                                        ? Color.accentBlue.opacity(0.12)
+                                        : (isHovered ? Color.bgSubtle : Color.clear))
                         )
                     }
                     .buttonStyle(.plain)
@@ -153,9 +160,9 @@ struct SettingsSheet: View {
                 }
             }
             .padding(.horizontal, 12)
-            
+
             Spacer()
-            
+
             // Helpful note at bottom of sidebar
             VStack(alignment: .leading, spacing: 4) {
                 Text("diffuse v1.0.0")
@@ -168,9 +175,9 @@ struct SettingsSheet: View {
         .frame(width: 160)
         .background(Color.bgSidebar)
     }
-    
+
     // MARK: - Right Details Pane
-    
+
     private var detailsPane: some View {
         VStack(spacing: 0) {
             // Tab Content Frame
@@ -188,9 +195,9 @@ struct SettingsSheet: View {
                 .padding(.top, 24)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
+
             Divider()
-            
+
             // Footer Control View
             HStack {
                 Spacer()
@@ -206,9 +213,9 @@ struct SettingsSheet: View {
             .background(Color.bgSidebarPanel)
         }
     }
-    
+
     // MARK: - General Tab View
-    
+
     private var generalView: some View {
         VStack(alignment: .leading, spacing: 16) {
             // AST Sidecar Status Card
@@ -220,9 +227,9 @@ struct SettingsSheet: View {
                     Text("AST Analysis Engine")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
-                    
+
                     Spacer()
-                    
+
                     // Status Badge
                     HStack(spacing: 4) {
                         Circle()
@@ -230,11 +237,13 @@ struct SettingsSheet: View {
                             .frame(width: 5, height: 5)
                             .scaleEffect(pulseScale)
                             .onAppear {
-                                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                                withAnimation(
+                                    .easeInOut(duration: 1.2).repeatForever(autoreverses: true)
+                                ) {
                                     pulseScale = 1.4
                                 }
                             }
-                        
+
                         Text("Active (Local)")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.successColor)
@@ -244,12 +253,14 @@ struct SettingsSheet: View {
                     .background(Color.successBg)
                     .clipShape(Capsule())
                 }
-                
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Parses symbols and signatures locally using high-fidelity Tree-sitter AST parsers. No code is sent to external APIs.")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(2)
+                    Text(
+                        "Parses symbols and signatures locally using high-fidelity Tree-sitter AST parsers. No code is sent to external APIs."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(2)
                 }
             }
             .padding(12)
@@ -257,21 +268,28 @@ struct SettingsSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
             .padding(.horizontal, 24)
-            
+
             // Language Selection Card
             VStack(alignment: .leading, spacing: 10) {
                 Text("App Language")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.textPrimary)
-                
+
                 HStack(spacing: 12) {
-                    Text("Select your preferred display language for UI labels and triage summaries.")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
+                    Text(
+                        "Select your preferred display language for UI labels and triage summaries."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     Picker("", selection: $defaultLanguage) {
-                        ForEach(["Auto Detect", "English", "Spanish (Español)", "French (Français)", "Russian (Русский)"], id: \.self) { lang in
+                        ForEach(
+                            [
+                                "Auto Detect", "English", "Spanish (Español)", "French (Français)",
+                                "Russian (Русский)",
+                            ], id: \.self
+                        ) { lang in
                             Text(lang).tag(lang)
                         }
                     }
@@ -284,19 +302,19 @@ struct SettingsSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
             .padding(.horizontal, 24)
-            
+
             // Cache Management Card
             VStack(alignment: .leading, spacing: 10) {
                 Text("Storage & Cache")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.textPrimary)
-                
+
                 HStack(spacing: 12) {
                     Text("Clear the local workspace analyses and persistent triage cache database.")
                         .font(.system(size: 10.5))
                         .foregroundColor(.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     if cacheClearedSuccessfully {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
@@ -320,7 +338,7 @@ struct SettingsSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
             .padding(.horizontal, 24)
-            
+
             Spacer()
         }
         .confirmationDialog(
@@ -332,11 +350,11 @@ struct SettingsSheet: View {
                 Task {
                     await state.coordinator.persistence.deleteAll()
                     await state.load()
-                    
+
                     withAnimation {
                         cacheClearedSuccessfully = true
                     }
-                    
+
                     // Reset the status checkmark after 2.5 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         withAnimation {
@@ -347,12 +365,14 @@ struct SettingsSheet: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will delete all analyzed local repository pull requests from the application store. This action cannot be undone.")
+            Text(
+                "This will delete all analyzed local repository pull requests from the application store. This action cannot be undone."
+            )
         }
     }
-    
+
     // MARK: - Workspaces Tab View
-    
+
     private var workspacesView: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
@@ -364,7 +384,7 @@ struct SettingsSheet: View {
                     .foregroundColor(.textSecondary)
             }
             .padding(.horizontal, 24)
-            
+
             if state.repositories.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "folder.badge.questionmark")
@@ -373,10 +393,12 @@ struct SettingsSheet: View {
                     Text("No workspaces registered")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
-                    Text("Use the Folder selector in the top header menu to register a Git repository.")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
+                    Text(
+                        "Use the Folder selector in the top header menu to register a Git repository."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
@@ -388,7 +410,7 @@ struct SettingsSheet: View {
                         Text("Active Workspace:")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.textSecondary)
-                        
+
                         Picker("", selection: $selectedRepoId) {
                             ForEach(state.repositories) { repo in
                                 Text(repo.name).tag(Optional(repo.id))
@@ -398,17 +420,18 @@ struct SettingsSheet: View {
                         .frame(width: 180)
                     }
                     .padding(.horizontal, 24)
-                    
+
                     if let repoId = selectedRepoId,
-                       let repo = state.repositories.first(where: { $0.id == repoId }) {
-                        
+                        let repo = state.repositories.first(where: { $0.id == repoId })
+                    {
+
                         VStack(alignment: .leading, spacing: 12) {
                             // Folder Path Detail (Read-only + Finder shortcut)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Folder Path")
                                     .font(.system(size: 10.5, weight: .bold))
                                     .foregroundColor(.textTertiary)
-                                
+
                                 HStack(spacing: 8) {
                                     Text(repo.path)
                                         .font(.system(size: 10.5, design: .monospaced))
@@ -419,7 +442,7 @@ struct SettingsSheet: View {
                                         .cornerRadius(4)
                                         .lineLimit(1)
                                         .truncationMode(.middle)
-                                    
+
                                     Button {
                                         NSWorkspace.shared.open(URL(fileURLWithPath: repo.path))
                                     } label: {
@@ -430,28 +453,31 @@ struct SettingsSheet: View {
                                     .help("Open in Finder")
                                 }
                             }
-                            
+
                             // Workspace Alias
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Workspace Alias")
                                     .font(.system(size: 10.5, weight: .bold))
                                     .foregroundColor(.textTertiary)
-                                
+
                                 HStack(spacing: 8) {
                                     TextField("Workspace name...", text: $repoAlias)
                                         .textFieldStyle(.roundedBorder)
                                         .font(.system(size: 11))
-                                    
+
                                     Button("Rename") {
                                         Task {
-                                            await state.renameWorkspace(id: repo.id, newName: repoAlias)
+                                            await state.renameWorkspace(
+                                                id: repo.id, newName: repoAlias)
                                         }
                                     }
                                     .buttonStyle(.bordered)
-                                    .disabled(repoAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repoAlias == repo.name)
+                                    .disabled(
+                                        repoAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            .isEmpty || repoAlias == repo.name)
                                 }
                             }
-                            
+
                             // Auto-Analyze Toggle
                             Toggle("Enable Live Auto-Analysis", isOn: $isAutoAnalyzeEnabled)
                                 .font(.system(size: 11, weight: .semibold))
@@ -459,7 +485,8 @@ struct SettingsSheet: View {
                                 .padding(.top, 4)
                                 .onChange(of: isAutoAnalyzeEnabled) { _, newValue in
                                     Task {
-                                        await state.setWorkspaceAutoAnalyze(id: repo.id, enabled: newValue)
+                                        await state.setWorkspaceAutoAnalyze(
+                                            id: repo.id, enabled: newValue)
                                     }
                                 }
 
@@ -502,14 +529,16 @@ struct SettingsSheet: View {
                                         .font(.system(size: 11, weight: .semibold))
                                     }
                                     .buttonStyle(.bordered)
-                                    .disabled(AnalysisProfileStore.hasRepoProfile(repoPath: repo.path))
+                                    .disabled(
+                                        AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
+                                    )
                                     .help("Choose a preset to copy into this workspace profile")
                                 }
                             }
-                            
+
                             Divider()
                                 .padding(.vertical, 4)
-                            
+
                             // Remove Workspace Button
                             HStack {
                                 Spacer()
@@ -529,12 +558,15 @@ struct SettingsSheet: View {
                         .padding(12)
                         .background(Color.bgSidebarPanel)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8).stroke(
+                                Color.borderMuted, lineWidth: 0.5)
+                        )
                         .padding(.horizontal, 24)
                     }
                 }
             }
-            
+
             Spacer()
         }
         .confirmationDialog(
@@ -553,12 +585,14 @@ struct SettingsSheet: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will remove the workspace from diffuse. Your local Git repository and files will remain intact.")
+            Text(
+                "This will remove the workspace from diffuse. Your local Git repository and files will remain intact."
+            )
         }
     }
-    
+
     // MARK: - Appearance Tab View
-    
+
     private var appearanceView: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
@@ -570,7 +604,7 @@ struct SettingsSheet: View {
                     .foregroundColor(.textSecondary)
             }
             .padding(.horizontal, 24)
-            
+
             // Side-by-side Theme Selector Cards
             HStack(spacing: 12) {
                 ForEach(AppTheme.allCases) { theme in
@@ -578,16 +612,16 @@ struct SettingsSheet: View {
                 }
             }
             .padding(.horizontal, 24)
-            
+
             Spacer()
         }
     }
-    
+
     @ViewBuilder
     private func themeCard(for theme: AppTheme) -> some View {
         let isSelected = appTheme == theme.rawValue
         let isHovered = hoveredTheme == theme
-        
+
         Button {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                 appTheme = theme.rawValue
@@ -602,15 +636,19 @@ struct SettingsSheet: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(
-                                    isSelected ? Color.accentBlue : (isHovered ? Color.borderDefault : Color.borderMuted),
+                                    isSelected
+                                        ? Color.accentBlue
+                                        : (isHovered ? Color.borderDefault : Color.borderMuted),
                                     lineWidth: isSelected ? 2 : 1
                                 )
                         )
-                        .shadow(color: isSelected ? Color.accentBlue.opacity(0.12) : Color.clear, radius: 4, x: 0, y: 2)
-                    
+                        .shadow(
+                            color: isSelected ? Color.accentBlue.opacity(0.12) : Color.clear,
+                            radius: 4, x: 0, y: 2)
+
                     // Theme illustration graphic inside
                     themePreviewContent(for: theme)
-                    
+
                     // Selected Checkmark Badge
                     if isSelected {
                         VStack {
@@ -627,7 +665,7 @@ struct SettingsSheet: View {
                         .frame(width: 110, height: 74)
                     }
                 }
-                
+
                 Text(theme.rawValue)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? .textPrimary : .textSecondary)
@@ -642,7 +680,7 @@ struct SettingsSheet: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     private func cardBackgroundColor(for theme: AppTheme) -> Color {
         switch theme {
         case .light:
@@ -653,7 +691,7 @@ struct SettingsSheet: View {
             return Color.bgSidebarPanel
         }
     }
-    
+
     @ViewBuilder
     private func themePreviewContent(for theme: AppTheme) -> some View {
         switch theme {
@@ -662,7 +700,7 @@ struct SettingsSheet: View {
                 Image(systemName: "sun.max.fill")
                     .font(.system(size: 20))
                     .foregroundColor(.orange)
-                
+
                 // Mini mock window lines
                 VStack(spacing: 2) {
                     RoundedRectangle(cornerRadius: 1)
@@ -673,13 +711,13 @@ struct SettingsSheet: View {
                         .frame(width: 50, height: 2)
                 }
             }
-            
+
         case .dark:
             VStack(spacing: 3) {
                 Image(systemName: "moon.stars.fill")
                     .font(.system(size: 18))
                     .foregroundColor(.accentPurple)
-                
+
                 // Mini mock window lines
                 VStack(spacing: 2) {
                     RoundedRectangle(cornerRadius: 1)
@@ -690,20 +728,22 @@ struct SettingsSheet: View {
                         .frame(width: 50, height: 2)
                 }
             }
-            
+
         case .system:
             ZStack {
                 // Monitor Frame Mock
                 Image(systemName: "desktopcomputer")
                     .font(.system(size: 28, weight: .light))
                     .foregroundColor(.textTertiary)
-                
+
                 // Sunset gradient
                 Circle()
-                    .fill(LinearGradient(
-                        colors: [.orange, .accentPurple],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
+                    .fill(
+                        LinearGradient(
+                            colors: [.orange, .accentPurple],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 12, height: 12)
                     .offset(y: -4)
             }
@@ -723,14 +763,16 @@ struct AnalysisProfileWizard: View {
         self.repoName = repo.name
         self.repoPath = repo.path
         self.onCreated = onCreated
-        _selectedPresetId = State(initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))
+        _selectedPresetId = State(
+            initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))
     }
 
     init(repoName: String, repoPath: String, onCreated: @escaping (String) -> Void) {
         self.repoName = repoName
         self.repoPath = repoPath
         self.onCreated = onCreated
-        _selectedPresetId = State(initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repoPath))
+        _selectedPresetId = State(
+            initialValue: AnalysisProfileStore.detectBuiltInProfileId(repoPath: repoPath))
     }
 
     var detectedPresetId: String {
@@ -764,10 +806,15 @@ struct AnalysisProfileWizard: View {
                         selectedPresetId = preset.id
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: selectedPresetId == preset.id ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(selectedPresetId == preset.id ? .accentBlue : .textTertiary)
-                                .frame(width: 18)
+                            Image(
+                                systemName: selectedPresetId == preset.id
+                                    ? "checkmark.circle.fill" : "circle"
+                            )
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(
+                                selectedPresetId == preset.id ? .accentBlue : .textTertiary
+                            )
+                            .frame(width: 18)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
@@ -797,11 +844,16 @@ struct AnalysisProfileWizard: View {
                         .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedPresetId == preset.id ? Color.accentBlue.opacity(0.08) : Color.bgSidebarPanel)
+                                .fill(
+                                    selectedPresetId == preset.id
+                                        ? Color.accentBlue.opacity(0.08) : Color.bgSidebarPanel)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(selectedPresetId == preset.id ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                                .stroke(
+                                    selectedPresetId == preset.id
+                                        ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                                    lineWidth: 0.5)
                         )
                     }
                     .buttonStyle(.plain)
@@ -824,7 +876,8 @@ struct AnalysisProfileWizard: View {
 
                 Button {
                     do {
-                        try AnalysisProfileStore.writeProfile(repoPath: repoPath, presetId: selectedPresetId)
+                        try AnalysisProfileStore.writeProfile(
+                            repoPath: repoPath, presetId: selectedPresetId)
                         onCreated(selectedPresetId)
                         dismiss()
                     } catch {
@@ -876,28 +929,35 @@ struct AnalysisProfileSummaryView: View {
 
             ProfileSummarySection(title: "File Classification", icon: "doc.text.magnifyingglass") {
                 ForEach(profile.fileClassifications, id: \.classification) { rule in
-                    ProfileSummaryRow(title: rule.classification, detail: "\(rule.paths.count) patterns")
+                    ProfileSummaryRow(
+                        title: rule.classification, detail: "\(rule.paths.count) patterns")
                 }
             }
 
-            ProfileSummarySection(title: "AST Findings", icon: "point.3.connected.trianglepath.dotted") {
+            ProfileSummarySection(
+                title: "AST Findings", icon: "point.3.connected.trianglepath.dotted"
+            ) {
                 ForEach(profile.rules.semanticAreaFindings, id: \.id) { rule in
                     ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
                 }
                 ForEach(profile.rules.contractFindings, id: \.id) { rule in
                     ProfileSummaryRow(title: rule.id, detail: "\(rule.severity) \(rule.category)")
                 }
-                if profile.rules.semanticAreaFindings.isEmpty && profile.rules.contractFindings.isEmpty {
+                if profile.rules.semanticAreaFindings.isEmpty
+                    && profile.rules.contractFindings.isEmpty
+                {
                     ProfileSummaryRow(title: "No AST finding rules", detail: "")
                 }
             }
 
-            ProfileSummarySection(title: "Architecture Boundaries", icon: "arrow.left.arrow.right") {
+            ProfileSummarySection(title: "Architecture Boundaries", icon: "arrow.left.arrow.right")
+            {
                 if profile.rules.importBoundaries.isEmpty {
                     ProfileSummaryRow(title: "No import boundary rules", detail: "")
                 } else {
                     ForEach(profile.rules.importBoundaries, id: \.id) { rule in
-                        ProfileSummaryRow(title: rule.id, detail: "\(rule.sourcePaths.count) source patterns")
+                        ProfileSummaryRow(
+                            title: rule.id, detail: "\(rule.sourcePaths.count) source patterns")
                     }
                 }
             }

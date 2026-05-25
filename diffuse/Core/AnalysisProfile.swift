@@ -21,7 +21,8 @@ struct AnalysisProfile: Codable {
     nonisolated static let generic = AnalysisProfileStore.loadBuiltIn(id: "generic")
 
     enum CodingKeys: String, CodingKey {
-        case version, id, displayName, extends, fileClassifications, buckets, symbolGroups, rules, semanticHighlights, fileHighlights, riskScoring
+        case version, id, displayName, extends, fileClassifications, buckets, symbolGroups, rules,
+            semanticHighlights, fileHighlights, riskScoring
     }
 
     nonisolated init(
@@ -56,13 +57,22 @@ struct AnalysisProfile: Codable {
         self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? "custom"
         self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? id
         self.extends = try container.decodeIfPresent([String].self, forKey: .extends) ?? []
-        self.fileClassifications = try container.decodeIfPresent([FileClassificationRule].self, forKey: .fileClassifications) ?? []
+        self.fileClassifications =
+            try container.decodeIfPresent(
+                [FileClassificationRule].self, forKey: .fileClassifications) ?? []
         self.buckets = try container.decodeIfPresent([BucketRule].self, forKey: .buckets) ?? []
-        self.symbolGroups = try container.decodeIfPresent([SymbolGroupRule].self, forKey: .symbolGroups) ?? []
-        self.rules = try container.decodeIfPresent(RuleProfile.self, forKey: .rules) ?? RuleProfile()
-        self.semanticHighlights = try container.decodeIfPresent([SemanticHighlightRule].self, forKey: .semanticHighlights) ?? []
-        self.fileHighlights = try container.decodeIfPresent([FileHighlightRule].self, forKey: .fileHighlights) ?? []
-        self.riskScoring = try container.decodeIfPresent(RiskScoringProfile.self, forKey: .riskScoring) ?? RiskScoringProfile()
+        self.symbolGroups =
+            try container.decodeIfPresent([SymbolGroupRule].self, forKey: .symbolGroups) ?? []
+        self.rules =
+            try container.decodeIfPresent(RuleProfile.self, forKey: .rules) ?? RuleProfile()
+        self.semanticHighlights =
+            try container.decodeIfPresent([SemanticHighlightRule].self, forKey: .semanticHighlights)
+            ?? []
+        self.fileHighlights =
+            try container.decodeIfPresent([FileHighlightRule].self, forKey: .fileHighlights) ?? []
+        self.riskScoring =
+            try container.decodeIfPresent(RiskScoringProfile.self, forKey: .riskScoring)
+            ?? RiskScoringProfile()
     }
 
     func classifyFile(_ path: String) -> ChangedFile.FileClassification {
@@ -72,7 +82,9 @@ struct AnalysisProfile: Codable {
         return .source
     }
 
-    func bucketRule(for file: ChangedFile, findings: [Finding], symbols: [ChangedSymbol]) -> BucketRule? {
+    func bucketRule(for file: ChangedFile, findings: [Finding], symbols: [ChangedSymbol])
+        -> BucketRule?
+    {
         buckets.first { $0.matches(file: file, findings: findings, symbols: symbols) }
     }
 }
@@ -134,7 +146,8 @@ struct BucketRule: Codable {
             }
         }
         if let symbolNames {
-            if symbols.contains(where: { PatternMatcher.matchesAny($0.name, patterns: symbolNames) }) {
+            if symbols.contains(where: { PatternMatcher.matchesAny($0.name, patterns: symbolNames) }
+            ) {
                 return true
             }
         }
@@ -157,7 +170,9 @@ struct BucketRule: Codable {
         }
         if let symbolCallees {
             if symbols.contains(where: { symbol in
-                symbol.callees.contains { callee in PatternMatcher.matchesAny(callee, patterns: symbolCallees) }
+                symbol.callees.contains { callee in
+                    PatternMatcher.matchesAny(callee, patterns: symbolCallees)
+                }
             }) {
                 return true
             }
@@ -194,7 +209,8 @@ struct RuleProfile: Codable {
     var symbolCoverage: SymbolCoverageRule?
 
     enum CodingKeys: String, CodingKey {
-        case missingTests, schemaSync, importBoundaries, semanticAreaFindings, contractFindings, symbolCoverage
+        case missingTests, schemaSync, importBoundaries, semanticAreaFindings, contractFindings,
+            symbolCoverage
     }
 
     nonisolated init(
@@ -215,12 +231,20 @@ struct RuleProfile: Codable {
 
     nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.missingTests = try container.decodeIfPresent(MissingTestsRule.self, forKey: .missingTests)
+        self.missingTests = try container.decodeIfPresent(
+            MissingTestsRule.self, forKey: .missingTests)
         self.schemaSync = try container.decodeIfPresent(SchemaSyncRule.self, forKey: .schemaSync)
-        self.importBoundaries = try container.decodeIfPresent([ImportBoundaryRule].self, forKey: .importBoundaries) ?? []
-        self.semanticAreaFindings = try container.decodeIfPresent([SemanticAreaFindingRule].self, forKey: .semanticAreaFindings) ?? []
-        self.contractFindings = try container.decodeIfPresent([MetadataFindingRule].self, forKey: .contractFindings) ?? []
-        self.symbolCoverage = try container.decodeIfPresent(SymbolCoverageRule.self, forKey: .symbolCoverage)
+        self.importBoundaries =
+            try container.decodeIfPresent([ImportBoundaryRule].self, forKey: .importBoundaries)
+            ?? []
+        self.semanticAreaFindings =
+            try container.decodeIfPresent(
+                [SemanticAreaFindingRule].self, forKey: .semanticAreaFindings) ?? []
+        self.contractFindings =
+            try container.decodeIfPresent([MetadataFindingRule].self, forKey: .contractFindings)
+            ?? []
+        self.symbolCoverage = try container.decodeIfPresent(
+            SymbolCoverageRule.self, forKey: .symbolCoverage)
     }
 }
 
@@ -314,8 +338,10 @@ struct RiskScoringProfile: Codable {
     var sensitivePaths: [String]
 
     enum CodingKeys: String, CodingKey {
-        case generatedOnlyDelta, productionChangeDelta, apiPathDelta, sensitivePathDelta, missingTestsDelta
-        case architectureFindingDelta, highFanInDelta, contractDelta, behaviorAddedDelta, testChangeDelta
+        case generatedOnlyDelta, productionChangeDelta, apiPathDelta, sensitivePathDelta,
+            missingTestsDelta
+        case architectureFindingDelta, highFanInDelta, contractDelta, behaviorAddedDelta,
+            testChangeDelta
         case apiPaths, sensitivePaths
     }
 
@@ -349,18 +375,26 @@ struct RiskScoringProfile: Codable {
 
     nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.generatedOnlyDelta = try container.decodeIfPresent(Int.self, forKey: .generatedOnlyDelta) ?? -40
-        self.productionChangeDelta = try container.decodeIfPresent(Int.self, forKey: .productionChangeDelta) ?? 10
+        self.generatedOnlyDelta =
+            try container.decodeIfPresent(Int.self, forKey: .generatedOnlyDelta) ?? -40
+        self.productionChangeDelta =
+            try container.decodeIfPresent(Int.self, forKey: .productionChangeDelta) ?? 10
         self.apiPathDelta = try container.decodeIfPresent(Int.self, forKey: .apiPathDelta) ?? 20
-        self.sensitivePathDelta = try container.decodeIfPresent(Int.self, forKey: .sensitivePathDelta) ?? 30
-        self.missingTestsDelta = try container.decodeIfPresent(Int.self, forKey: .missingTestsDelta) ?? 20
-        self.architectureFindingDelta = try container.decodeIfPresent(Int.self, forKey: .architectureFindingDelta) ?? 20
+        self.sensitivePathDelta =
+            try container.decodeIfPresent(Int.self, forKey: .sensitivePathDelta) ?? 30
+        self.missingTestsDelta =
+            try container.decodeIfPresent(Int.self, forKey: .missingTestsDelta) ?? 20
+        self.architectureFindingDelta =
+            try container.decodeIfPresent(Int.self, forKey: .architectureFindingDelta) ?? 20
         self.highFanInDelta = try container.decodeIfPresent(Int.self, forKey: .highFanInDelta) ?? 10
         self.contractDelta = try container.decodeIfPresent(Int.self, forKey: .contractDelta) ?? 10
-        self.behaviorAddedDelta = try container.decodeIfPresent(Int.self, forKey: .behaviorAddedDelta) ?? 10
-        self.testChangeDelta = try container.decodeIfPresent(Int.self, forKey: .testChangeDelta) ?? -15
+        self.behaviorAddedDelta =
+            try container.decodeIfPresent(Int.self, forKey: .behaviorAddedDelta) ?? 10
+        self.testChangeDelta =
+            try container.decodeIfPresent(Int.self, forKey: .testChangeDelta) ?? -15
         self.apiPaths = try container.decodeIfPresent([String].self, forKey: .apiPaths) ?? []
-        self.sensitivePaths = try container.decodeIfPresent([String].self, forKey: .sensitivePaths) ?? []
+        self.sensitivePaths =
+            try container.decodeIfPresent([String].self, forKey: .sensitivePaths) ?? []
     }
 }
 
@@ -374,7 +408,7 @@ enum AnalysisProfileStore {
         AnalysisPresetDescriptor(id: "node-service", displayName: "Node service"),
         AnalysisPresetDescriptor(id: "go-service", displayName: "Go service"),
         AnalysisPresetDescriptor(id: "rust-crate", displayName: "Rust crate"),
-        AnalysisPresetDescriptor(id: "python-service", displayName: "Python service")
+        AnalysisPresetDescriptor(id: "python-service", displayName: "Python service"),
     ]
 
     nonisolated static func load(repoPath: String?) -> AnalysisProfile {
@@ -419,7 +453,8 @@ enum AnalysisProfileStore {
     static func loadEditableDocument(repoPath: String) throws -> EditableAnalysisProfileDocument {
         let url = repoProfileURL(repoPath: repoPath)
         guard FileManager.default.fileExists(atPath: url.path) else {
-            return editableDocument(from: loadBuiltIn(id: detectBuiltInProfileId(repoPath: repoPath)))
+            return editableDocument(
+                from: loadBuiltIn(id: detectBuiltInProfileId(repoPath: repoPath)))
         }
         let data = try Data(contentsOf: url)
         let document = try JSONDecoder().decode(EditableAnalysisProfileDocument.self, from: data)
@@ -427,7 +462,9 @@ enum AnalysisProfileStore {
         return editableDocument(from: document.resolvedProfile())
     }
 
-    static func writeEditableDocument(_ document: EditableAnalysisProfileDocument, repoPath: String) throws {
+    static func writeEditableDocument(_ document: EditableAnalysisProfileDocument, repoPath: String)
+        throws
+    {
         let url = repoProfileURL(repoPath: repoPath)
         let parent = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -437,7 +474,9 @@ enum AnalysisProfileStore {
         try data.write(to: url, options: .atomic)
     }
 
-    static func teachFileClassification(repoPath: String, path: String, classification: ChangedFile.FileClassification) throws {
+    static func teachFileClassification(
+        repoPath: String, path: String, classification: ChangedFile.FileClassification
+    ) throws {
         var document = try loadEditableDocument(repoPath: repoPath)
         var rules = document.fileClassifications ?? []
         if let index = rules.firstIndex(where: { $0.classification == classification.rawValue }) {
@@ -446,7 +485,8 @@ enum AnalysisProfileStore {
                 rules[index].paths.sort()
             }
         } else {
-            rules.append(FileClassificationRule(classification: classification.rawValue, paths: [path]))
+            rules.append(
+                FileClassificationRule(classification: classification.rawValue, paths: [path]))
         }
         document.fileClassifications = rules
         try writeEditableDocument(document, repoPath: repoPath)
@@ -510,10 +550,14 @@ enum AnalysisProfileStore {
             return entries.contains { $0.hasSuffix(suffix) }
         }
 
-        if exists("Package.swift") || exists("Podfile") || exists("iosApp") || rootEntry(hasSuffix: ".xcodeproj") || rootEntry(hasSuffix: ".xcworkspace") {
+        if exists("Package.swift") || exists("Podfile") || exists("iosApp")
+            || rootEntry(hasSuffix: ".xcodeproj") || rootEntry(hasSuffix: ".xcworkspace")
+        {
             return "ios-swift"
         }
-        if exists("build.gradle") || exists("build.gradle.kts") || exists("settings.gradle") || exists("settings.gradle.kts") {
+        if exists("build.gradle") || exists("build.gradle.kts") || exists("settings.gradle")
+            || exists("settings.gradle.kts")
+        {
             return "android-kotlin"
         }
         if exists("package.json") {
@@ -536,7 +580,8 @@ enum AnalysisProfileStore {
 
     nonisolated private static func decodeProfile(at url: URL) -> AnalysisProfile? {
         guard let data = try? Data(contentsOf: url),
-              let profile = try? JSONDecoder().decode(AnalysisProfile.self, from: data) else {
+            let profile = try? JSONDecoder().decode(AnalysisProfile.self, from: data)
+        else {
             return nil
         }
         return resolve(profile)
@@ -544,7 +589,8 @@ enum AnalysisProfileStore {
 
     nonisolated private static func decodeRawBuiltIn(id: String) -> AnalysisProfile? {
         let decoder = JSONDecoder()
-        let bundleURL = Bundle.main.url(forResource: id, withExtension: "json", subdirectory: "AnalysisProfiles")
+        let bundleURL = Bundle.main.url(
+            forResource: id, withExtension: "json", subdirectory: "AnalysisProfiles")
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .appendingPathComponent("AnalysisProfiles/\(id).json")
@@ -552,7 +598,8 @@ enum AnalysisProfileStore {
 
         for url in urls {
             if let data = try? Data(contentsOf: url),
-               let profile = try? decoder.decode(AnalysisProfile.self, from: data) {
+                let profile = try? decoder.decode(AnalysisProfile.self, from: data)
+            {
                 return profile
             }
         }
@@ -563,13 +610,18 @@ enum AnalysisProfileStore {
         guard !profile.extends.isEmpty else { return profile }
         let parent = profile.extends
             .map(loadBuiltIn)
-            .reduce(AnalysisProfile(version: profile.version, id: profile.id, displayName: profile.displayName)) {
+            .reduce(
+                AnalysisProfile(
+                    version: profile.version, id: profile.id, displayName: profile.displayName)
+            ) {
                 $0.merging(overrides: $1)
             }
         return parent.merging(overrides: profile)
     }
 
-    nonisolated static func editableDocument(from profile: AnalysisProfile) -> EditableAnalysisProfileDocument {
+    nonisolated static func editableDocument(from profile: AnalysisProfile)
+        -> EditableAnalysisProfileDocument
+    {
         let resolved = resolve(profile)
         return EditableAnalysisProfileDocument(
             version: resolved.version,
@@ -613,11 +665,13 @@ struct EditableAnalysisProfileDocument: Codable {
     var riskScoring: RiskScoringProfile?
 
     enum DecodeKeys: String, CodingKey {
-        case version, id, displayName, extends, fileClassifications, buckets, symbolGroups, rules, semanticHighlights, fileHighlights, riskScoring
+        case version, id, displayName, extends, fileClassifications, buckets, symbolGroups, rules,
+            semanticHighlights, fileHighlights, riskScoring
     }
 
     enum EncodeKeys: String, CodingKey {
-        case version, id, displayName, fileClassifications, buckets, symbolGroups, rules, semanticHighlights, fileHighlights, riskScoring
+        case version, id, displayName, fileClassifications, buckets, symbolGroups, rules,
+            semanticHighlights, fileHighlights, riskScoring
     }
 
     nonisolated init(
@@ -650,15 +704,22 @@ struct EditableAnalysisProfileDocument: Codable {
         let container = try decoder.container(keyedBy: DecodeKeys.self)
         self.version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
         self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? "repo"
-        self.displayName = try container.decodeIfPresent(String.self, forKey: .displayName) ?? "Repo analysis profile"
+        self.displayName =
+            try container.decodeIfPresent(String.self, forKey: .displayName)
+            ?? "Repo analysis profile"
         self.extends = try container.decodeIfPresent([String].self, forKey: .extends) ?? []
-        self.fileClassifications = try container.decodeIfPresent([FileClassificationRule].self, forKey: .fileClassifications)
+        self.fileClassifications = try container.decodeIfPresent(
+            [FileClassificationRule].self, forKey: .fileClassifications)
         self.buckets = try container.decodeIfPresent([BucketRule].self, forKey: .buckets)
-        self.symbolGroups = try container.decodeIfPresent([SymbolGroupRule].self, forKey: .symbolGroups)
+        self.symbolGroups = try container.decodeIfPresent(
+            [SymbolGroupRule].self, forKey: .symbolGroups)
         self.rules = try container.decodeIfPresent(EditableRuleProfile.self, forKey: .rules)
-        self.semanticHighlights = try container.decodeIfPresent([SemanticHighlightRule].self, forKey: .semanticHighlights)
-        self.fileHighlights = try container.decodeIfPresent([FileHighlightRule].self, forKey: .fileHighlights)
-        self.riskScoring = try container.decodeIfPresent(RiskScoringProfile.self, forKey: .riskScoring)
+        self.semanticHighlights = try container.decodeIfPresent(
+            [SemanticHighlightRule].self, forKey: .semanticHighlights)
+        self.fileHighlights = try container.decodeIfPresent(
+            [FileHighlightRule].self, forKey: .fileHighlights)
+        self.riskScoring = try container.decodeIfPresent(
+            RiskScoringProfile.self, forKey: .riskScoring)
     }
 
     nonisolated func encode(to encoder: Encoder) throws {
@@ -681,21 +742,21 @@ struct EditableAnalysisProfileDocument: Codable {
         copy.extends = []
         copy.fileClassifications = copy.fileClassifications?.filter { !$0.paths.isEmpty }
         copy.buckets = copy.buckets?.filter { rule in
-            !(rule.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-              rule.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            !(rule.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || rule.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         copy.symbolGroups = copy.symbolGroups?.filter {
-            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !$0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         copy.rules = copy.rules?.normalized()
         copy.semanticHighlights = copy.semanticHighlights?.filter {
-            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         copy.fileHighlights = copy.fileHighlights?.filter {
-            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            !$0.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return copy
     }
@@ -705,19 +766,20 @@ struct EditableAnalysisProfileDocument: Codable {
     }
 
     nonisolated func resolvedProfile() -> AnalysisProfile {
-        AnalysisProfileStore.resolve(AnalysisProfile(
-            version: version,
-            id: id,
-            displayName: displayName,
-            extends: [],
-            fileClassifications: fileClassifications ?? [],
-            buckets: buckets ?? [],
-            symbolGroups: symbolGroups ?? [],
-            rules: rules?.ruleProfile ?? RuleProfile(),
-            semanticHighlights: semanticHighlights ?? [],
-            fileHighlights: fileHighlights ?? [],
-            riskScoring: riskScoring ?? RiskScoringProfile()
-        ))
+        AnalysisProfileStore.resolve(
+            AnalysisProfile(
+                version: version,
+                id: id,
+                displayName: displayName,
+                extends: [],
+                fileClassifications: fileClassifications ?? [],
+                buckets: buckets ?? [],
+                symbolGroups: symbolGroups ?? [],
+                rules: rules?.ruleProfile ?? RuleProfile(),
+                semanticHighlights: semanticHighlights ?? [],
+                fileHighlights: fileHighlights ?? [],
+                riskScoring: riskScoring ?? RiskScoringProfile()
+            ))
     }
 }
 
@@ -733,17 +795,20 @@ struct EditableRuleProfile: Codable {
         let copy = EditableRuleProfile(
             missingTests: missingTests,
             schemaSync: schemaSync,
-            importBoundaries: importBoundaries?.filter { !$0.sourcePaths.isEmpty && !$0.forbiddenImports.isEmpty },
+            importBoundaries: importBoundaries?.filter {
+                !$0.sourcePaths.isEmpty && !$0.forbiddenImports.isEmpty
+            },
             semanticAreaFindings: semanticAreaFindings,
             contractFindings: contractFindings,
             symbolCoverage: symbolCoverage
         )
         if copy.missingTests == nil,
-           copy.schemaSync == nil,
-           copy.importBoundaries?.isEmpty != false,
-           copy.semanticAreaFindings?.isEmpty != false,
-           copy.contractFindings?.isEmpty != false,
-           copy.symbolCoverage == nil {
+            copy.schemaSync == nil,
+            copy.importBoundaries?.isEmpty != false,
+            copy.semanticAreaFindings?.isEmpty != false,
+            copy.contractFindings?.isEmpty != false,
+            copy.symbolCoverage == nil
+        {
             return nil
         }
         return copy
@@ -761,24 +826,28 @@ struct EditableRuleProfile: Codable {
     }
 }
 
-private extension AnalysisProfile {
-    nonisolated func merging(overrides child: AnalysisProfile) -> AnalysisProfile {
+extension AnalysisProfile {
+    fileprivate nonisolated func merging(overrides child: AnalysisProfile) -> AnalysisProfile {
         var merged = self
         merged.version = child.version
         merged.id = child.id
         merged.displayName = child.displayName
         merged.extends = child.extends
-        merged.fileClassifications = mergeByClassification(fileClassifications, child.fileClassifications)
+        merged.fileClassifications = mergeByClassification(
+            fileClassifications, child.fileClassifications)
         merged.buckets = mergeById(buckets, child.buckets, id: \.id)
         merged.symbolGroups = mergeById(symbolGroups, child.symbolGroups, id: \.id)
         merged.rules = rules.merging(overrides: child.rules)
-        merged.semanticHighlights = mergeById(semanticHighlights, child.semanticHighlights, id: \.id)
+        merged.semanticHighlights = mergeById(
+            semanticHighlights, child.semanticHighlights, id: \.id)
         merged.fileHighlights = mergeById(fileHighlights, child.fileHighlights, id: \.id)
         merged.riskScoring = riskScoring.merging(overrides: child.riskScoring)
         return merged
     }
 
-    nonisolated func mergeById<T>(_ parent: [T], _ child: [T], id: KeyPath<T, String>) -> [T] {
+    fileprivate nonisolated func mergeById<T>(_ parent: [T], _ child: [T], id: KeyPath<T, String>)
+        -> [T]
+    {
         var result = parent
         for item in child {
             if let index = result.firstIndex(where: { $0[keyPath: id] == item[keyPath: id] }) {
@@ -790,7 +859,9 @@ private extension AnalysisProfile {
         return result
     }
 
-    nonisolated func mergeByClassification(_ parent: [FileClassificationRule], _ child: [FileClassificationRule]) -> [FileClassificationRule] {
+    fileprivate nonisolated func mergeByClassification(
+        _ parent: [FileClassificationRule], _ child: [FileClassificationRule]
+    ) -> [FileClassificationRule] {
         var result = parent
         for item in child {
             if let index = result.firstIndex(where: { $0.classification == item.classification }) {
@@ -805,19 +876,22 @@ private extension AnalysisProfile {
     }
 }
 
-private extension RuleProfile {
-    nonisolated func merging(overrides child: RuleProfile) -> RuleProfile {
+extension RuleProfile {
+    fileprivate nonisolated func merging(overrides child: RuleProfile) -> RuleProfile {
         RuleProfile(
             missingTests: child.missingTests ?? missingTests,
             schemaSync: child.schemaSync ?? schemaSync,
             importBoundaries: mergeById(importBoundaries, child.importBoundaries, id: \.id),
-            semanticAreaFindings: mergeById(semanticAreaFindings, child.semanticAreaFindings, id: \.id),
+            semanticAreaFindings: mergeById(
+                semanticAreaFindings, child.semanticAreaFindings, id: \.id),
             contractFindings: mergeById(contractFindings, child.contractFindings, id: \.id),
             symbolCoverage: child.symbolCoverage ?? symbolCoverage
         )
     }
 
-    nonisolated func mergeById<T>(_ parent: [T], _ child: [T], id: KeyPath<T, String>) -> [T] {
+    fileprivate nonisolated func mergeById<T>(_ parent: [T], _ child: [T], id: KeyPath<T, String>)
+        -> [T]
+    {
         var result = parent
         for item in child {
             if let index = result.firstIndex(where: { $0[keyPath: id] == item[keyPath: id] }) {
@@ -830,8 +904,9 @@ private extension RuleProfile {
     }
 }
 
-private extension RiskScoringProfile {
-    nonisolated func merging(overrides child: RiskScoringProfile) -> RiskScoringProfile {
+extension RiskScoringProfile {
+    fileprivate nonisolated func merging(overrides child: RiskScoringProfile) -> RiskScoringProfile
+    {
         RiskScoringProfile(
             generatedOnlyDelta: child.generatedOnlyDelta,
             productionChangeDelta: child.productionChangeDelta,
@@ -879,7 +954,9 @@ enum PatternMatcher {
     static func matches(_ value: String, pattern: String) -> Bool {
         let normalizedValue = value.replacingOccurrences(of: "\\", with: "/").lowercased()
         let normalizedPattern = pattern.replacingOccurrences(of: "\\", with: "/").lowercased()
-        let regex = "^" + NSRegularExpression.escapedPattern(for: normalizedPattern)
+        let regex =
+            "^"
+            + NSRegularExpression.escapedPattern(for: normalizedPattern)
             .replacingOccurrences(of: "\\*\\*", with: ".*")
             .replacingOccurrences(of: "\\*", with: "[^/]*") + "$"
         return normalizedValue.range(of: regex, options: .regularExpression) != nil

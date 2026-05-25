@@ -26,8 +26,6 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-
-
 struct PullRequest: Identifiable, Codable, Hashable {
     let id: UUID
     var prNumber: Int
@@ -42,9 +40,11 @@ struct PullRequest: Identifiable, Codable, Hashable {
     var updatedAt: Date
     var latestRun: AnalysisRun?
 
-    nonisolated init(id: UUID = UUID(), prNumber: Int, title: String, body: String? = nil,
-                     baseSha: String, headSha: String, author: String, status: String = "open",
-                     repository: String, createdAt: Date = Date(), updatedAt: Date = Date()) {
+    nonisolated init(
+        id: UUID = UUID(), prNumber: Int, title: String, body: String? = nil,
+        baseSha: String, headSha: String, author: String, status: String = "open",
+        repository: String, createdAt: Date = Date(), updatedAt: Date = Date()
+    ) {
         self.id = id
         self.prNumber = prNumber
         self.title = title
@@ -74,9 +74,11 @@ struct AnalysisRun: Identifiable, Codable, Hashable {
         case queued, analyzing, completed, failed
     }
 
-    init(id: UUID = UUID(), pullRequestId: UUID, baseSha: String, headSha: String,
-         status: RunStatus = .queued, errorMessage: String? = nil, riskScore: Int = 0,
-         createdAt: Date = Date(), updatedAt: Date = Date()) {
+    init(
+        id: UUID = UUID(), pullRequestId: UUID, baseSha: String, headSha: String,
+        status: RunStatus = .queued, errorMessage: String? = nil, riskScore: Int = 0,
+        createdAt: Date = Date(), updatedAt: Date = Date()
+    ) {
         self.id = id
         self.pullRequestId = pullRequestId
         self.baseSha = baseSha
@@ -114,8 +116,10 @@ struct ChangedFile: Identifiable, Codable, Hashable {
 
     var filename: String { URL(fileURLWithPath: path).lastPathComponent }
 
-    init(id: UUID = UUID(), analysisRunId: UUID, path: String, status: FileStatus,
-         additions: Int, deletions: Int, classification: FileClassification, hunks: [DiffHunk]) {
+    init(
+        id: UUID = UUID(), analysisRunId: UUID, path: String, status: FileStatus,
+        additions: Int, deletions: Int, classification: FileClassification, hunks: [DiffHunk]
+    ) {
         self.id = id
         self.analysisRunId = analysisRunId
         self.path = path
@@ -144,8 +148,8 @@ struct ChangedSymbol: Identifiable, Codable, Hashable {
 
     enum SymbolKind: String, Codable, Hashable {
         case function, `class`, method, `import`, export, jsx, type,
-             `struct`, `enum`, `protocol`, `extension`, property, variable,
-             constructor, module, decorated
+            `struct`, `enum`, `protocol`, `extension`, property, variable,
+            constructor, module, decorated
     }
 
     nonisolated init(
@@ -188,7 +192,8 @@ struct Finding: Identifiable, Codable {
     var evidence: String?
 
     enum FindingCategory: String, Codable {
-        case architecture, test, security, performance, cleanCode = "clean-code"
+        case architecture, test, security, performance
+        case cleanCode = "clean-code"
     }
 }
 
@@ -198,7 +203,12 @@ enum Severity: String, Codable, CaseIterable, Comparable {
     case info, low, medium, high
 
     var score: Int {
-        switch self { case .info: 1; case .low: 2; case .medium: 3; case .high: 4 }
+        switch self {
+        case .info: 1
+        case .low: 2
+        case .medium: 3
+        case .high: 4
+        }
     }
 
     static func < (lhs: Severity, rhs: Severity) -> Bool { lhs.score < rhs.score }
@@ -299,7 +309,10 @@ struct SymbolReviewGroup: Identifiable, Codable {
     var iconName: String
     var symbols: [ChangedSymbol]
 
-    init(id: UUID = UUID(), semanticArea: String, displayLabel: String, iconName: String, symbols: [ChangedSymbol]) {
+    init(
+        id: UUID = UUID(), semanticArea: String, displayLabel: String, iconName: String,
+        symbols: [ChangedSymbol]
+    ) {
         self.id = id
         self.semanticArea = semanticArea
         self.displayLabel = displayLabel
@@ -309,12 +322,20 @@ struct SymbolReviewGroup: Identifiable, Codable {
 }
 
 enum RiskCategory: String, Codable {
-    case security, contract, data, testGap = "test-gap", coupling, runtime, reviewLoad = "review-load"
+    case security, contract, data
+    case testGap = "test-gap"
+    case coupling, runtime
+    case reviewLoad = "review-load"
 
     var weight: Int {
         switch self {
-        case .security: 7; case .runtime: 6; case .contract: 5; case .data: 4
-        case .coupling: 3; case .reviewLoad: 2; case .testGap: 1
+        case .security: 7
+        case .runtime: 6
+        case .contract: 5
+        case .data: 4
+        case .coupling: 3
+        case .reviewLoad: 2
+        case .testGap: 1
         }
     }
 }
@@ -377,7 +398,8 @@ struct GitRepository: Identifiable, Codable, Hashable {
     var path: String
     var autoAnalyzeEnabled: Bool
 
-    nonisolated init(id: UUID = UUID(), name: String, path: String, autoAnalyzeEnabled: Bool = true) {
+    nonisolated init(id: UUID = UUID(), name: String, path: String, autoAnalyzeEnabled: Bool = true)
+    {
         self.id = id
         self.name = name
         self.path = path
@@ -393,7 +415,8 @@ struct GitRepository: Identifiable, Codable, Hashable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         path = try container.decode(String.self, forKey: .path)
-        autoAnalyzeEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoAnalyzeEnabled) ?? true
+        autoAnalyzeEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .autoAnalyzeEnabled) ?? true
     }
 }
 

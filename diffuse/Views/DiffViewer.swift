@@ -30,7 +30,10 @@ struct DiffViewerPanel: View {
 
     var filteredFiles: [ChangedFile] {
         orderedFiles.filter { file in
-            if hideBoilerplate && !(file.classification == .source || file.classification == .test) { return false }
+            if hideBoilerplate && !(file.classification == .source || file.classification == .test)
+            {
+                return false
+            }
             if showUnviewedOnly && viewedFileIds.contains(file.id) { return false }
             if excludedExtensions.contains(file.filterExtension) { return false }
             if excludedStatuses.contains(file.status) { return false }
@@ -40,7 +43,8 @@ struct DiffViewerPanel: View {
     }
 
     var activeFilterCount: Int {
-        var count = excludedExtensions.count + excludedStatuses.count + excludedClassifications.count
+        var count =
+            excludedExtensions.count + excludedStatuses.count + excludedClassifications.count
         if !fileSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { count += 1 }
         if showUnviewedOnly { count += 1 }
         return count
@@ -75,11 +79,18 @@ struct DiffViewerPanel: View {
                     .foregroundColor(activeFilterCount > 0 ? .accentBlue : .textSecondary)
                     .frame(minWidth: 28, minHeight: 22)
                     .padding(.horizontal, activeFilterCount > 0 ? 5 : 0)
-                    .background(activeFilterCount > 0 ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45))
+                    .background(
+                        activeFilterCount > 0
+                            ? Color.accentBlue.opacity(0.10)
+                            : Color(NSColor.controlColor).opacity(0.45)
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: 5))
                     .overlay(
                         RoundedRectangle(cornerRadius: 5)
-                            .stroke(activeFilterCount > 0 ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                            .stroke(
+                                activeFilterCount > 0
+                                    ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                                lineWidth: 0.5)
                     )
                 }
                 .buttonStyle(.plain)
@@ -121,8 +132,11 @@ struct DiffViewerPanel: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: state.diffLayout == .unified ? "doc.text" : "square.split.2x1")
-                            .font(.system(size: 11, weight: .semibold))
+                        Image(
+                            systemName: state.diffLayout == .unified
+                                ? "doc.text" : "square.split.2x1"
+                        )
+                        .font(.system(size: 11, weight: .semibold))
                         Text(state.diffLayout == .unified ? "Unified" : "Split")
                             .font(.system(size: 11, weight: .medium))
                         Image(systemName: "chevron.down")
@@ -158,9 +172,11 @@ struct DiffViewerPanel: View {
                 }
 
                 DiffToolbarButton(
-                    systemImage: compactFileTree ? "rectangle.compress.vertical" : "list.bullet.indent",
+                    systemImage: compactFileTree
+                        ? "rectangle.compress.vertical" : "list.bullet.indent",
                     isActive: compactFileTree,
-                    help: compactFileTree ? "Show every folder level" : "Fold single-child folder chains"
+                    help: compactFileTree
+                        ? "Show every folder level" : "Fold single-child folder chains"
                 ) {
                     compactFileTree.toggle()
                 }
@@ -174,7 +190,9 @@ struct DiffViewerPanel: View {
             HStack(spacing: 0) {
                 // File list sidebar
                 if !isFileSidebarCollapsed {
-                    FileListSidebar(files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree, width: fileSidebarWidth)
+                    FileListSidebar(
+                        files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree,
+                        width: fileSidebarWidth)
                     PaneDivider(width: $fileSidebarWidth, minWidth: 140, maxWidth: 420)
                 }
 
@@ -183,16 +201,21 @@ struct DiffViewerPanel: View {
                     DiffContent(
                         file: file,
                         activeHunkIndex: viewModel.activeHunkIndex,
-                        activeTarget: viewModel.activeTarget?.filePath == file.path ? viewModel.activeTarget : nil
+                        activeTarget: viewModel.activeTarget?.filePath == file.path
+                            ? viewModel.activeTarget : nil
                     )
                 } else {
                     VStack {
                         Image(systemName: "doc.text.magnifyingglass")
                             .font(.system(size: 28))
                             .foregroundColor(.textTertiary)
-                        Text(filteredFiles.isEmpty ? "No files match the current filters" : "Select a file to view its diff")
-                            .font(.system(size: 13))
-                            .foregroundColor(.textSecondary)
+                        Text(
+                            filteredFiles.isEmpty
+                                ? "No files match the current filters"
+                                : "Select a file to view its diff"
+                        )
+                        .font(.system(size: 13))
+                        .foregroundColor(.textSecondary)
                         if filteredFiles.isEmpty && activeFilterCount > 0 {
                             Button("Clear filters") {
                                 resetFileFilters()
@@ -318,7 +341,10 @@ struct FileFilterPopover: View {
 
             FilterSection(title: "Status") {
                 ForEach(statusCounts, id: \.0) { status, count in
-                    FilterToggleRow(title: status.displayName, count: count, isIncluded: !excludedStatuses.contains(status)) {
+                    FilterToggleRow(
+                        title: status.displayName, count: count,
+                        isIncluded: !excludedStatuses.contains(status)
+                    ) {
                         toggle(status, in: $excludedStatuses)
                     }
                 }
@@ -326,7 +352,10 @@ struct FileFilterPopover: View {
 
             FilterSection(title: "Type") {
                 ForEach(classificationCounts, id: \.0) { classification, count in
-                    FilterToggleRow(title: classification.displayName, count: count, isIncluded: !excludedClassifications.contains(classification)) {
+                    FilterToggleRow(
+                        title: classification.displayName, count: count,
+                        isIncluded: !excludedClassifications.contains(classification)
+                    ) {
                         toggle(classification, in: $excludedClassifications)
                     }
                 }
@@ -433,14 +462,15 @@ struct FilterToggleRowContent: View {
     }
 }
 
-private extension ChangedFile {
-    var filterExtension: String {
+extension ChangedFile {
+    fileprivate var filterExtension: String {
         let ext = URL(fileURLWithPath: path).pathExtension
         return ext.isEmpty ? "No extension" : ".\(ext)"
     }
 
-    func matchesSearch(_ text: String) -> Bool {
-        let terms = text
+    fileprivate func matchesSearch(_ text: String) -> Bool {
+        let terms =
+            text
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: " ")
             .map { String($0).lowercased() }
@@ -496,11 +526,16 @@ struct DiffToolbarButton: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(isActive ? .accentBlue : .textSecondary)
                 .frame(width: 26, height: 22)
-                .background(isActive ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45))
+                .background(
+                    isActive
+                        ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45)
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
-                        .stroke(isActive ? Color.accentBlue.opacity(0.35) : Color.borderMuted, lineWidth: 0.5)
+                        .stroke(
+                            isActive ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                            lineWidth: 0.5)
                 )
         }
         .buttonStyle(.plain)
@@ -569,7 +604,9 @@ struct FileTreeNode: Identifiable, Hashable {
     static func build(files: [ChangedFile]) -> [FileTreeNode] {
         var root = MutableFileTreeNode(name: "", path: "")
 
-        for file in files.sorted(by: { $0.path.localizedStandardCompare($1.path) == .orderedAscending }) {
+        for file in files.sorted(by: {
+            $0.path.localizedStandardCompare($1.path) == .orderedAscending
+        }) {
             let parts = file.path.split(separator: "/").map(String.init)
             guard !parts.isEmpty else { continue }
             root.insert(file: file, folders: Array(parts.dropLast()))
@@ -802,7 +839,8 @@ struct FileListItem: View {
         let severity = firstTarget.severity.rawValue.capitalized
         let extraCount = fileTargets.count - 1
         if extraCount > 0 {
-            return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title) (+\(extraCount) more)"
+            return
+                "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title) (+\(extraCount) more)"
         }
         return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title)"
     }
@@ -991,10 +1029,10 @@ struct HunkView: View {
 
     var alignedDiffLines: [AlignedDiffLine] {
         var aligned: [AlignedDiffLine] = []
-        
+
         var pendingDeletions: [NumberedDiffLine] = []
         var pendingAdditions: [NumberedDiffLine] = []
-        
+
         func flushPending() {
             let maxCount = max(pendingDeletions.count, pendingAdditions.count)
             for i in 0..<maxCount {
@@ -1005,7 +1043,7 @@ struct HunkView: View {
             pendingDeletions.removeAll()
             pendingAdditions.removeAll()
         }
-        
+
         for line in diffLines {
             switch line.type {
             case .context:
@@ -1021,14 +1059,16 @@ struct HunkView: View {
             }
         }
         flushPending()
-        
+
         return aligned
     }
 
     var unifiedLineNumbers: AttributedString {
         var result = AttributedString()
         for line in diffLines {
-            result.append(lineNumberText(line.oldLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
+            result.append(
+                lineNumberText(
+                    line.oldLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
         }
         return result
     }
@@ -1036,7 +1076,9 @@ struct HunkView: View {
     var unifiedNewLineNumbers: AttributedString {
         var result = AttributedString()
         for line in diffLines {
-            result.append(lineNumberText(line.newLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
+            result.append(
+                lineNumberText(
+                    line.newLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
         }
         return result
     }
@@ -1075,7 +1117,7 @@ struct HunkView: View {
         for line in diffLines {
             let lineContent = line.rawLine.isEmpty ? "" : String(line.rawLine.dropFirst())
             var attr = AttributedString(lineContent + "\n")
-            
+
             switch line.type {
             case .added:
                 attr.foregroundColor = Color.textPrimary
@@ -1153,7 +1195,7 @@ struct HunkView: View {
             if let line {
                 let lineContent = line.rawLine.isEmpty ? "" : String(line.rawLine.dropFirst())
                 var attr = AttributedString(lineContent + "\n")
-                
+
                 switch line.type {
                 case .added:
                     attr.foregroundColor = Color.textPrimary
@@ -1182,7 +1224,8 @@ struct HunkView: View {
 
     private func isTargeted(_ line: NumberedDiffLine) -> Bool {
         guard let activeTarget,
-              let start = activeTarget.lineStart else { return false }
+            let start = activeTarget.lineStart
+        else { return false }
         let end = activeTarget.lineEnd ?? start
         guard let newLineNumber = line.newLineNumber else { return false }
         return newLineNumber >= start && newLineNumber <= end
@@ -1203,7 +1246,10 @@ struct HunkView: View {
             HStack(spacing: 0) {
                 HStack(spacing: 3) {
                     Button {
-                        Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .up) }
+                        Task {
+                            await viewModel.expandHunk(
+                                fileId: fileId, hunkIndex: hunkIndex, direction: .up)
+                        }
                     } label: {
                         Image(systemName: "arrow.up.to.line")
                             .font(.system(size: 9, weight: .semibold))
@@ -1217,10 +1263,13 @@ struct HunkView: View {
 
                     if hunkIndex > 0 {
                         Button {
-                            Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .all) }
+                            Task {
+                                await viewModel.expandHunk(
+                                    fileId: fileId, hunkIndex: hunkIndex, direction: .all)
+                            }
                         } label: {
                             Image(systemName: "arrow.up.and.down")
-                               .font(.system(size: 9, weight: .semibold))
+                                .font(.system(size: 9, weight: .semibold))
                                 .foregroundColor(.accentBlue)
                                 .frame(width: 17, height: 17)
                                 .background(Color.accentBlue.opacity(0.12))
@@ -1231,7 +1280,10 @@ struct HunkView: View {
                     }
 
                     Button {
-                        Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .down) }
+                        Task {
+                            await viewModel.expandHunk(
+                                fileId: fileId, hunkIndex: hunkIndex, direction: .down)
+                        }
                     } label: {
                         Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 9, weight: .semibold))
@@ -1257,9 +1309,11 @@ struct HunkView: View {
                         Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
                             .font(.system(size: 10))
                             .foregroundColor(.textSecondary)
-                        Text("@@ -\(hunk.oldStart),\(hunk.oldLines) +\(hunk.newStart),\(hunk.newLines) @@")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.infoColor)
+                        Text(
+                            "@@ -\(hunk.oldStart),\(hunk.oldLines) +\(hunk.newStart),\(hunk.newLines) @@"
+                        )
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.infoColor)
                         Spacer()
                         Text("\(hunk.lines.count) lines")
                             .font(.system(size: 11))
@@ -1289,13 +1343,13 @@ struct HunkView: View {
                                 .padding(.trailing, 6)
                                 .background(Color.bgSubtle.opacity(0.65))
                                 .textSelection(.disabled)
-                            
+
                             Text(splitPrefixes(isLeft: true))
                                 .font(.system(size: 12, design: .monospaced))
                                 .frame(width: 18, alignment: .center)
                                 .background(Color.bgSubtle.opacity(0.65))
                                 .textSelection(.disabled)
-                            
+
                             ScrollView(.horizontal, showsIndicators: true) {
                                 Text(splitCode(isLeft: true))
                                     .font(.system(size: 12, design: .monospaced))
@@ -1306,11 +1360,11 @@ struct HunkView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .background(Color.bgCanvas)
-                        
+
                         Rectangle()
                             .fill(Color.borderMuted)
                             .frame(width: 1)
-                        
+
                         // Right Pane
                         HStack(spacing: 0) {
                             Text(splitLineNumbers(isLeft: false))
@@ -1320,13 +1374,13 @@ struct HunkView: View {
                                 .padding(.trailing, 6)
                                 .background(Color.bgSubtle.opacity(0.65))
                                 .textSelection(.disabled)
-                            
+
                             Text(splitPrefixes(isLeft: false))
                                 .font(.system(size: 12, design: .monospaced))
                                 .frame(width: 18, alignment: .center)
                                 .background(Color.bgSubtle.opacity(0.65))
                                 .textSelection(.disabled)
-                            
+
                             ScrollView(.horizontal, showsIndicators: true) {
                                 Text(splitCode(isLeft: false))
                                     .font(.system(size: 12, design: .monospaced))
@@ -1347,7 +1401,7 @@ struct HunkView: View {
                             .padding(.trailing, 6)
                             .background(Color.bgSubtle.opacity(0.65))
                             .textSelection(.disabled)
-                        
+
                         Text(unifiedNewLineNumbers)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.textTertiary)
@@ -1355,13 +1409,13 @@ struct HunkView: View {
                             .padding(.trailing, 6)
                             .background(Color.bgSubtle.opacity(0.65))
                             .textSelection(.disabled)
-                        
+
                         Text(unifiedPrefixes)
                             .font(.system(size: 12, design: .monospaced))
                             .frame(width: 18, alignment: .center)
                             .background(Color.bgSubtle.opacity(0.65))
                             .textSelection(.disabled)
-                        
+
                         ScrollView(.horizontal, showsIndicators: true) {
                             Text(unifiedCode)
                                 .font(.system(size: 12, design: .monospaced))
@@ -1381,9 +1435,10 @@ struct HunkView: View {
                     .frame(width: 3)
             }
         }
-        .overlay(RoundedRectangle(cornerRadius: 0).stroke(
-            isHighlighted ? Color.warningColor.opacity(0.3) : Color.clear, lineWidth: 1
-        ))
+        .overlay(
+            RoundedRectangle(cornerRadius: 0).stroke(
+                isHighlighted ? Color.warningColor.opacity(0.3) : Color.clear, lineWidth: 1
+            ))
     }
 }
 

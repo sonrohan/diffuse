@@ -1,5 +1,5 @@
-import SwiftUI
 import Observation
+import SwiftUI
 
 enum BranchFilter: String, CaseIterable, Identifiable {
     case all = "All"
@@ -17,18 +17,18 @@ enum BranchFilter: String, CaseIterable, Identifiable {
 class BranchPickerViewModel {
     var query: String = ""
     var filter: BranchFilter = .all
-    
+
     // Dependency
     let state: AppState
-    
+
     init(state: AppState) {
         self.state = state
     }
-    
+
     var selectedBranch: String? {
         state.selectedBranch
     }
-    
+
     private var summaries: [LocalBranchSummary] {
         if !state.localBranchSummaries.isEmpty { return state.localBranchSummaries }
         return state.localBranches.map { branch in
@@ -46,7 +46,7 @@ class BranchPickerViewModel {
             )
         }
     }
-    
+
     var visibleSummaries: [LocalBranchSummary] {
         summaries
             .filter { branch in
@@ -61,10 +61,10 @@ class BranchPickerViewModel {
             }
             .filter { branch in
                 query.isEmpty
-                || branch.branch.fuzzyContains(query)
-                || branch.lastAuthor.fuzzyContains(query)
-                || (branch.relatedPRTitle?.fuzzyContains(query) ?? false)
-                || (branch.upstream?.fuzzyContains(query) ?? false)
+                    || branch.branch.fuzzyContains(query)
+                    || branch.lastAuthor.fuzzyContains(query)
+                    || (branch.relatedPRTitle?.fuzzyContains(query) ?? false)
+                    || (branch.upstream?.fuzzyContains(query) ?? false)
             }
             .sorted { lhs, rhs in
                 if lhs.branch == selectedBranch { return true }
@@ -76,14 +76,14 @@ class BranchPickerViewModel {
                 return lhs.branch.localizedCaseInsensitiveCompare(rhs.branch) == .orderedAscending
             }
     }
-    
+
     func selectBranch(_ branch: String) async {
         await state.selectBranch(branch)
     }
 }
 
-private extension String {
-    func fuzzyContains(_ query: String) -> Bool {
+extension String {
+    fileprivate func fuzzyContains(_ query: String) -> Bool {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return true }
         let haystack = localizedLowercase

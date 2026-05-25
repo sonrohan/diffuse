@@ -5,7 +5,9 @@ import Foundation
 
 struct DiffParser {
 
-    static func classifyFile(_ path: String, profile: AnalysisProfile = .generic) -> ChangedFile.FileClassification {
+    static func classifyFile(_ path: String, profile: AnalysisProfile = .generic)
+        -> ChangedFile.FileClassification
+    {
         profile.classifyFile(path)
     }
 
@@ -43,8 +45,9 @@ struct DiffParser {
         for line in lines {
             if line.hasPrefix("diff --git ") {
                 commitFile()
-                current = ParsedFile(oldPath: nil, newPath: nil, status: .modified,
-                                     additions: 0, deletions: 0, classification: .source, hunks: [])
+                current = ParsedFile(
+                    oldPath: nil, newPath: nil, status: .modified,
+                    additions: 0, deletions: 0, classification: .source, hunks: [])
                 // Parse paths from "diff --git a/foo b/foo"
                 let rest = String(line.dropFirst("diff --git ".count))
                 let parts = rest.components(separatedBy: " ")
@@ -59,12 +62,31 @@ struct DiffParser {
 
             guard current != nil else { continue }
 
-            if line.hasPrefix("new file mode") { current?.status = .added; continue }
-            if line.hasPrefix("deleted file mode") { current?.status = .deleted; continue }
-            if line.hasPrefix("rename from ") { current?.status = .renamed; current?.oldPath = String(line.dropFirst("rename from ".count)); continue }
-            if line.hasPrefix("rename to ") { current?.newPath = String(line.dropFirst("rename to ".count)); continue }
-            if line.hasPrefix("--- a/") { current?.oldPath = String(line.dropFirst("--- a/".count)); continue }
-            if line.hasPrefix("+++ b/") { current?.newPath = String(line.dropFirst("+++ b/".count)); continue }
+            if line.hasPrefix("new file mode") {
+                current?.status = .added
+                continue
+            }
+            if line.hasPrefix("deleted file mode") {
+                current?.status = .deleted
+                continue
+            }
+            if line.hasPrefix("rename from ") {
+                current?.status = .renamed
+                current?.oldPath = String(line.dropFirst("rename from ".count))
+                continue
+            }
+            if line.hasPrefix("rename to ") {
+                current?.newPath = String(line.dropFirst("rename to ".count))
+                continue
+            }
+            if line.hasPrefix("--- a/") {
+                current?.oldPath = String(line.dropFirst("--- a/".count))
+                continue
+            }
+            if line.hasPrefix("+++ b/") {
+                current?.newPath = String(line.dropFirst("+++ b/".count))
+                continue
+            }
 
             if line.hasPrefix("@@ ") {
                 commitHunk()
@@ -104,10 +126,15 @@ struct DiffParser {
             var file = f
             let path = f.newPath ?? f.oldPath ?? ""
             file.classification = classifyFile(path, profile: profile)
-            if f.oldPath == nil && f.newPath != nil { file.status = .added }
-            else if f.oldPath != nil && f.newPath == nil { file.status = .deleted }
-            else if f.oldPath != f.newPath { file.status = .renamed }
-            else { file.status = .modified }
+            if f.oldPath == nil && f.newPath != nil {
+                file.status = .added
+            } else if f.oldPath != nil && f.newPath == nil {
+                file.status = .deleted
+            } else if f.oldPath != f.newPath {
+                file.status = .renamed
+            } else {
+                file.status = .modified
+            }
             return file
         }
     }
@@ -150,7 +177,9 @@ struct RulesEngine {
         let missingTestsRule = profile.rules.missingTests
         let sourceClasses = Set(missingTestsRule?.sourceClassifications ?? ["source"])
         let testClasses = Set(missingTestsRule?.testClassifications ?? ["test"])
-        let sourceFiles = files.filter { sourceClasses.contains($0.classification.rawValue) && $0.status != .deleted }
+        let sourceFiles = files.filter {
+            sourceClasses.contains($0.classification.rawValue) && $0.status != .deleted
+        }
         let testFiles = files.filter { testClasses.contains($0.classification.rawValue) }
 
         func fileBaseName(_ file: DiffParser.ParsedFile) -> String {
@@ -170,120 +199,146 @@ struct RulesEngine {
 
         // Missing tests for significant source changes.
         if let missingTestsRule, missingTestsRule.enabled {
-        for sf in sourceFiles where sf.additions > missingTestsRule.minimumAdditions {
-            if matchingTests(for: sf).isEmpty {
-                let path = sf.newPath ?? ""
-                let msg = TemplateRenderer.render(missingTestsRule.message, values: [
-                    "additions": "\(sf.additions)",
-                    "path": path
-                ])
-                addFinding(path, RuleFinding(
-                    severity: .low, category: .test, message: msg,
-                    lineStart: firstMeaningfulAddedLine(in: sf),
-                    lineEnd: nil,
-                    ruleSource: "standard-conventions/testing",
-                    evidence: "Modified file: \(path) (\(sf.additions) lines added)"
-                ))
+            for sf in sourceFiles where sf.additions > missingTestsRule.minimumAdditions {
+                if matchingTests(for: sf).isEmpty {
+                    let path = sf.newPath ?? ""
+                    let msg = TemplateRenderer.render(
+                        missingTestsRule.message,
+                        values: [
+                            "additions": "\(sf.additions)",
+                            "path": path,
+                        ])
+                    addFinding(
+                        path,
+                        RuleFinding(
+                            severity: .low, category: .test, message: msg,
+                            lineStart: firstMeaningfulAddedLine(in: sf),
+                            lineEnd: nil,
+                            ruleSource: "standard-conventions/testing",
+                            evidence: "Modified file: \(path) (\(sf.additions) lines added)"
+                        ))
+                }
             }
-        }
         }
 
         if let schemaSync = profile.rules.schemaSync, schemaSync.enabled {
             let migrationFiles = files.filter {
-                PatternMatcher.matchesAny($0.newPath ?? $0.oldPath ?? "", patterns: schemaSync.migrationPaths)
+                PatternMatcher.matchesAny(
+                    $0.newPath ?? $0.oldPath ?? "", patterns: schemaSync.migrationPaths)
             }
             if !migrationFiles.isEmpty {
-            let hasSchemaChanges = files.contains {
-                $0.classification == .source &&
-                PatternMatcher.matchesAny($0.newPath ?? $0.oldPath ?? "", patterns: schemaSync.schemaPaths)
-            }
-            if !hasSchemaChanges {
-                for mig in migrationFiles {
-                    let path = mig.newPath ?? mig.oldPath ?? ""
-                    addFinding(path, RuleFinding(
-                        severity: .low, category: .architecture,
-                        message: schemaSync.message,
-                        ruleSource: "database/schema-sync",
-                        evidence: "Migration file: \(path)"
-                    ))
+                let hasSchemaChanges = files.contains {
+                    $0.classification == .source
+                        && PatternMatcher.matchesAny(
+                            $0.newPath ?? $0.oldPath ?? "", patterns: schemaSync.schemaPaths)
                 }
-            }
+                if !hasSchemaChanges {
+                    for mig in migrationFiles {
+                        let path = mig.newPath ?? mig.oldPath ?? ""
+                        addFinding(
+                            path,
+                            RuleFinding(
+                                severity: .low, category: .architecture,
+                                message: schemaSync.message,
+                                ruleSource: "database/schema-sync",
+                                evidence: "Migration file: \(path)"
+                            ))
+                    }
+                }
             }
         }
 
         var emittedImportViolations = Set<String>()
         for boundary in profile.rules.importBoundaries {
-        for sym in symbols {
-            guard let path = filePathMap[sym.changedFileId] else { continue }
-            guard PatternMatcher.matchesAny(path, patterns: boundary.sourcePaths) else { continue }
+            for sym in symbols {
+                guard let path = filePathMap[sym.changedFileId] else { continue }
+                guard PatternMatcher.matchesAny(path, patterns: boundary.sourcePaths) else {
+                    continue
+                }
 
-            let imports = (sym.metadata["imports"] ?? "")
-                .split(separator: ",")
-                .map { String($0) }
-            let forbidden = imports.first {
-                PatternMatcher.matchesAny($0, patterns: boundary.forbiddenImports)
+                let imports = (sym.metadata["imports"] ?? "")
+                    .split(separator: ",")
+                    .map { String($0) }
+                let forbidden = imports.first {
+                    PatternMatcher.matchesAny($0, patterns: boundary.forbiddenImports)
+                }
+                if let forbidden {
+                    let violationKey = "\(boundary.id)::\(path)::\(forbidden)"
+                    guard emittedImportViolations.insert(violationKey).inserted else { continue }
+                    addFinding(
+                        path,
+                        RuleFinding(
+                            severity: ProfileValue.severity(boundary.severity),
+                            category: ProfileValue.findingCategory(boundary.category),
+                            message: TemplateRenderer.render(
+                                boundary.message, values: ["symbol": sym.name, "path": path]),
+                            lineStart: sym.startLine,
+                            lineEnd: sym.endLine,
+                            ruleSource: boundary.id,
+                            evidence: "Import detected by AST sidecar: \(forbidden)"
+                        ))
+                }
             }
-            if let forbidden {
-                let violationKey = "\(boundary.id)::\(path)::\(forbidden)"
-                guard emittedImportViolations.insert(violationKey).inserted else { continue }
-                addFinding(path, RuleFinding(
-                    severity: ProfileValue.severity(boundary.severity),
-                    category: ProfileValue.findingCategory(boundary.category),
-                    message: TemplateRenderer.render(boundary.message, values: ["symbol": sym.name, "path": path]),
-                    lineStart: sym.startLine,
-                    lineEnd: sym.endLine,
-                    ruleSource: boundary.id,
-                    evidence: "Import detected by AST sidecar: \(forbidden)"
-                ))
-            }
-        }
         }
 
         for rule in profile.rules.semanticAreaFindings {
-        for sym in symbols {
-            guard let path = filePathMap[sym.changedFileId] else { continue }
-            guard findingRule(rule, matches: sym, path: path) else { continue }
-            addFinding(path, RuleFinding(
-                severity: ProfileValue.severity(rule.severity),
-                category: ProfileValue.findingCategory(rule.category),
-                message: TemplateRenderer.render(rule.message, values: ["symbol": sym.name, "path": path]),
-                lineStart: sym.startLine,
-                lineEnd: sym.endLine,
-                ruleSource: rule.id,
-                evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType))."
-            ))
-        }
+            for sym in symbols {
+                guard let path = filePathMap[sym.changedFileId] else { continue }
+                guard findingRule(rule, matches: sym, path: path) else { continue }
+                addFinding(
+                    path,
+                    RuleFinding(
+                        severity: ProfileValue.severity(rule.severity),
+                        category: ProfileValue.findingCategory(rule.category),
+                        message: TemplateRenderer.render(
+                            rule.message, values: ["symbol": sym.name, "path": path]),
+                        lineStart: sym.startLine,
+                        lineEnd: sym.endLine,
+                        ruleSource: rule.id,
+                        evidence: "AST-extracted symbol '\(sym.name)' (type: \(sym.semanticType))."
+                    ))
+            }
         }
 
         for rule in profile.rules.contractFindings {
-        for sym in symbols where metadataMatches(sym.metadata, equals: rule.metadataEquals) {
-            guard let path = filePathMap[sym.changedFileId] else { continue }
-            addFinding(path, RuleFinding(
-                severity: ProfileValue.severity(rule.severity),
-                category: ProfileValue.findingCategory(rule.category),
-                message: TemplateRenderer.render(rule.message, values: ["symbol": sym.name, "path": path]),
-                lineStart: sym.startLine,
-                lineEnd: sym.endLine,
-                ruleSource: rule.id,
-                evidence: "AST comparison detected metadata match for '\(sym.name)' (\(sym.semanticType))."
-            ))
-        }
+            for sym in symbols where metadataMatches(sym.metadata, equals: rule.metadataEquals) {
+                guard let path = filePathMap[sym.changedFileId] else { continue }
+                addFinding(
+                    path,
+                    RuleFinding(
+                        severity: ProfileValue.severity(rule.severity),
+                        category: ProfileValue.findingCategory(rule.category),
+                        message: TemplateRenderer.render(
+                            rule.message, values: ["symbol": sym.name, "path": path]),
+                        lineStart: sym.startLine,
+                        lineEnd: sym.endLine,
+                        ruleSource: rule.id,
+                        evidence:
+                            "AST comparison detected metadata match for '\(sym.name)' (\(sym.semanticType))."
+                    ))
+            }
         }
 
         guard let coverageRule = profile.rules.symbolCoverage, coverageRule.enabled else {
             return fileFindings
         }
         let testSymbols = symbols.filter { sym in
-            sym.metadata["is_test"] == "true" || testFiles.contains(where: { $0.newPath == filePathMap[sym.changedFileId] })
+            sym.metadata["is_test"] == "true"
+                || testFiles.contains(where: { $0.newPath == filePathMap[sym.changedFileId] })
         }
         let productionSymbols = symbols.filter { sym in
             guard let path = filePathMap[sym.changedFileId] else { return false }
             return profile.classifyFile(path) == .source && sym.metadata["is_test"] != "true"
         }
         for sym in productionSymbols {
-            let isRisky = metadataMatches(sym.metadata, equals: coverageRule.riskMetadataEquals)
-                || sym.metadata.keys.contains { key in coverageRule.riskMetadataPrefixes.contains { key.hasPrefix($0) } }
-                || sym.metadata.keys.contains { key in coverageRule.riskMetadataSuffixes.contains { key.hasSuffix($0) } }
+            let isRisky =
+                metadataMatches(sym.metadata, equals: coverageRule.riskMetadataEquals)
+                || sym.metadata.keys.contains { key in
+                    coverageRule.riskMetadataPrefixes.contains { key.hasPrefix($0) }
+                }
+                || sym.metadata.keys.contains { key in
+                    coverageRule.riskMetadataSuffixes.contains { key.hasSuffix($0) }
+                }
             guard isRisky, let path = filePathMap[sym.changedFileId] else { continue }
 
             let normalizedName = sym.name.lowercased()
@@ -292,18 +347,24 @@ struct RulesEngine {
                 let testName = testSym.name.lowercased()
                 return testName.contains(normalizedName)
                     || testPath.contains(normalizedName)
-                    || testSym.callees.contains(where: { $0.caseInsensitiveCompare(sym.name) == .orderedSame })
+                    || testSym.callees.contains(where: {
+                        $0.caseInsensitiveCompare(sym.name) == .orderedSame
+                    })
             }
             if !hasRelatedTest {
-                addFinding(path, RuleFinding(
-                    severity: .low,
-                    category: .test,
-                    message: TemplateRenderer.render(coverageRule.message, values: ["symbol": sym.name, "path": path]),
-                    lineStart: sym.startLine,
-                    lineEnd: sym.endLine,
-                    ruleSource: "testing/symbol-coverage",
-                    evidence: "No changed test symbol references '\(sym.name)' by name or direct callee metadata."
-                ))
+                addFinding(
+                    path,
+                    RuleFinding(
+                        severity: .low,
+                        category: .test,
+                        message: TemplateRenderer.render(
+                            coverageRule.message, values: ["symbol": sym.name, "path": path]),
+                        lineStart: sym.startLine,
+                        lineEnd: sym.endLine,
+                        ruleSource: "testing/symbol-coverage",
+                        evidence:
+                            "No changed test symbol references '\(sym.name)' by name or direct callee metadata."
+                    ))
             }
         }
 
@@ -331,7 +392,9 @@ struct RulesEngine {
     private static func isMeaningfulAddedLine(_ content: String) -> Bool {
         guard !content.isEmpty else { return false }
         if content.hasPrefix("import ") || content.hasPrefix("package ") { return false }
-        if content.hasPrefix("//") || content.hasPrefix("/*") || content.hasPrefix("*") { return false }
+        if content.hasPrefix("//") || content.hasPrefix("/*") || content.hasPrefix("*") {
+            return false
+        }
         return true
     }
 
@@ -345,88 +408,120 @@ struct RulesEngine {
         var factors: [String] = []
         let scoring = profile.riskScoring
 
-        let hasProductionChanges = files.contains { $0.classification == .source && $0.status != .deleted }
+        let hasProductionChanges = files.contains {
+            $0.classification == .source && $0.status != .deleted
+        }
         let hasTestChanges = files.contains { $0.classification == .test }
-        let hasGeneratedOnly = !files.isEmpty && files.allSatisfy { $0.classification == .generated }
+        let hasGeneratedOnly =
+            !files.isEmpty && files.allSatisfy { $0.classification == .generated }
 
         if hasGeneratedOnly {
             score += scoring.generatedOnlyDelta
-            factors.append("Generated-only or formatting-only changes (\(signed(scoring.generatedOnlyDelta)))")
+            factors.append(
+                "Generated-only or formatting-only changes (\(signed(scoring.generatedOnlyDelta)))")
         } else {
             if hasProductionChanges {
                 score += scoring.productionChangeDelta
-                factors.append("Production source code changed (\(signed(scoring.productionChangeDelta)))")
+                factors.append(
+                    "Production source code changed (\(signed(scoring.productionChangeDelta)))")
             }
 
             let hasApiChanges = files.contains {
-                PatternMatcher.matchesAny($0.newPath ?? $0.oldPath ?? "", patterns: scoring.apiPaths)
+                PatternMatcher.matchesAny(
+                    $0.newPath ?? $0.oldPath ?? "", patterns: scoring.apiPaths)
             }
             if hasApiChanges {
                 score += scoring.apiPathDelta
-                factors.append("Configured API surface files modified (\(signed(scoring.apiPathDelta)))")
+                factors.append(
+                    "Configured API surface files modified (\(signed(scoring.apiPathDelta)))")
             }
 
             let hasSensitiveChanges = files.contains {
-                PatternMatcher.matchesAny($0.newPath ?? $0.oldPath ?? "", patterns: scoring.sensitivePaths)
+                PatternMatcher.matchesAny(
+                    $0.newPath ?? $0.oldPath ?? "", patterns: scoring.sensitivePaths)
             }
             if hasSensitiveChanges {
                 score += scoring.sensitivePathDelta
-                factors.append("Configured sensitive paths modified (\(signed(scoring.sensitivePathDelta)))")
+                factors.append(
+                    "Configured sensitive paths modified (\(signed(scoring.sensitivePathDelta)))")
             }
 
             if hasProductionChanges && !hasTestChanges {
                 score += scoring.missingTestsDelta
-                factors.append("No test file additions or updates included with source changes (\(signed(scoring.missingTestsDelta)))")
+                factors.append(
+                    "No test file additions or updates included with source changes (\(signed(scoring.missingTestsDelta)))"
+                )
             }
 
-            let hasArchViolations = findings.contains { $0.severity == .high || $0.category == .architecture }
+            let hasArchViolations = findings.contains {
+                $0.severity == .high || $0.category == .architecture
+            }
             if hasArchViolations {
                 score += scoring.architectureFindingDelta
-                factors.append("High-severity architectural rule violation found (\(signed(scoring.architectureFindingDelta)))")
+                factors.append(
+                    "High-severity architectural rule violation found (\(signed(scoring.architectureFindingDelta)))"
+                )
             }
 
-            if symbols.contains(where: { $0.metadata["caller_resolution"] == "indexed" && $0.callers.count > 5 }) {
+            if symbols.contains(where: {
+                $0.metadata["caller_resolution"] == "indexed" && $0.callers.count > 5
+            }) {
                 score += scoring.highFanInDelta
                 factors.append("High fan-in symbol modified (\(signed(scoring.highFanInDelta)))")
             }
 
-            if symbols.contains(where: { $0.metadata.keys.contains { $0.starts(with: "contract_") } }) {
+            if symbols.contains(where: {
+                $0.metadata.keys.contains { $0.starts(with: "contract_") }
+            }) {
                 score += scoring.contractDelta
                 factors.append("AST contract surface changed (\(signed(scoring.contractDelta)))")
             }
 
             if symbols.contains(where: { $0.metadata.keys.contains { $0.hasSuffix("_added") } }) {
                 score += scoring.behaviorAddedDelta
-                factors.append("AST detected newly introduced behavior (\(signed(scoring.behaviorAddedDelta)))")
+                factors.append(
+                    "AST detected newly introduced behavior (\(signed(scoring.behaviorAddedDelta)))"
+                )
             }
 
             if hasTestChanges {
                 score += scoring.testChangeDelta
-                factors.append("Tests added or updated for changed production area (\(signed(scoring.testChangeDelta)))")
+                factors.append(
+                    "Tests added or updated for changed production area (\(signed(scoring.testChangeDelta)))"
+                )
             }
         }
 
         return RiskBreakdown(score: max(0, min(100, score)), factors: factors)
     }
 
-    private static func metadataMatches(_ metadata: [String: String], equals: [String: String]) -> Bool {
+    private static func metadataMatches(_ metadata: [String: String], equals: [String: String])
+        -> Bool
+    {
         equals.allSatisfy { metadata[$0.key] == $0.value }
     }
 
-    private static func findingRule(_ rule: SemanticAreaFindingRule, matches symbol: ChangedSymbol, path: String) -> Bool {
+    private static func findingRule(
+        _ rule: SemanticAreaFindingRule, matches symbol: ChangedSymbol, path: String
+    ) -> Bool {
         if let semanticArea = rule.semanticArea, symbol.metadata["semantic_area"] != semanticArea {
             return false
         }
-        if let metadataEquals = rule.metadataEquals, !metadataMatches(symbol.metadata, equals: metadataEquals) {
+        if let metadataEquals = rule.metadataEquals,
+            !metadataMatches(symbol.metadata, equals: metadataEquals)
+        {
             return false
         }
         if let paths = rule.paths, !PatternMatcher.matchesAny(path, patterns: paths) {
             return false
         }
-        if let symbolNames = rule.symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
+        if let symbolNames = rule.symbolNames,
+            !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames)
+        {
             return false
         }
-        return rule.semanticArea != nil || rule.metadataEquals != nil || rule.paths != nil || rule.symbolNames != nil
+        return rule.semanticArea != nil || rule.metadataEquals != nil || rule.paths != nil
+            || rule.symbolNames != nil
     }
 
     private static func signed(_ value: Int) -> String {
@@ -480,15 +575,21 @@ struct TriageEngine {
         let ruleFindings = findings.map {
             RulesEngine.RuleFinding(
                 severity: $0.severity, category: $0.category, message: $0.message,
-                lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource, evidence: $0.evidence
+                lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource,
+                evidence: $0.evidence
             )
         }
 
-        let riskBreakdown = RulesEngine.calculateRiskScore(files: parsedFiles, symbols: symbols, findings: ruleFindings, profile: profile)
+        let riskBreakdown = RulesEngine.calculateRiskScore(
+            files: parsedFiles, symbols: symbols, findings: ruleFindings, profile: profile)
         let riskFactors = riskBreakdown.factors
 
         // Build change buckets
-        var bucketDrafts: [String: (type: ChangeBucketType, title: String, files: [String], symbols: [String], riskLevel: Severity, riskReasons: [String], evidence: [String])] = [:]
+        var bucketDrafts:
+            [String: (
+                type: ChangeBucketType, title: String, files: [String], symbols: [String],
+                riskLevel: Severity, riskReasons: [String], evidence: [String]
+            )] = [:]
 
         let findingsByPath: [String: [Finding]] = findings.reduce(into: [:]) { acc, f in
             let path = fileById[f.changedFileId]?.path ?? "unknown"
@@ -498,7 +599,8 @@ struct TriageEngine {
         for file in effectiveFiles {
             let fileFindings = findingsByPath[file.path] ?? []
             let fileSymbolsForBucket = symbols.filter { $0.changedFileId == file.id }
-            let matchedRule = profile.bucketRule(for: file, findings: fileFindings, symbols: fileSymbolsForBucket)
+            let matchedRule = profile.bucketRule(
+                for: file, findings: fileFindings, symbols: fileSymbolsForBucket)
             let type = matchedRule?.bucketType ?? .behavior
             let bucketKey = matchedRule?.id ?? type.rawValue
             let title = matchedRule?.title ?? type.displayTitle
@@ -515,8 +617,10 @@ struct TriageEngine {
                 existing.riskLevel = maxSeverity([existing.riskLevel, fileRisk])
                 bucketDrafts[bucketKey] = existing
             } else {
-                bucketDrafts[bucketKey] = (type: type, title: title, files: [file.path], symbols: fileSymbols,
-                                           riskLevel: fileRisk, riskReasons: riskReasons, evidence: evidence)
+                bucketDrafts[bucketKey] = (
+                    type: type, title: title, files: [file.path], symbols: fileSymbols,
+                    riskLevel: fileRisk, riskReasons: riskReasons, evidence: evidence
+                )
             }
         }
 
@@ -526,7 +630,8 @@ struct TriageEngine {
             ChangeBucket(
                 id: "bucket-\(key)", type: draft.type,
                 title: draft.title,
-                summary: "\(draft.files.count) file\(draft.files.count == 1 ? "" : "s") grouped as \(draft.title.lowercased()).",
+                summary:
+                    "\(draft.files.count) file\(draft.files.count == 1 ? "" : "s") grouped as \(draft.title.lowercased()).",
                 files: draft.files,
                 symbols: Array(Set(draft.symbols)),
                 riskLevel: draft.riskLevel,
@@ -538,8 +643,10 @@ struct TriageEngine {
             if $0.riskLevel != $1.riskLevel { return $0.riskLevel > $1.riskLevel }
             let aid = String($0.id.dropFirst("bucket-".count))
             let bid = String($1.id.dropFirst("bucket-".count))
-            let ai = bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
-            let bi = bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
+            let ai =
+                bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
+            let bi =
+                bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
             return ai < bi
         }.enumerated().map { idx, b in
             var b2 = b
@@ -548,7 +655,8 @@ struct TriageEngine {
         }
 
         let bucketIdForPath: (String) -> String = { path in
-            changeBuckets.first { $0.files.contains(path) }?.id ?? changeBuckets.first?.id ?? "bucket-behavior"
+            changeBuckets.first { $0.files.contains(path) }?.id ?? changeBuckets.first?.id
+                ?? "bucket-behavior"
         }
 
         // Build risk highlights from findings
@@ -597,24 +705,30 @@ struct TriageEngine {
             b.riskReasons = Array(Set(bHighlights.map { $0.title } + bucket.riskReasons))
             b.evidence = Array(Set(bHighlights.flatMap { $0.evidence } + bucket.evidence))
             if let first = bHighlights.first {
-                b.summary = "\(bucket.files.count) file\(bucket.files.count == 1 ? "" : "s") grouped by semantic area. Key signal: \(first.title)."
+                b.summary =
+                    "\(bucket.files.count) file\(bucket.files.count == 1 ? "" : "s") grouped by semantic area. Key signal: \(first.title)."
             }
             return b
         }.sorted {
             if $0.riskLevel != $1.riskLevel { return $0.riskLevel > $1.riskLevel }
             let aid = String($0.id.dropFirst("bucket-".count))
             let bid = String($1.id.dropFirst("bucket-".count))
-            let ai = bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
-            let bi = bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
+            let ai =
+                bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
+            let bi =
+                bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
             return ai < bi
         }.enumerated().map { idx, b in
-            var b2 = b; b2.reviewOrder = idx + 1; return b2
+            var b2 = b
+            b2.reviewOrder = idx + 1
+            return b2
         }
 
         // Build review targets from actionable highlights. Priority signals stay medium+;
         // targets can include low-severity AST entry points so ordinary feature work
         // still has useful reviewer navigation.
-        let reviewTargets: [ReviewTarget] = riskHighlights
+        let reviewTargets: [ReviewTarget] =
+            riskHighlights
             .filter { $0.severity >= .low }
             .enumerated().map { idx, h in
                 let matchFile = effectiveFiles.first { $0.path == h.filePath }
@@ -635,7 +749,8 @@ struct TriageEngine {
             }
 
         // Build skim targets
-        let skimTargets: [SkimTarget] = effectiveFiles
+        let skimTargets: [SkimTarget] =
+            effectiveFiles
             .filter { $0.classification != .source && $0.classification != .test }
             .map { f in
                 let reason: String
@@ -645,14 +760,20 @@ struct TriageEngine {
                 case .documentation: reason = "Documentation-only changes."
                 default: reason = "Boilerplate or declaration-only code changes."
                 }
-                return SkimTarget(id: "skim-\(f.id.uuidString)", filePath: f.path, reason: reason,
-                                  classification: f.classification, additions: f.additions, deletions: f.deletions)
+                return SkimTarget(
+                    id: "skim-\(f.id.uuidString)", filePath: f.path, reason: reason,
+                    classification: f.classification, additions: f.additions, deletions: f.deletions
+                )
             }
 
         // Build symbol-first review map (Step 1)
-        let symbolReviewGroups = buildSymbolReviewGroups(symbols: symbols, files: effectiveFiles, profile: profile)
+        let symbolReviewGroups = buildSymbolReviewGroups(
+            symbols: symbols, files: effectiveFiles, profile: profile)
 
-        return (reviewTargets, changeBuckets, riskHighlights, skimTargets, riskFactors, symbolReviewGroups)
+        return (
+            reviewTargets, changeBuckets, riskHighlights, skimTargets, riskFactors,
+            symbolReviewGroups
+        )
     }
 
     // MARK: - Step 1: Symbol-first review map
@@ -667,7 +788,9 @@ struct TriageEngine {
 
         // Include symbols from source and test files; skip generated/config/docs.
         let reviewSymbols = symbols.filter { sym in
-            guard let classification = fileById[sym.changedFileId]?.classification else { return false }
+            guard let classification = fileById[sym.changedFileId]?.classification else {
+                return false
+            }
             return classification == .source || classification == .test
         }
 
@@ -687,12 +810,13 @@ struct TriageEngine {
             }
             if !groupSymbols.isEmpty {
                 assignedIds.formUnion(groupSymbols.map { $0.id })
-                groups.append(SymbolReviewGroup(
-                    semanticArea: groupRule.id,
-                    displayLabel: groupRule.label,
-                    iconName: groupRule.icon,
-                    symbols: groupSymbols
-                ))
+                groups.append(
+                    SymbolReviewGroup(
+                        semanticArea: groupRule.id,
+                        displayLabel: groupRule.label,
+                        iconName: groupRule.icon,
+                        symbols: groupSymbols
+                    ))
             }
         }
 
@@ -713,19 +837,26 @@ struct TriageEngine {
         return idx
     }
 
-    private static func consolidateRiskHighlights(_ highlights: [RiskHighlight], files: [ChangedFile]) -> [RiskHighlight] {
+    private static func consolidateRiskHighlights(
+        _ highlights: [RiskHighlight], files: [ChangedFile]
+    ) -> [RiskHighlight] {
         let fileByPath = Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0) })
-        let indexedHighlights: [(index: Int, key: String, highlight: RiskHighlight)] = highlights.enumerated().map { index, highlight in
-            let hunkIndex = fileByPath[highlight.filePath].flatMap { getHunkIndex($0, lineStart: highlight.lineStart) }
-            let lineGroup = hunkIndex.map { "hunk-\($0)" } ?? highlight.lineStart.map { "line-\($0)" } ?? normalizedSignalText(highlight.title)
-            let key = [
-                highlight.bucketId,
-                highlight.filePath,
-                highlight.category.rawValue,
-                lineGroup
-            ].joined(separator: "|")
-            return (index: index, key: key, highlight: highlight)
-        }
+        let indexedHighlights: [(index: Int, key: String, highlight: RiskHighlight)] =
+            highlights.enumerated().map { index, highlight in
+                let hunkIndex = fileByPath[highlight.filePath].flatMap {
+                    getHunkIndex($0, lineStart: highlight.lineStart)
+                }
+                let lineGroup =
+                    hunkIndex.map { "hunk-\($0)" } ?? highlight.lineStart.map { "line-\($0)" }
+                    ?? normalizedSignalText(highlight.title)
+                let key = [
+                    highlight.bucketId,
+                    highlight.filePath,
+                    highlight.category.rawValue,
+                    lineGroup,
+                ].joined(separator: "|")
+                return (index: index, key: key, highlight: highlight)
+            }
 
         let grouped = Dictionary(grouping: indexedHighlights, by: \.key)
 
@@ -743,10 +874,14 @@ struct TriageEngine {
             let primary = ordered[0].highlight
             let members = ordered.map(\.highlight)
             let mergedEvidence = uniqueStrings(
-                (members.count > 1 ? ["Includes \(members.count) related signal\(members.count == 1 ? "" : "s") in this diff block."] : []) +
-                members.flatMap(\.evidence)
+                (members.count > 1
+                    ? [
+                        "Includes \(members.count) related signal\(members.count == 1 ? "" : "s") in this diff block."
+                    ] : []) + members.flatMap(\.evidence)
             )
-            let mergedTitle = members.count > 1 ? "\(primary.title) (+\(members.count - 1) related)" : primary.title
+            let mergedTitle =
+                members.count > 1
+                ? "\(primary.title) (+\(members.count - 1) related)" : primary.title
 
             return RiskHighlight(
                 id: "signal-group-\(normalizedSignalText(ordered[0].key))",
@@ -759,7 +894,8 @@ struct TriageEngine {
                 lineEnd: members.compactMap(\.lineEnd).max(),
                 evidence: mergedEvidence,
                 source: uniqueStrings(members.map(\.source)).joined(separator: " + "),
-                confidence: members.contains { $0.confidence == "high" } ? "high" : primary.confidence
+                confidence: members.contains { $0.confidence == "high" }
+                    ? "high" : primary.confidence
             )
         }
     }
@@ -820,19 +956,20 @@ struct TriageEngine {
             confidence: String = "high",
             source: String = "ast-classifier"
         ) {
-            highlights.append(RiskHighlight(
-                id: "semantic-\(counter)",
-                bucketId: bucketIdForPath(filePath),
-                severity: severity,
-                category: category,
-                title: title,
-                filePath: filePath,
-                lineStart: lineStart,
-                lineEnd: lineEnd,
-                evidence: evidence,
-                source: source,
-                confidence: confidence
-            ))
+            highlights.append(
+                RiskHighlight(
+                    id: "semantic-\(counter)",
+                    bucketId: bucketIdForPath(filePath),
+                    severity: severity,
+                    category: category,
+                    title: title,
+                    filePath: filePath,
+                    lineStart: lineStart,
+                    lineEnd: lineEnd,
+                    evidence: evidence,
+                    source: source,
+                    confidence: confidence
+                ))
             counter += 1
         }
 
@@ -842,13 +979,15 @@ struct TriageEngine {
         // --- Symbol-level highlights (from AST sidecar) ---
         for sym in symbols {
             let filePath = fileById[sym.changedFileId] ?? "unknown"
-            for rule in profile.semanticHighlights where semanticHighlight(rule, matches: sym, path: filePath) {
+            for rule in profile.semanticHighlights
+            where semanticHighlight(rule, matches: sym, path: filePath) {
                 let values = [
                     "symbol": sym.name,
                     "path": filePath,
-                    "semanticType": sym.semanticType
+                    "semanticType": sym.semanticType,
                 ]
-                add(filePath: filePath,
+                add(
+                    filePath: filePath,
                     severity: ProfileValue.severity(rule.severity),
                     category: ProfileValue.riskCategory(rule.category),
                     title: TemplateRenderer.render(rule.title, values: values),
@@ -859,7 +998,7 @@ struct TriageEngine {
                     source: rule.id)
             }
 
-        } // end for sym in symbols
+        }  // end for sym in symbols
 
         // --- File-level highlights (no sidecar data available, or non-source files) ---
         // Only fires for files that produced zero symbols (binary, unsupported language, etc.)
@@ -867,7 +1006,8 @@ struct TriageEngine {
         for file in files {
             // Test files not covered by a symbol highlight
             if file.classification == .test && !filesWithSymbols.contains(file.id) {
-                add(filePath: file.path, severity: .info, category: .testGap,
+                add(
+                    filePath: file.path, severity: .info, category: .testGap,
                     title: "Tests updated",
                     lineStart: nil, lineEnd: nil,
                     evidence: ["\(file.path) adds or updates test coverage."],
@@ -875,13 +1015,17 @@ struct TriageEngine {
                     source: "file-classifier")
             }
 
-            for rule in profile.fileHighlights where fileHighlight(rule, matches: file, hasSymbols: filesWithSymbols.contains(file.id)) {
+            for rule in profile.fileHighlights
+            where fileHighlight(rule, matches: file, hasSymbols: filesWithSymbols.contains(file.id))
+            {
                 let values = [
-                    "filename": URL(fileURLWithPath: file.path).deletingPathExtension().lastPathComponent,
+                    "filename": URL(fileURLWithPath: file.path).deletingPathExtension()
+                        .lastPathComponent,
                     "path": file.path,
-                    "additions": "\(file.additions)"
+                    "additions": "\(file.additions)",
                 ]
-                add(filePath: file.path,
+                add(
+                    filePath: file.path,
                     severity: ProfileValue.severity(rule.severity),
                     category: ProfileValue.riskCategory(rule.category),
                     title: TemplateRenderer.render(rule.title, values: values),
@@ -896,30 +1040,41 @@ struct TriageEngine {
         return highlights
     }
 
-    private static func semanticHighlight(_ rule: SemanticHighlightRule, matches symbol: ChangedSymbol, path: String) -> Bool {
+    private static func semanticHighlight(
+        _ rule: SemanticHighlightRule, matches symbol: ChangedSymbol, path: String
+    ) -> Bool {
         if let semanticArea = rule.semanticArea, symbol.metadata["semantic_area"] != semanticArea {
             return false
         }
-        if let metadataEquals = rule.metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) {
+        if let metadataEquals = rule.metadataEquals,
+            !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value })
+        {
             return false
         }
         if let paths = rule.paths, !PatternMatcher.matchesAny(path, patterns: paths) {
             return false
         }
-        if let symbolNames = rule.symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
+        if let symbolNames = rule.symbolNames,
+            !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames)
+        {
             return false
         }
-        return rule.semanticArea != nil || rule.metadataEquals != nil || rule.paths != nil || rule.symbolNames != nil
+        return rule.semanticArea != nil || rule.metadataEquals != nil || rule.paths != nil
+            || rule.symbolNames != nil
     }
 
-    private static func fileHighlight(_ rule: FileHighlightRule, matches file: ChangedFile, hasSymbols: Bool) -> Bool {
+    private static func fileHighlight(
+        _ rule: FileHighlightRule, matches file: ChangedFile, hasSymbols: Bool
+    ) -> Bool {
         if rule.requiresNoSymbols == true && hasSymbols {
             return false
         }
         if let minimumAdditions = rule.minimumAdditions, file.additions <= minimumAdditions {
             return false
         }
-        if let classifications = rule.classifications, !classifications.contains(file.classification.rawValue) {
+        if let classifications = rule.classifications,
+            !classifications.contains(file.classification.rawValue)
+        {
             return false
         }
         if let paths = rule.paths, !PatternMatcher.matchesAny(file.path, patterns: paths) {

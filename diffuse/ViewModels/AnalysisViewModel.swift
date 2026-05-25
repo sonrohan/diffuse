@@ -1,5 +1,5 @@
-import SwiftUI
 import Observation
+import SwiftUI
 
 @Observable
 @MainActor
@@ -11,13 +11,13 @@ class AnalysisViewModel {
     var activeFileId: UUID? = nil
     var activeHunkIndex: Int? = nil
     var activeTargetId: UUID? = nil
-    
+
     // Tracking active run to handle transitions cleanly
     private var lastRunId: UUID? = nil
-    
+
     // Dependency
     let state: AppState
-    
+
     init(state: AppState) {
         self.state = state
         if let details = state.analysisDetails {
@@ -25,16 +25,16 @@ class AnalysisViewModel {
             lastRunId = details.run.id
         }
     }
-    
+
     var details: AnalysisDetails? {
         state.analysisDetails
     }
-    
+
     var selectedBucket: ChangeBucket? {
         guard let selectedBucketId, let details = state.analysisDetails else { return nil }
         return details.changeBuckets.first { $0.id == selectedBucketId }
     }
-    
+
     var bucketFiles: [ChangedFile] {
         guard let details = state.analysisDetails else { return [] }
         if isNeedsAttentionViewSelected {
@@ -72,7 +72,7 @@ class AnalysisViewModel {
         guard let activeTargetId, let details = state.analysisDetails else { return nil }
         return details.reviewTargets.first { $0.id == activeTargetId }
     }
-    
+
     func refreshIfNecessary() {
         guard let currentDetails = state.analysisDetails else { return }
         if currentDetails.run.id != lastRunId {
@@ -80,7 +80,7 @@ class AnalysisViewModel {
             resetSelection(details: currentDetails)
         }
     }
-    
+
     func resetSelection(details: AnalysisDetails) {
         if let id = selectedBucketId, !details.changeBuckets.contains(where: { $0.id == id }) {
             selectedBucketId = nil
@@ -93,12 +93,14 @@ class AnalysisViewModel {
         }
 
         let ordered = reorderFiles(bucketFiles, highlights: details.riskHighlights)
-        let firstFile = ordered.first(where: { $0.classification == .source || $0.classification == .test }) ?? ordered.first
+        let firstFile =
+            ordered.first(where: { $0.classification == .source || $0.classification == .test })
+            ?? ordered.first
         activeFileId = firstFile?.id
         activeHunkIndex = nil
         activeTargetId = nil
     }
-    
+
     func selectAllChanges() {
         selectedBucketId = nil
         isLowerSignalViewSelected = false
@@ -129,7 +131,8 @@ class AnalysisViewModel {
         isNeedsAttentionViewSelected = false
         guard let details = state.analysisDetails else { return }
         let bucket = details.changeBuckets.first { $0.id == id }
-        let files = bucket.map { b in details.files.filter { b.files.contains($0.path) } } ?? details.files
+        let files =
+            bucket.map { b in details.files.filter { b.files.contains($0.path) } } ?? details.files
         let ordered = reorderFiles(files, highlights: details.riskHighlights)
         activeFileId = ordered.first?.id
         activeHunkIndex = nil
@@ -217,23 +220,26 @@ class AnalysisViewModel {
             line >= h.newStart && line <= h.newStart + h.newLines - 1
         }
     }
-    
+
     func expandHunk(fileId: UUID, hunkIndex: Int, direction: ExpandDirection) async {
         guard let repo = state.selectedRepo,
-              var details = state.analysisDetails,
-              let fileIdx = details.files.firstIndex(where: { $0.id == fileId }) else { return }
-        
+            var details = state.analysisDetails,
+            let fileIdx = details.files.firstIndex(where: { $0.id == fileId })
+        else { return }
+
         let file = details.files[fileIdx]
         let hunk = file.hunks[hunkIndex]
-        
-        let baseRevision = state.selectedCommitSha != nil ? "\(state.selectedCommitSha!)~1" : (state.selectedPR?.baseSha ?? "HEAD~1")
-        
+
+        let baseRevision =
+            state.selectedCommitSha != nil
+            ? "\(state.selectedCommitSha!)~1" : (state.selectedPR?.baseSha ?? "HEAD~1")
+
         let content = GitService.fileContent(at: baseRevision, path: file.path, cwd: repo.path)
         guard !content.isEmpty else { return }
-        
+
         let allLines = content.components(separatedBy: "\n")
         var updatedHunk = hunk
-        
+
         switch direction {
         case .up:
             let currentStart = hunk.oldStart
@@ -244,24 +250,24 @@ class AnalysisViewModel {
             } else {
                 limit = 1
             }
-            
+
             let linesToFetch = min(20, currentStart - limit)
             guard linesToFetch > 0 else { return }
-            
+
             let startLine = currentStart - linesToFetch
             let fetchedLines = (startLine..<(currentStart)).map { idx -> String in
                 let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
                 return " " + lineContent
             }
-            
+
             updatedHunk.lines.insert(contentsOf: fetchedLines, at: 0)
             updatedHunk.oldStart = startLine
             updatedHunk.newStart = updatedHunk.newStart - linesToFetch
             updatedHunk.oldLines += linesToFetch
             updatedHunk.newLines += linesToFetch
-            
+
             details.files[fileIdx].hunks[hunkIndex] = updatedHunk
-            
+
         case .down:
             let currentEnd = hunk.oldStart + hunk.oldLines
             let limit: Int
@@ -270,21 +276,21 @@ class AnalysisViewModel {
             } else {
                 limit = allLines.count + 1
             }
-            
+
             let linesToFetch = min(20, limit - currentEnd)
             guard linesToFetch > 0 else { return }
-            
+
             let fetchedLines = (currentEnd..<(currentEnd + linesToFetch)).map { idx -> String in
                 let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
                 return " " + lineContent
             }
-            
+
             updatedHunk.lines.append(contentsOf: fetchedLines)
             updatedHunk.oldLines += linesToFetch
             updatedHunk.newLines += linesToFetch
-            
+
             details.files[fileIdx].hunks[hunkIndex] = updatedHunk
-            
+
         case .all:
             guard hunkIndex > 0 else { return }
             let prevHunk = file.hunks[hunkIndex - 1]
@@ -292,25 +298,25 @@ class AnalysisViewModel {
             let currentStart = hunk.oldStart
             let gap = currentStart - prevEnd
             guard gap > 0 else { return }
-            
+
             let fetchedLines = (prevEnd..<currentStart).map { idx -> String in
                 let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
                 return " " + lineContent
             }
-            
+
             var mergedHunk = prevHunk
             mergedHunk.lines.append(contentsOf: fetchedLines)
             mergedHunk.lines.append(contentsOf: hunk.lines)
             mergedHunk.oldLines = mergedHunk.oldLines + gap + hunk.oldLines
             mergedHunk.newLines = mergedHunk.newLines + gap + hunk.newLines
-            
+
             details.files[fileIdx].hunks.remove(at: hunkIndex)
             details.files[fileIdx].hunks[hunkIndex - 1] = mergedHunk
         }
-        
+
         state.analysisDetails = details
     }
-    
+
     var selectedReviewScopeTitle: String {
         if isNeedsAttentionViewSelected { return "Needs attention" }
         if isLowerSignalViewSelected { return "Low-signal / skim" }
@@ -323,7 +329,8 @@ class AnalysisViewModel {
                 return "Files with concrete review targets from analyzer signals."
             }
             let firstTarget = details.reviewTargets.first?.title
-            let summary = "\(details.reviewTargets.severitySummary) across \(Set(details.reviewTargets.map(\.filePath)).count) file\(Set(details.reviewTargets.map(\.filePath)).count == 1 ? "" : "s")."
+            let summary =
+                "\(details.reviewTargets.severitySummary) across \(Set(details.reviewTargets.map(\.filePath)).count) file\(Set(details.reviewTargets.map(\.filePath)).count == 1 ? "" : "s")."
             guard let firstTarget else { return summary }
             return "\(summary) Start with: \(firstTarget)"
         }
@@ -341,13 +348,13 @@ class AnalysisViewModel {
     }
 }
 
-private extension Array where Element == ReviewTarget {
-    var severitySummary: String {
+extension Array where Element == ReviewTarget {
+    fileprivate var severitySummary: String {
         let severities: [(Severity, String)] = [
             (.high, "high"),
             (.medium, "medium"),
             (.low, "low"),
-            (.info, "info")
+            (.info, "info"),
         ]
         let parts = severities.compactMap { severity, label -> String? in
             let count = filter { $0.severity == severity }.count

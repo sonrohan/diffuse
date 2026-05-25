@@ -1,18 +1,19 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - Design System Tokens
 
 extension Color {
     // Dynamic Color helper for macOS
     static func dynamic(light: NSColor, dark: NSColor) -> Color {
-        Color(NSColor(name: nil) { appearance in
-            if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                return dark
-            } else {
-                return light
-            }
-        })
+        Color(
+            NSColor(name: nil) { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return dark
+                } else {
+                    return light
+                }
+            })
     }
 
     // Backgrounds
@@ -60,7 +61,7 @@ extension Color {
         light: NSColor(red: 0.90, green: 0.98, blue: 0.92, alpha: 1.0),
         dark: NSColor(red: 0.06, green: 0.18, blue: 0.08, alpha: 1.0)
     )
-    
+
     static let warningColor = Color.dynamic(
         light: NSColor(red: 0.60, green: 0.41, blue: 0.00, alpha: 1.0),
         dark: NSColor(red: 0.82, green: 0.60, blue: 0.13, alpha: 1.0)
@@ -106,7 +107,6 @@ extension Color {
         dark: NSColor(red: 0.97, green: 0.32, blue: 0.29, alpha: 1.0)
     )
 }
-
 
 // MARK: - Badge View
 
@@ -181,7 +181,9 @@ struct LoadingSpinner: View {
             .stroke(Color.accentBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
             .frame(width: size, height: size)
             .rotationEffect(.degrees(isAnimating ? 360 : 0))
-            .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: isAnimating)
+            .animation(
+                .linear(duration: 0.8).repeatForever(autoreverses: false), value: isAnimating
+            )
             .onAppear { isAnimating = true }
     }
 }

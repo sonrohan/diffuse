@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - Main Content View
 
@@ -15,10 +15,12 @@ struct ContentView: View {
             DetailView()
         }
         .frame(minWidth: 950, minHeight: 600)
-        .background(WindowAccessor { window in
-            window.titlebarAppearsTransparent = true
-            window.titleVisibility = .hidden
-        })
+        .background(
+            WindowAccessor { window in
+                window.titlebarAppearsTransparent = true
+                window.titleVisibility = .hidden
+            }
+        )
         .sheet(isPresented: $showAnalyzeSheet) {
             AnalyzeRepoSheet(isPresented: $showAnalyzeSheet)
                 .environment(\.locale, locale)
@@ -38,7 +40,7 @@ struct AppHeaderView: View {
     @Environment(AppState.self) private var state
     @Environment(\.locale) private var locale
     @Binding var showAnalyzeSheet: Bool
-    
+
     @State private var showRenameAlert = false
     @State private var newName = ""
     @State private var showDeleteConfirmation = false
@@ -47,13 +49,13 @@ struct AppHeaderView: View {
     @State private var isBranchPickerPresented = false
     @State private var isCommitPickerPresented = false
     @State private var commitVM: CommitScopeViewModel? = nil
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // Spacer to avoid macOS traffic lights window controls
             Spacer()
                 .frame(width: 16)
-            
+
             // Logo & Title
             HStack(spacing: 8) {
                 ZStack {
@@ -73,11 +75,11 @@ struct AppHeaderView: View {
                     .foregroundColor(.textPrimary)
             }
             .padding(.trailing, 16)
-            
+
             Divider()
                 .frame(height: 20)
                 .padding(.trailing, 16)
-            
+
             // Workspace selector
             HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {
                 HStack(spacing: 5) {
@@ -110,13 +112,13 @@ struct AppHeaderView: View {
                 .environment(\.locale, locale)
             }
             .padding(.trailing, 16)
-            
+
             // Branch Selector
             if let selectedRepo = state.selectedRepo {
                 Divider()
                     .frame(height: 20)
                     .padding(.trailing, 16)
-                
+
                 HeaderPickerButton(isPresented: $isBranchPickerPresented) {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.triangle.branch")
@@ -125,7 +127,7 @@ struct AppHeaderView: View {
                         Text(state.selectedBranch ?? "main")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundColor(.textPrimary)
-                        
+
                         if selectedRepo.autoAnalyzeEnabled {
                             Text("Live")
                                 .font(.system(size: 8, weight: .bold))
@@ -135,7 +137,7 @@ struct AppHeaderView: View {
                                 .background(Color.accentBlue.opacity(0.12))
                                 .clipShape(Capsule())
                         }
-                        
+
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundColor(.textTertiary)
@@ -147,13 +149,13 @@ struct AppHeaderView: View {
                         .environment(\.locale, locale)
                 }
                 .padding(.trailing, 16)
-                
+
                 // Commit / Review Scope cycling controls
                 if !state.commits.isEmpty {
                     Divider()
                         .frame(height: 20)
                         .padding(.trailing, 16)
-                    
+
                     HStack(spacing: 4) {
                         // Previous commit
                         Button {
@@ -161,9 +163,13 @@ struct AppHeaderView: View {
                         } label: {
                             Image(systemName: "chevron.left")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(canGoToPreviousCommit ? .textPrimary : .textTertiary)
+                                .foregroundColor(
+                                    canGoToPreviousCommit ? .textPrimary : .textTertiary
+                                )
                                 .frame(width: 20, height: 20)
-                                .background(Color.bgSidebarPanel.opacity(canGoToPreviousCommit ? 1.0 : 0.5))
+                                .background(
+                                    Color.bgSidebarPanel.opacity(canGoToPreviousCommit ? 1.0 : 0.5)
+                                )
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 4)
@@ -173,7 +179,7 @@ struct AppHeaderView: View {
                         .buttonStyle(.plain)
                         .disabled(!canGoToPreviousCommit)
                         .help("Previous Commit")
-                        
+
                         // Review scope picker
                         HeaderPickerButton(isPresented: $isCommitPickerPresented) {
                             ViewThatFits(in: .horizontal) {
@@ -187,10 +193,15 @@ struct AppHeaderView: View {
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundColor(.textPrimary)
                                     } else {
-                                        let activeIdx = state.commits.firstIndex(where: { $0.sha == state.selectedCommitSha }) ?? 0
+                                        let activeIdx =
+                                            state.commits.firstIndex(where: {
+                                                $0.sha == state.selectedCommitSha
+                                            }) ?? 0
                                         let activeCommit = state.commits[activeIdx]
                                         Text("C\(activeIdx + 1)")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .font(
+                                                .system(size: 9, weight: .bold, design: .monospaced)
+                                            )
                                             .foregroundColor(.accentPurple)
                                             .padding(.horizontal, 4)
                                             .padding(.vertical, 1)
@@ -202,12 +213,12 @@ struct AppHeaderView: View {
                                             .lineLimit(1)
                                             .frame(maxWidth: 220, alignment: .leading)
                                     }
-                                    
+
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 8, weight: .bold))
                                         .foregroundColor(.textTertiary)
                                 }
-                                
+
                                 // Compact fallback layout: only shows badge + custom chevron
                                 HStack(spacing: 5) {
                                     if state.selectedCommitSha == nil {
@@ -218,16 +229,21 @@ struct AppHeaderView: View {
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundColor(.textPrimary)
                                     } else {
-                                        let activeIdx = state.commits.firstIndex(where: { $0.sha == state.selectedCommitSha }) ?? 0
+                                        let activeIdx =
+                                            state.commits.firstIndex(where: {
+                                                $0.sha == state.selectedCommitSha
+                                            }) ?? 0
                                         Text("C\(activeIdx + 1)")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .font(
+                                                .system(size: 9, weight: .bold, design: .monospaced)
+                                            )
                                             .foregroundColor(.accentPurple)
                                             .padding(.horizontal, 4)
                                             .padding(.vertical, 1)
                                             .background(Color.accentPurple.opacity(0.12))
                                             .clipShape(RoundedRectangle(cornerRadius: 3))
                                     }
-                                    
+
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 8, weight: .bold))
                                         .foregroundColor(.textTertiary)
@@ -246,7 +262,7 @@ struct AppHeaderView: View {
                             CommitScopePickerPopover(isPresented: $isCommitPickerPresented)
                                 .environment(\.locale, locale)
                         }
-                        
+
                         // Next commit
                         Button {
                             goToNextCommit()
@@ -255,7 +271,9 @@ struct AppHeaderView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(canGoToNextCommit ? .textPrimary : .textTertiary)
                                 .frame(width: 20, height: 20)
-                                .background(Color.bgSidebarPanel.opacity(canGoToNextCommit ? 1.0 : 0.5))
+                                .background(
+                                    Color.bgSidebarPanel.opacity(canGoToNextCommit ? 1.0 : 0.5)
+                                )
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 4)
@@ -268,15 +286,15 @@ struct AppHeaderView: View {
                     }
                 }
             }
-            
+
             Spacer()
-            
+
             // Loading and Action buttons
             HStack(spacing: 12) {
                 if state.isLoadingPRs || state.isLoadingAnalysis || state.isAnalyzing {
                     LoadingSpinner(size: 12)
                 }
-                
+
                 if state.selectedRepo != nil {
                     Button {
                         Task { await state.reRunAnalysis() }
@@ -288,7 +306,7 @@ struct AppHeaderView: View {
                     .buttonStyle(.plain)
                     .help("Analyze latest")
                 }
-                
+
                 Button {
                     showSettingsSheet = true
                 } label: {
@@ -342,7 +360,9 @@ struct AppHeaderView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will remove the workspace from diffuse. Your local Git repository and files will not be deleted.")
+            Text(
+                "This will remove the workspace from diffuse. Your local Git repository and files will not be deleted."
+            )
         }
         .sheet(isPresented: $showSettingsSheet) {
             SettingsSheet(isPresented: $showSettingsSheet)
@@ -354,21 +374,21 @@ struct AppHeaderView: View {
             }
         }
     }
-    
+
     // MARK: - Cycling Helpers
-    
+
     private func goToPreviousCommit() {
         Task { await commitVM?.goToPreviousCommit() }
     }
-    
+
     private func goToNextCommit() {
         Task { await commitVM?.goToNextCommit() }
     }
-    
+
     private var canGoToPreviousCommit: Bool {
         commitVM?.canGoToPreviousCommit ?? false
     }
-    
+
     private var canGoToNextCommit: Bool {
         commitVM?.canGoToNextCommit ?? false
     }
@@ -461,7 +481,9 @@ struct WorkspacePickerContent: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(viewModel.visibleRepositories) { repo in
-                            WorkspaceRow(repo: repo, isSelected: repo.id == viewModel.selectedRepoId) {
+                            WorkspaceRow(
+                                repo: repo, isSelected: repo.id == viewModel.selectedRepoId
+                            ) {
                                 Task { await viewModel.selectRepo(repo.id) }
                                 isPresented = false
                             }
@@ -469,7 +491,8 @@ struct WorkspacePickerContent: View {
                         }
 
                         if viewModel.visibleRepositories.isEmpty {
-                            EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
+                            EmptyPickerState(
+                                icon: "folder.badge.questionmark", text: "No workspaces match")
                         }
                     }
                     .padding(8)
@@ -517,13 +540,16 @@ struct WorkspacePickerContent: View {
 
                     Button {
                         Task {
-                            await viewModel.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                            await viewModel.setWorkspaceAutoAnalyze(
+                                id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
                         }
                     } label: {
                         Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
                     }
                     .buttonStyle(.borderless)
-                    .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
+                    .help(
+                        selectedRepo.autoAnalyzeEnabled
+                            ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
 
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
@@ -663,7 +689,10 @@ struct BranchPickerContent: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(viewModel.visibleSummaries) { summary in
-                            BranchRow(summary: summary, isSelected: summary.branch == viewModel.selectedBranch) {
+                            BranchRow(
+                                summary: summary,
+                                isSelected: summary.branch == viewModel.selectedBranch
+                            ) {
                                 Task { await viewModel.selectBranch(summary.branch) }
                                 isPresented = false
                             }
@@ -671,7 +700,8 @@ struct BranchPickerContent: View {
                         }
 
                         if viewModel.visibleSummaries.isEmpty {
-                            EmptyPickerState(icon: "arrow.triangle.branch", text: "No branches match")
+                            EmptyPickerState(
+                                icon: "arrow.triangle.branch", text: "No branches match")
                         }
                     }
                     .padding(8)
@@ -709,9 +739,15 @@ struct BranchRow: View {
                             .truncationMode(.middle)
 
                         if summary.isDirty { PickerBadge("Dirty", color: .warningColor) }
-                        if summary.aheadCount > 0 { PickerBadge("↑\(summary.aheadCount)", color: .successColor) }
-                        if summary.behindCount > 0 { PickerBadge("↓\(summary.behindCount)", color: .dangerColor) }
-                        if let number = summary.relatedPRNumber { PickerBadge("#\(number)", color: .accentPurple) }
+                        if summary.aheadCount > 0 {
+                            PickerBadge("↑\(summary.aheadCount)", color: .successColor)
+                        }
+                        if summary.behindCount > 0 {
+                            PickerBadge("↓\(summary.behindCount)", color: .dangerColor)
+                        }
+                        if let number = summary.relatedPRNumber {
+                            PickerBadge("#\(number)", color: .accentPurple)
+                        }
                     }
 
                     HStack(spacing: 4) {
@@ -817,7 +853,8 @@ struct CommitScopePickerContent: View {
                         }
 
                         if viewModel.visibleCommits.isEmpty {
-                            EmptyPickerState(icon: "clock.arrow.circlepath", text: "No commits match")
+                            EmptyPickerState(
+                                icon: "clock.arrow.circlepath", text: "No commits match")
                         }
                     }
                     .padding(8)
@@ -1057,8 +1094,8 @@ struct PickerDivider: View {
     }
 }
 
-private extension String {
-    func fuzzyContains(_ query: String) -> Bool {
+extension String {
+    fileprivate func fuzzyContains(_ query: String) -> Bool {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return true }
         let haystack = localizedLowercase
@@ -1117,25 +1154,33 @@ struct DetailView: View {
         VStack(spacing: 16) {
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(LinearGradient(
-                        colors: [Color.accentBlue.opacity(0.15), Color.accentPurple.opacity(0.1)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.accentBlue.opacity(0.15), Color.accentPurple.opacity(0.1),
+                            ],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 80, height: 80)
                 Image(systemName: "arrow.triangle.pull")
                     .font(.system(size: 36, weight: .light))
                     .foregroundStyle(
-                        LinearGradient(colors: [.accentBlue, .accentPurple], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(
+                            colors: [.accentBlue, .accentPurple], startPoint: .topLeading,
+                            endPoint: .bottomTrailing)
                     )
             }
             VStack(spacing: 6) {
                 Text("Welcome to diffuse")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
-                Text("A deterministic PR review triage tool.\nAnalyze any local git repo to get started.")
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
+                Text(
+                    "A deterministic PR review triage tool.\nAnalyze any local git repo to get started."
+                )
+                .font(.system(size: 14))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
             }
             Text("Use ⌘O or the header dropdown to analyze a local repo.")
                 .font(.system(size: 12))
@@ -1348,9 +1393,11 @@ struct AnalyzeRepoSheet: View {
                     Task {
                         if createProfileIfMissing && !hasProfile {
                             do {
-                                try AnalysisProfileStore.writeProfile(repoPath: resolvedPath, presetId: selectedPresetId)
+                                try AnalysisProfileStore.writeProfile(
+                                    repoPath: resolvedPath, presetId: selectedPresetId)
                             } catch {
-                                profileMessage = "Could not create .diffuse.json: \(error.localizedDescription)"
+                                profileMessage =
+                                    "Could not create .diffuse.json: \(error.localizedDescription)"
                             }
                         }
                         await state.analyzeRepo(
@@ -1443,9 +1490,13 @@ struct AnalyzeRepoSheet: View {
                     Text(hasProfile ? ".diffuse.json found" : presetDisplayName(selectedPresetId))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
-                    Text(hasProfile ? "Diffuse will use this repo's configured rules and groupings." : "Diffuse will copy \(selectedPresetId) into a flat .diffuse.json.")
-                        .font(.system(size: 10.5))
-                        .foregroundColor(.textSecondary)
+                    Text(
+                        hasProfile
+                            ? "Diffuse will use this repo's configured rules and groupings."
+                            : "Diffuse will copy \(selectedPresetId) into a flat .diffuse.json."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
                 }
 
                 Spacer()
@@ -1485,7 +1536,8 @@ struct AnalyzeRepoSheet: View {
             if let profileMessage {
                 Text(profileMessage)
                     .font(.system(size: 10.5))
-                    .foregroundColor(profileMessage.hasPrefix("Could not") ? .dangerColor : .textSecondary)
+                    .foregroundColor(
+                        profileMessage.hasPrefix("Could not") ? .dangerColor : .textSecondary)
             }
         }
     }

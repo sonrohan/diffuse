@@ -74,7 +74,7 @@ struct AnalysisRun: Identifiable, Codable, Hashable {
         case queued, analyzing, completed, failed
     }
 
-    init(
+    nonisolated init(
         id: UUID = UUID(), pullRequestId: UUID, baseSha: String, headSha: String,
         status: RunStatus = .queued, errorMessage: String? = nil, riskScore: Int = 0,
         createdAt: Date = Date(), updatedAt: Date = Date()
@@ -116,7 +116,7 @@ struct ChangedFile: Identifiable, Codable, Hashable {
 
     var filename: String { URL(fileURLWithPath: path).lastPathComponent }
 
-    init(
+    nonisolated init(
         id: UUID = UUID(), analysisRunId: UUID, path: String, status: FileStatus,
         additions: Int, deletions: Int, classification: FileClassification, hunks: [DiffHunk]
     ) {

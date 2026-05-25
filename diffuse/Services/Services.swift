@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftData
 
 // MARK: - Git Service
 // Handles running git commands and analyzing local repos
@@ -759,106 +760,304 @@ nonisolated private func changedLinesFromHunks(_ hunks: [DiffHunk]) -> [Int] {
 // MARK: - Persistence Service
 // Simple JSON-based persistence (no external DB dependency)
 
-actor PersistenceService {
+actor PersistenceService: ModelActor {
 
-    private let storageDir: URL
+    static let sharedContainer: ModelContainer = {
+        let schema = Schema([
+            RepositoryEntity.self,
+            PullRequestEntity.self,
+            AnalysisRunEntity.self,
+            ChangedFileEntity.self,
+            ChangedSymbolEntity.self,
+            FindingEntity.self,
+        ])
+        let config = ModelConfiguration(isStoredInMemoryOnly: false)
+        do {
+            return try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            fatalError("Could not initialize ModelContainer: \(error)")
+        }
+    }()
 
-    struct Store: Codable {
-        var pullRequests: [PullRequest] = []
-        var analysisRuns: [AnalysisRun] = []
-        var changedFiles: [ChangedFile] = []
-        var changedSymbols: [ChangedSymbol] = []
-        var findings: [Finding] = []
-        var repositories: [GitRepository]? = []
+    nonisolated let modelContainer: ModelContainer
+    nonisolated let modelExecutor: any ModelExecutor
+
+    init(container: ModelContainer) {
+        self.modelContainer = container
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        self.modelExecutor = DefaultSerialModelExecutor(modelContext: context)
     }
-
-    private var store = Store()
 
     init() {
-        let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!
-        let dir = appSupport.appendingPathComponent("diffuse", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.storageDir = dir
-
-        let file = dir.appendingPathComponent("store.json")
-        if let data = try? Data(contentsOf: file),
-            let decoded = try? JSONDecoder().decode(Store.self, from: data)
-        {
-            self.store = decoded
-        } else {
-            self.store = Store()
-        }
-    }
-
-    private func save() {
-        let file = storageDir.appendingPathComponent("store.json")
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        if let data = try? encoder.encode(store) {
-            try? data.write(to: file, options: .atomic)
-        }
+        self.init(container: Self.sharedContainer)
     }
 
     func allPullRequests() -> [PullRequest] {
-        var prs = store.pullRequests.sorted { $0.updatedAt > $1.updatedAt }
-        // Attach latest run
-        for i in prs.indices {
-            prs[i].latestRun =
-                store.analysisRuns
-                .filter { $0.pullRequestId == prs[i].id }
-                .sorted { $0.createdAt > $1.createdAt }
-                .first
+        let descriptor = FetchDescriptor<PullRequestEntity>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        guard let entities = try? modelContext.fetch(descriptor) else { return [] }
+
+        return entities.map { entity in
+            var pr = PullRequest(
+                id: entity.id,
+                prNumber: entity.prNumber,
+                title: entity.title,
+                body: entity.body,
+                baseSha: entity.baseSha,
+                headSha: entity.headSha,
+                author: entity.author,
+                status: entity.status,
+                repository: entity.repository,
+                createdAt: entity.createdAt,
+                updatedAt: entity.updatedAt
+            )
+
+            // Attach latest run
+            let prId = entity.id
+            let runDescriptor = FetchDescriptor<AnalysisRunEntity>(
+                predicate: #Predicate<AnalysisRunEntity> { $0.pullRequestId == prId },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            if let runs = try? modelContext.fetch(runDescriptor), let latestRunEntity = runs.first {
+                pr.latestRun = AnalysisRun(
+                    id: latestRunEntity.id,
+                    pullRequestId: latestRunEntity.pullRequestId,
+                    baseSha: latestRunEntity.baseSha,
+                    headSha: latestRunEntity.headSha,
+                    status: AnalysisRun.RunStatus(rawValue: latestRunEntity.status) ?? .queued,
+                    errorMessage: latestRunEntity.errorMessage,
+                    riskScore: latestRunEntity.riskScore,
+                    createdAt: latestRunEntity.createdAt,
+                    updatedAt: latestRunEntity.updatedAt
+                )
+            }
+
+            return pr
         }
-        return prs
     }
 
     func upsertPullRequest(_ pr: PullRequest) -> PullRequest {
-        if let idx = store.pullRequests.firstIndex(where: { $0.id == pr.id }) {
-            store.pullRequests[idx] = pr
+        let id = pr.id
+        let descriptor = FetchDescriptor<PullRequestEntity>(
+            predicate: #Predicate<PullRequestEntity> { $0.id == id }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.prNumber = pr.prNumber
+            existing.title = pr.title
+            existing.body = pr.body
+            existing.baseSha = pr.baseSha
+            existing.headSha = pr.headSha
+            existing.author = pr.author
+            existing.status = pr.status
+            existing.repository = pr.repository
+            existing.updatedAt = pr.updatedAt
         } else {
-            store.pullRequests.append(pr)
+            let entity = PullRequestEntity(
+                id: pr.id,
+                prNumber: pr.prNumber,
+                title: pr.title,
+                body: pr.body,
+                baseSha: pr.baseSha,
+                headSha: pr.headSha,
+                author: pr.author,
+                status: pr.status,
+                repository: pr.repository,
+                createdAt: pr.createdAt,
+                updatedAt: pr.updatedAt
+            )
+            modelContext.insert(entity)
         }
-        save()
+        try? modelContext.save()
         return pr
     }
 
     func insertRun(_ run: AnalysisRun) {
-        store.analysisRuns.append(run)
-        save()
+        let entity = AnalysisRunEntity(
+            id: run.id,
+            pullRequestId: run.pullRequestId,
+            baseSha: run.baseSha,
+            headSha: run.headSha,
+            status: run.status.rawValue,
+            errorMessage: run.errorMessage,
+            riskScore: run.riskScore,
+            createdAt: run.createdAt,
+            updatedAt: run.updatedAt
+        )
+        modelContext.insert(entity)
+        try? modelContext.save()
     }
 
     func updateRun(_ run: AnalysisRun) {
-        if let idx = store.analysisRuns.firstIndex(where: { $0.id == run.id }) {
-            store.analysisRuns[idx] = run
-            save()
+        let id = run.id
+        let descriptor = FetchDescriptor<AnalysisRunEntity>(
+            predicate: #Predicate<AnalysisRunEntity> { $0.id == id }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.status = run.status.rawValue
+            existing.errorMessage = run.errorMessage
+            existing.riskScore = run.riskScore
+            existing.updatedAt = run.updatedAt
+            try? modelContext.save()
         }
     }
 
     func insertFiles(_ files: [ChangedFile]) {
-        store.changedFiles.append(contentsOf: files)
-        save()
+        for file in files {
+            let entity = ChangedFileEntity(
+                id: file.id,
+                analysisRunId: file.analysisRunId,
+                path: file.path,
+                status: file.status.rawValue,
+                additions: file.additions,
+                deletions: file.deletions,
+                classification: file.classification.rawValue,
+                hunks: file.hunks
+            )
+            modelContext.insert(entity)
+        }
+        try? modelContext.save()
     }
 
     func insertSymbols(_ symbols: [ChangedSymbol]) {
-        store.changedSymbols.append(contentsOf: symbols)
-        save()
+        for symbol in symbols {
+            let entity = ChangedSymbolEntity(
+                id: symbol.id,
+                analysisRunId: symbol.analysisRunId,
+                changedFileId: symbol.changedFileId,
+                name: symbol.name,
+                kind: symbol.kind.rawValue,
+                startLine: symbol.startLine,
+                endLine: symbol.endLine,
+                callers: symbol.callers,
+                callees: symbol.callees,
+                semanticType: symbol.semanticType,
+                metadata: symbol.metadata
+            )
+            modelContext.insert(entity)
+        }
+        try? modelContext.save()
     }
 
     func insertFindings(_ findings: [Finding]) {
-        store.findings.append(contentsOf: findings)
-        save()
+        for finding in findings {
+            let entity = FindingEntity(
+                id: finding.id,
+                analysisRunId: finding.analysisRunId,
+                changedFileId: finding.changedFileId,
+                severity: finding.severity.rawValue,
+                category: finding.category.rawValue,
+                message: finding.message,
+                lineStart: finding.lineStart,
+                lineEnd: finding.lineEnd,
+                ruleSource: finding.ruleSource,
+                evidence: finding.evidence
+            )
+            modelContext.insert(entity)
+        }
+        try? modelContext.save()
     }
 
     func getAnalysisDetails(runId: UUID, profile: AnalysisProfile) async -> AnalysisDetails? {
-        guard let run = store.analysisRuns.first(where: { $0.id == runId }),
-            let pr = store.pullRequests.first(where: { $0.id == run.pullRequestId })
-        else { return nil }
+        let runIdConst = runId
 
-        let files = store.changedFiles.filter { $0.analysisRunId == runId }
-        let symbols = store.changedSymbols.filter { $0.analysisRunId == runId }
-        let findings = store.findings.filter { $0.analysisRunId == runId }
+        let runDescriptor = FetchDescriptor<AnalysisRunEntity>(
+            predicate: #Predicate<AnalysisRunEntity> { $0.id == runIdConst }
+        )
+        guard let runEntity = try? modelContext.fetch(runDescriptor).first else { return nil }
+
+        let prId = runEntity.pullRequestId
+        let prDescriptor = FetchDescriptor<PullRequestEntity>(
+            predicate: #Predicate<PullRequestEntity> { $0.id == prId }
+        )
+        guard let prEntity = try? modelContext.fetch(prDescriptor).first else { return nil }
+
+        let filesDescriptor = FetchDescriptor<ChangedFileEntity>(
+            predicate: #Predicate<ChangedFileEntity> { $0.analysisRunId == runIdConst }
+        )
+        let fileEntities = (try? modelContext.fetch(filesDescriptor)) ?? []
+
+        let symbolsDescriptor = FetchDescriptor<ChangedSymbolEntity>(
+            predicate: #Predicate<ChangedSymbolEntity> { $0.analysisRunId == runIdConst }
+        )
+        let symbolEntities = (try? modelContext.fetch(symbolsDescriptor)) ?? []
+
+        let findingsDescriptor = FetchDescriptor<FindingEntity>(
+            predicate: #Predicate<FindingEntity> { $0.analysisRunId == runIdConst }
+        )
+        let findingEntities = (try? modelContext.fetch(findingsDescriptor)) ?? []
+
+        let run = AnalysisRun(
+            id: runEntity.id,
+            pullRequestId: runEntity.pullRequestId,
+            baseSha: runEntity.baseSha,
+            headSha: runEntity.headSha,
+            status: AnalysisRun.RunStatus(rawValue: runEntity.status) ?? .completed,
+            errorMessage: runEntity.errorMessage,
+            riskScore: runEntity.riskScore,
+            createdAt: runEntity.createdAt,
+            updatedAt: runEntity.updatedAt
+        )
+
+        let pr = PullRequest(
+            id: prEntity.id,
+            prNumber: prEntity.prNumber,
+            title: prEntity.title,
+            body: prEntity.body,
+            baseSha: prEntity.baseSha,
+            headSha: prEntity.headSha,
+            author: prEntity.author,
+            status: prEntity.status,
+            repository: prEntity.repository,
+            createdAt: prEntity.createdAt,
+            updatedAt: prEntity.updatedAt
+        )
+
+        let files = fileEntities.map { fe in
+            ChangedFile(
+                id: fe.id,
+                analysisRunId: fe.analysisRunId,
+                path: fe.path,
+                status: ChangedFile.FileStatus(rawValue: fe.status) ?? .modified,
+                additions: fe.additions,
+                deletions: fe.deletions,
+                classification: ChangedFile.FileClassification(rawValue: fe.classification)
+                    ?? .source,
+                hunks: fe.hunks
+            )
+        }
+
+        let symbols = symbolEntities.map { se in
+            ChangedSymbol(
+                id: se.id,
+                analysisRunId: se.analysisRunId,
+                changedFileId: se.changedFileId,
+                name: se.name,
+                kind: ChangedSymbol.SymbolKind(rawValue: se.kind) ?? .function,
+                startLine: se.startLine,
+                endLine: se.endLine,
+                callers: se.callers,
+                callees: se.callees,
+                semanticType: se.semanticType,
+                metadata: se.metadata
+            )
+        }
+
+        let findings = findingEntities.map { f in
+            Finding(
+                id: f.id,
+                analysisRunId: f.analysisRunId,
+                changedFileId: f.changedFileId,
+                severity: Severity(rawValue: f.severity) ?? .medium,
+                category: Finding.FindingCategory(rawValue: f.category) ?? .architecture,
+                message: f.message,
+                lineStart: f.lineStart,
+                lineEnd: f.lineEnd,
+                ruleSource: f.ruleSource,
+                evidence: f.evidence
+            )
+        }
 
         let triage = await TriageEngine.deriveTriage(
             files: files, symbols: symbols, findings: findings, riskScore: run.riskScore,
@@ -876,59 +1075,132 @@ actor PersistenceService {
     }
 
     func getFilesForRun(_ runId: UUID) -> [ChangedFile] {
-        store.changedFiles.filter { $0.analysisRunId == runId }
+        let runIdConst = runId
+        let descriptor = FetchDescriptor<ChangedFileEntity>(
+            predicate: #Predicate<ChangedFileEntity> { $0.analysisRunId == runIdConst }
+        )
+        guard let entities = try? modelContext.fetch(descriptor) else { return [] }
+        return entities.map { fe in
+            ChangedFile(
+                id: fe.id,
+                analysisRunId: fe.analysisRunId,
+                path: fe.path,
+                status: ChangedFile.FileStatus(rawValue: fe.status) ?? .modified,
+                additions: fe.additions,
+                deletions: fe.deletions,
+                classification: ChangedFile.FileClassification(rawValue: fe.classification)
+                    ?? .source,
+                hunks: fe.hunks
+            )
+        }
     }
 
     func getRunsForPR(_ prId: UUID) -> [AnalysisRun] {
-        store.analysisRuns.filter { $0.pullRequestId == prId }.sorted {
-            $0.createdAt > $1.createdAt
+        let prIdConst = prId
+        let descriptor = FetchDescriptor<AnalysisRunEntity>(
+            predicate: #Predicate<AnalysisRunEntity> { $0.pullRequestId == prIdConst },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let entities = try? modelContext.fetch(descriptor) else { return [] }
+        return entities.map { re in
+            AnalysisRun(
+                id: re.id,
+                pullRequestId: re.pullRequestId,
+                baseSha: re.baseSha,
+                headSha: re.headSha,
+                status: AnalysisRun.RunStatus(rawValue: re.status) ?? .completed,
+                errorMessage: re.errorMessage,
+                riskScore: re.riskScore,
+                createdAt: re.createdAt,
+                updatedAt: re.updatedAt
+            )
         }
     }
 
     func allRepositories() -> [GitRepository] {
-        return store.repositories ?? []
+        let descriptor = FetchDescriptor<RepositoryEntity>()
+        guard let entities = try? modelContext.fetch(descriptor) else { return [] }
+        return entities.map { entity in
+            GitRepository(
+                id: entity.id,
+                name: entity.name,
+                path: entity.path,
+                autoAnalyzeEnabled: entity.autoAnalyzeEnabled
+            )
+        }
     }
 
     func addRepository(name: String, path: String, autoAnalyzeEnabled: Bool = true) -> GitRepository
     {
         let standardized = URL(fileURLWithPath: path).standardized.path
-        if let existing = store.repositories?.first(where: {
-            URL(fileURLWithPath: $0.path).standardized.path == standardized
-        }) {
-            return existing
+
+        let descriptor = FetchDescriptor<RepositoryEntity>()
+        if let entities = try? modelContext.fetch(descriptor),
+            let existing = entities.first(where: {
+                URL(fileURLWithPath: $0.path).standardized.path == standardized
+            })
+        {
+            return GitRepository(
+                id: existing.id,
+                name: existing.name,
+                path: existing.path,
+                autoAnalyzeEnabled: existing.autoAnalyzeEnabled
+            )
         }
 
         let repo = GitRepository(name: name, path: path, autoAnalyzeEnabled: autoAnalyzeEnabled)
-        if store.repositories == nil {
-            store.repositories = []
-        }
-        store.repositories?.append(repo)
-        save()
+        let entity = RepositoryEntity(
+            id: repo.id,
+            name: repo.name,
+            path: repo.path,
+            autoAnalyzeEnabled: repo.autoAnalyzeEnabled
+        )
+        modelContext.insert(entity)
+        try? modelContext.save()
         return repo
     }
 
     func deleteRepository(id: UUID) {
-        store.repositories?.removeAll { $0.id == id }
-        save()
+        let idConst = id
+        let descriptor = FetchDescriptor<RepositoryEntity>(
+            predicate: #Predicate<RepositoryEntity> { $0.id == idConst }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            modelContext.delete(existing)
+            try? modelContext.save()
+        }
     }
 
     func renameRepository(id: UUID, newName: String) {
-        if let idx = store.repositories?.firstIndex(where: { $0.id == id }) {
-            store.repositories?[idx].name = newName
-            save()
+        let idConst = id
+        let descriptor = FetchDescriptor<RepositoryEntity>(
+            predicate: #Predicate<RepositoryEntity> { $0.id == idConst }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.name = newName
+            try? modelContext.save()
         }
     }
 
     func setRepositoryAutoAnalyze(id: UUID, enabled: Bool) {
-        if let idx = store.repositories?.firstIndex(where: { $0.id == id }) {
-            store.repositories?[idx].autoAnalyzeEnabled = enabled
-            save()
+        let idConst = id
+        let descriptor = FetchDescriptor<RepositoryEntity>(
+            predicate: #Predicate<RepositoryEntity> { $0.id == idConst }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.autoAnalyzeEnabled = enabled
+            try? modelContext.save()
         }
     }
 
     func deleteAll() {
-        store = Store()
-        save()
+        try? modelContext.delete(model: RepositoryEntity.self)
+        try? modelContext.delete(model: PullRequestEntity.self)
+        try? modelContext.delete(model: AnalysisRunEntity.self)
+        try? modelContext.delete(model: ChangedFileEntity.self)
+        try? modelContext.delete(model: ChangedSymbolEntity.self)
+        try? modelContext.delete(model: FindingEntity.self)
+        try? modelContext.save()
     }
 }
 

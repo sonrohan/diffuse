@@ -488,7 +488,7 @@ struct TriageEngine {
         let riskFactors = riskBreakdown.factors
 
         // Build change buckets
-        var bucketDrafts: [ChangeBucketType: (title: String, files: [String], symbols: [String], riskLevel: Severity, riskReasons: [String], evidence: [String])] = [:]
+        var bucketDrafts: [String: (type: ChangeBucketType, title: String, files: [String], symbols: [String], riskLevel: Severity, riskReasons: [String], evidence: [String])] = [:]
 
         let findingsByPath: [String: [Finding]] = findings.reduce(into: [:]) { acc, f in
             let path = fileById[f.changedFileId]?.path ?? "unknown"
@@ -500,29 +500,31 @@ struct TriageEngine {
             let fileSymbolsForBucket = symbols.filter { $0.changedFileId == file.id }
             let matchedRule = profile.bucketRule(for: file, findings: fileFindings, symbols: fileSymbolsForBucket)
             let type = matchedRule?.bucketType ?? .behavior
+            let bucketKey = matchedRule?.id ?? type.rawValue
             let title = matchedRule?.title ?? type.displayTitle
             let fileSymbols = symbols.filter { $0.changedFileId == file.id }.map { $0.name }
             let riskReasons = fileFindings.map { $0.message }
             let evidence = fileFindings.compactMap { $0.evidence }
             let fileRisk = maxSeverity(fileFindings.map { $0.severity })
 
-            if var existing = bucketDrafts[type] {
+            if var existing = bucketDrafts[bucketKey] {
                 existing.files.append(file.path)
                 existing.symbols.append(contentsOf: fileSymbols)
                 existing.riskReasons.append(contentsOf: riskReasons)
                 existing.evidence.append(contentsOf: evidence)
                 existing.riskLevel = maxSeverity([existing.riskLevel, fileRisk])
-                bucketDrafts[type] = existing
+                bucketDrafts[bucketKey] = existing
             } else {
-                bucketDrafts[type] = (title: title, files: [file.path], symbols: fileSymbols,
-                                      riskLevel: fileRisk, riskReasons: riskReasons, evidence: evidence)
+                bucketDrafts[bucketKey] = (type: type, title: title, files: [file.path], symbols: fileSymbols,
+                                           riskLevel: fileRisk, riskReasons: riskReasons, evidence: evidence)
             }
         }
 
-        let bucketOrder = profile.buckets.map { $0.bucketType }
-        var changeBuckets: [ChangeBucket] = bucketDrafts.map { type, draft in
+        let bucketIdOrder = profile.buckets.map { $0.id }
+        let bucketTypeOrder = profile.buckets.map { $0.bucketType }
+        var changeBuckets: [ChangeBucket] = bucketDrafts.map { key, draft in
             ChangeBucket(
-                id: "bucket-\(type.rawValue)", type: type,
+                id: "bucket-\(key)", type: draft.type,
                 title: draft.title,
                 summary: "\(draft.files.count) file\(draft.files.count == 1 ? "" : "s") grouped as \(draft.title.lowercased()).",
                 files: draft.files,
@@ -534,8 +536,10 @@ struct TriageEngine {
             )
         }.sorted {
             if $0.riskLevel != $1.riskLevel { return $0.riskLevel > $1.riskLevel }
-            let ai = bucketOrder.firstIndex(of: $0.type) ?? 99
-            let bi = bucketOrder.firstIndex(of: $1.type) ?? 99
+            let aid = String($0.id.dropFirst("bucket-".count))
+            let bid = String($1.id.dropFirst("bucket-".count))
+            let ai = bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
+            let bi = bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
             return ai < bi
         }.enumerated().map { idx, b in
             var b2 = b
@@ -595,8 +599,10 @@ struct TriageEngine {
             return b
         }.sorted {
             if $0.riskLevel != $1.riskLevel { return $0.riskLevel > $1.riskLevel }
-            let ai = bucketOrder.firstIndex(of: $0.type) ?? 99
-            let bi = bucketOrder.firstIndex(of: $1.type) ?? 99
+            let aid = String($0.id.dropFirst("bucket-".count))
+            let bid = String($1.id.dropFirst("bucket-".count))
+            let ai = bucketIdOrder.firstIndex(of: aid) ?? bucketTypeOrder.firstIndex(of: $0.type) ?? 99
+            let bi = bucketIdOrder.firstIndex(of: bid) ?? bucketTypeOrder.firstIndex(of: $1.type) ?? 99
             return ai < bi
         }.enumerated().map { idx, b in
             var b2 = b; b2.reviewOrder = idx + 1; return b2

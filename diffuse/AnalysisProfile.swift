@@ -98,6 +98,11 @@ struct BucketRule: Codable {
     var classifications: [String]?
     var findingCategories: [String]?
     var symbolSemanticAreas: [String]?
+    var symbolSemanticTypes: [String]?
+    var symbolNames: [String]?
+    var symbolMetadataEquals: [String: String]?
+    var symbolMetadataMatches: [String: [String]]?
+    var symbolCallees: [String]?
 
     var bucketType: ChangeBucketType {
         ChangeBucketType(rawValue: type) ?? .behavior
@@ -119,6 +124,41 @@ struct BucketRule: Codable {
         if let symbolSemanticAreas {
             let areas = Set(symbolSemanticAreas)
             if symbols.contains(where: { areas.contains($0.metadata["semantic_area"] ?? "") }) {
+                return true
+            }
+        }
+        if let symbolSemanticTypes {
+            let types = Set(symbolSemanticTypes)
+            if symbols.contains(where: { types.contains($0.semanticType) }) {
+                return true
+            }
+        }
+        if let symbolNames {
+            if symbols.contains(where: { PatternMatcher.matchesAny($0.name, patterns: symbolNames) }) {
+                return true
+            }
+        }
+        if let symbolMetadataEquals {
+            if symbols.contains(where: { symbol in
+                symbolMetadataEquals.allSatisfy { symbol.metadata[$0.key] == $0.value }
+            }) {
+                return true
+            }
+        }
+        if let symbolMetadataMatches {
+            if symbols.contains(where: { symbol in
+                symbolMetadataMatches.allSatisfy { key, patterns in
+                    guard let value = symbol.metadata[key] else { return false }
+                    return PatternMatcher.matchesAny(value, patterns: patterns)
+                }
+            }) {
+                return true
+            }
+        }
+        if let symbolCallees {
+            if symbols.contains(where: { symbol in
+                symbol.callees.contains { callee in PatternMatcher.matchesAny(callee, patterns: symbolCallees) }
+            }) {
                 return true
             }
         }

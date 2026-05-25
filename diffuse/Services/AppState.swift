@@ -27,12 +27,6 @@ class AppState {
     // UI Loading & Navigation States
     var isLoadingPRs = false
     var isLoadingAnalysis = false
-    var selectedBucketId: String?
-    var isLowerSignalViewSelected = false
-    var isNeedsAttentionViewSelected = false
-    var activeFileId: UUID?
-    var activeHunkIndex: Int?
-    var activeTargetId: UUID?
     var diffLayout: DiffLayout = .unified
     var isAnalyzing = false
 
@@ -58,48 +52,7 @@ class AppState {
         return localBranchSummaries.first { $0.branch == selectedBranch }
     }
 
-    var selectedBucket: ChangeBucket? {
-        guard let selectedBucketId else { return nil }
-        return analysisDetails?.changeBuckets.first { $0.id == selectedBucketId }
-    }
 
-    var bucketFiles: [ChangedFile] {
-        guard let details = analysisDetails else { return [] }
-        if isNeedsAttentionViewSelected {
-            let targetPaths = Set(details.reviewTargets.map(\.filePath))
-            return details.files.filter { targetPaths.contains($0.path) }
-        }
-        if isLowerSignalViewSelected {
-            let skimPaths = Set(details.skimTargets.map(\.filePath))
-            return details.files.filter { skimPaths.contains($0.path) }
-        }
-        guard let bucket = selectedBucket else { return details.files }
-        return details.files.filter { bucket.files.contains($0.path) }
-    }
-
-    var bucketHighlights: [RiskHighlight] {
-        guard let details = analysisDetails else { return [] }
-        if isNeedsAttentionViewSelected {
-            let targetPaths = Set(details.reviewTargets.map(\.filePath))
-            return details.riskHighlights.filter { targetPaths.contains($0.filePath) }
-        }
-        if isLowerSignalViewSelected { return [] }
-        guard let bucket = selectedBucket else { return details.riskHighlights }
-        return details.riskHighlights.filter { $0.bucketId == bucket.id }
-    }
-
-    var bucketTargets: [ReviewTarget] {
-        guard let details = analysisDetails else { return [] }
-        if isNeedsAttentionViewSelected { return details.reviewTargets }
-        if isLowerSignalViewSelected { return [] }
-        guard let bucket = selectedBucket else { return details.reviewTargets }
-        return details.reviewTargets.filter { bucket.files.contains($0.filePath) }
-    }
-
-    var activeTarget: ReviewTarget? {
-        guard let activeTargetId, let details = analysisDetails else { return nil }
-        return details.reviewTargets.first { $0.id == activeTargetId }
-    }
 
     // MARK: - Core Load & Refresh
 
@@ -122,12 +75,6 @@ class AppState {
         selectedRepoId = id
         lastGitFingerprint = nil
         selectedPRId = nil
-        selectedBucketId = nil
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        activeFileId = nil
-        activeHunkIndex = nil
-        activeTargetId = nil
         analysisDetails = nil
         commits = []
         localBranchSummaries = []
@@ -185,12 +132,6 @@ class AppState {
 
     func selectPR(_ id: UUID) async {
         selectedPRId = id
-        selectedBucketId = nil
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        activeFileId = nil
-        activeHunkIndex = nil
-        activeTargetId = nil
         analysisDetails = nil
         selectedCommitSha = nil // Reset timeline to "All Changes"
         await loadDetails(for: id)
@@ -238,23 +179,7 @@ class AppState {
         
         isLoadingAnalysis = false
 
-        if let details = analysisDetails {
-            if let id = selectedBucketId, !details.changeBuckets.contains(where: { $0.id == id }) {
-                selectedBucketId = nil
-            }
-            if isLowerSignalViewSelected, details.skimTargets.isEmpty {
-                isLowerSignalViewSelected = false
-            }
-            if isNeedsAttentionViewSelected, details.reviewTargets.isEmpty {
-                isNeedsAttentionViewSelected = false
-            }
 
-            let ordered = reorderFiles(bucketFiles, highlights: details.riskHighlights)
-            let firstFile = ordered.first(where: { $0.classification == .source || $0.classification == .test }) ?? ordered.first
-            activeFileId = firstFile?.id
-            activeHunkIndex = nil
-            activeTargetId = nil
-        }
     }
 
     private func analyzeSingleCommit(repoPath: String, sha: String, pr: PullRequest, run: AnalysisRun) async {
@@ -382,126 +307,7 @@ class AppState {
     }
 
 
-    // MARK: - Existing Navigation & Triage Helpers
 
-    func selectAllChanges() {
-        selectedBucketId = nil
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        guard let details = analysisDetails else { return }
-        let ordered = reorderFiles(details.files, highlights: details.riskHighlights)
-        activeFileId = ordered.first?.id
-        activeHunkIndex = nil
-        activeTargetId = nil
-    }
-
-    func selectNeedsAttentionChanges() {
-        selectedBucketId = nil
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = true
-        guard let details = analysisDetails else { return }
-        let targetPaths = Set(details.reviewTargets.map(\.filePath))
-        let files = details.files.filter { targetPaths.contains($0.path) }
-        let ordered = reorderFiles(files, highlights: details.riskHighlights)
-        activeFileId = ordered.first?.id
-        activeHunkIndex = nil
-        activeTargetId = nil
-    }
-
-    func selectBucket(_ id: String) {
-        selectedBucketId = id
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        guard let details = analysisDetails else { return }
-        let bucket = details.changeBuckets.first { $0.id == id }
-        let files = bucket.map { b in details.files.filter { b.files.contains($0.path) } } ?? details.files
-        let ordered = reorderFiles(files, highlights: details.riskHighlights)
-        activeFileId = ordered.first?.id
-        activeHunkIndex = nil
-        activeTargetId = nil
-    }
-
-    func selectLowerSignalChanges() {
-        selectedBucketId = nil
-        isLowerSignalViewSelected = true
-        isNeedsAttentionViewSelected = false
-        guard let details = analysisDetails else { return }
-        let skimPaths = Set(details.skimTargets.map(\.filePath))
-        let files = details.files.filter { skimPaths.contains($0.path) }
-        let ordered = reorderFiles(files, highlights: details.riskHighlights)
-        activeFileId = ordered.first?.id
-        activeHunkIndex = nil
-        activeTargetId = nil
-    }
-
-    func jumpToFile(_ fileId: UUID, hunkIndex: Int? = nil) {
-        activeFileId = fileId
-        activeHunkIndex = hunkIndex
-        activeTargetId = nil
-    }
-
-    func toggleTarget(_ target: ReviewTarget) {
-        guard activeTargetId != target.id else {
-            activeTargetId = nil
-            activeHunkIndex = nil
-            return
-        }
-        activeTargetId = target.id
-        if let fileId = target.changedFileId {
-            activeFileId = fileId
-            activeHunkIndex = target.hunkIndex
-        }
-    }
-
-    func jumpToHighlight(_ highlight: RiskHighlight) {
-        guard let details = analysisDetails else { return }
-        if let bucket = details.changeBuckets.first(where: { $0.id == highlight.bucketId }) {
-            selectedBucketId = bucket.id
-            isLowerSignalViewSelected = false
-            isNeedsAttentionViewSelected = false
-        }
-        if let file = details.files.first(where: { $0.path == highlight.filePath }) {
-            let hunkIdx = hunkIndexForLine(file: file, lineStart: highlight.lineStart)
-            jumpToFile(file.id, hunkIndex: hunkIdx)
-        }
-    }
-
-    func reorderFiles(_ files: [ChangedFile], highlights: [RiskHighlight]) -> [ChangedFile] {
-        var severityMap: [UUID: Severity] = [:]
-        for h in highlights {
-            if let file = files.first(where: { $0.path == h.filePath }) {
-                let current = severityMap[file.id]
-                if current == nil || h.severity > current! {
-                    severityMap[file.id] = h.severity
-                }
-            }
-        }
-
-        return files.sorted { a, b in
-            let scoreA = fileScore(a, severityMap: severityMap)
-            let scoreB = fileScore(b, severityMap: severityMap)
-            return scoreA > scoreB
-        }
-    }
-
-    private func fileScore(_ file: ChangedFile, severityMap: [UUID: Severity]) -> Int {
-        if let sev = severityMap[file.id] {
-            return sev.score * 100
-        }
-        switch file.classification {
-        case .source: return 300
-        case .test: return 200
-        case .config: return 100
-        default: return 0
-        }
-    }
-
-    private func hunkIndexForLine(file: ChangedFile, lineStart: Int?) -> Int? {
-        guard let line = lineStart else { return nil }
-        return file.hunks.firstIndex { h in
-            line >= h.newStart && line <= h.newStart + h.newLines - 1
-        }
-    }
 
     func analyzeRepo(path: String, baseRef: String? = nil, autoAnalyzeEnabled: Bool = true) async {
         isAnalyzing = true
@@ -529,12 +335,6 @@ class AppState {
         }
 
         selectedPRId = nil
-        selectedBucketId = nil
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        activeFileId = nil
-        activeHunkIndex = nil
-        activeTargetId = nil
         analysisDetails = nil
         commits = []
         selectedCommitSha = nil
@@ -563,12 +363,6 @@ class AppState {
         if let pr = await coordinator.analyzeRepo(path: repo.path, baseRef: baseRef) {
             pullRequests = await coordinator.allPullRequests().filter { $0.repository == "local/\(repo.name)" }
             selectedPRId = pr.id
-            selectedBucketId = nil
-            isLowerSignalViewSelected = false
-            isNeedsAttentionViewSelected = false
-            activeFileId = nil
-            activeHunkIndex = nil
-            activeTargetId = nil
 
             await refreshActiveRepo()
 
@@ -592,97 +386,7 @@ class AppState {
         return selectedPR?.baseSha.isEmpty == false ? selectedPR?.baseSha : nil
     }
 
-    func expandHunk(fileId: UUID, hunkIndex: Int, direction: ExpandDirection) async {
-        guard let repo = selectedRepo,
-              let details = analysisDetails,
-              let fileIdx = details.files.firstIndex(where: { $0.id == fileId }) else { return }
-        
-        let file = details.files[fileIdx]
-        let hunk = file.hunks[hunkIndex]
-        
-        let baseRevision = selectedCommitSha != nil ? "\(selectedCommitSha!)~1" : (selectedPR?.baseSha ?? "HEAD~1")
-        
-        let content = GitService.fileContent(at: baseRevision, path: file.path, cwd: repo.path)
-        guard !content.isEmpty else { return }
-        
-        let allLines = content.components(separatedBy: "\n")
-        
-        var updatedHunk = hunk
-        
-        switch direction {
-        case .up:
-            let currentStart = hunk.oldStart
-            let limit: Int
-            if hunkIndex > 0 {
-                let prev = file.hunks[hunkIndex - 1]
-                limit = prev.oldStart + prev.oldLines
-            } else {
-                limit = 1
-            }
-            
-            let linesToFetch = min(20, currentStart - limit)
-            guard linesToFetch > 0 else { return }
-            
-            let startLine = currentStart - linesToFetch
-            let fetchedLines = (startLine..<(currentStart)).map { idx -> String in
-                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
-                return " " + lineContent
-            }
-            
-            updatedHunk.lines.insert(contentsOf: fetchedLines, at: 0)
-            updatedHunk.oldStart = startLine
-            updatedHunk.newStart = updatedHunk.newStart - linesToFetch
-            updatedHunk.oldLines += linesToFetch
-            updatedHunk.newLines += linesToFetch
-            
-            analysisDetails?.files[fileIdx].hunks[hunkIndex] = updatedHunk
-            
-        case .down:
-            let currentEnd = hunk.oldStart + hunk.oldLines
-            let limit: Int
-            if hunkIndex < file.hunks.count - 1 {
-                limit = file.hunks[hunkIndex + 1].oldStart
-            } else {
-                limit = allLines.count + 1
-            }
-            
-            let linesToFetch = min(20, limit - currentEnd)
-            guard linesToFetch > 0 else { return }
-            
-            let fetchedLines = (currentEnd..<(currentEnd + linesToFetch)).map { idx -> String in
-                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
-                return " " + lineContent
-            }
-            
-            updatedHunk.lines.append(contentsOf: fetchedLines)
-            updatedHunk.oldLines += linesToFetch
-            updatedHunk.newLines += linesToFetch
-            
-            analysisDetails?.files[fileIdx].hunks[hunkIndex] = updatedHunk
-            
-        case .all:
-            guard hunkIndex > 0 else { return }
-            let prevHunk = file.hunks[hunkIndex - 1]
-            let prevEnd = prevHunk.oldStart + prevHunk.oldLines
-            let currentStart = hunk.oldStart
-            let gap = currentStart - prevEnd
-            guard gap > 0 else { return }
-            
-            let fetchedLines = (prevEnd..<currentStart).map { idx -> String in
-                let lineContent = idx - 1 < allLines.count ? allLines[idx - 1] : ""
-                return " " + lineContent
-            }
-            
-            var mergedHunk = prevHunk
-            mergedHunk.lines.append(contentsOf: fetchedLines)
-            mergedHunk.lines.append(contentsOf: hunk.lines)
-            mergedHunk.oldLines = mergedHunk.oldLines + gap + hunk.oldLines
-            mergedHunk.newLines = mergedHunk.newLines + gap + hunk.newLines
-            
-            analysisDetails?.files[fileIdx].hunks.remove(at: hunkIndex)
-            analysisDetails?.files[fileIdx].hunks[hunkIndex - 1] = mergedHunk
-        }
-    }
+
 }
 
 enum ExpandDirection {

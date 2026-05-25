@@ -46,6 +46,7 @@ struct AppHeaderView: View {
     @State private var isWorkspacePickerPresented = false
     @State private var isBranchPickerPresented = false
     @State private var isCommitPickerPresented = false
+    @State private var commitVM: CommitScopeViewModel? = nil
     
     var body: some View {
         HStack(spacing: 0) {
@@ -347,45 +348,29 @@ struct AppHeaderView: View {
             SettingsSheet(isPresented: $showSettingsSheet)
                 .environment(\.locale, locale)
         }
+        .onAppear {
+            if commitVM == nil {
+                commitVM = CommitScopeViewModel(state: state)
+            }
+        }
     }
     
     // MARK: - Cycling Helpers
     
     private func goToPreviousCommit() {
-        guard let sha = state.selectedCommitSha else { return }
-        guard let idx = state.commits.firstIndex(where: { $0.sha == sha }) else { return }
-        if idx == 0 {
-            Task { await state.selectCommit(nil) }
-        } else {
-            Task { await state.selectCommit(state.commits[idx - 1].sha) }
-        }
+        Task { await commitVM?.goToPreviousCommit() }
     }
     
     private func goToNextCommit() {
-        if state.selectedCommitSha == nil {
-            if let first = state.commits.first {
-                Task { await state.selectCommit(first.sha) }
-            }
-        } else if let sha = state.selectedCommitSha,
-                  let idx = state.commits.firstIndex(where: { $0.sha == sha }) {
-            if idx < state.commits.count - 1 {
-                Task { await state.selectCommit(state.commits[idx + 1].sha) }
-            }
-        }
+        Task { await commitVM?.goToNextCommit() }
     }
     
     private var canGoToPreviousCommit: Bool {
-        return state.selectedCommitSha != nil && !state.commits.isEmpty
+        commitVM?.canGoToPreviousCommit ?? false
     }
     
     private var canGoToNextCommit: Bool {
-        if state.commits.isEmpty { return false }
-        if state.selectedCommitSha == nil { return true }
-        if let sha = state.selectedCommitSha,
-           let idx = state.commits.firstIndex(where: { $0.sha == sha }) {
-            return idx < state.commits.count - 1
-        }
-        return false
+        commitVM?.canGoToNextCommit ?? false
     }
 }
 
@@ -405,14 +390,6 @@ struct HeaderPickerButton<Label: View>: View {
     }
 }
 
-private enum WorkspaceFilter: String, CaseIterable, Identifiable {
-    case all = "All"
-    case auto = "Auto"
-    case manual = "Manual"
-
-    var id: String { rawValue }
-}
-
 struct WorkspacePickerPopover: View {
     @Environment(AppState.self) private var state
     @Binding var isPresented: Bool
@@ -421,137 +398,145 @@ struct WorkspacePickerPopover: View {
     @Binding var showDeleteConfirmation: Bool
     @Binding var newName: String
 
-    @State private var query = ""
-    @State private var filter: WorkspaceFilter = .all
-
-    private var visibleRepositories: [GitRepository] {
-        state.repositories
-            .filter { repo in
-                switch filter {
-                case .all: true
-                case .auto: repo.autoAnalyzeEnabled
-                case .manual: !repo.autoAnalyzeEnabled
-                }
-            }
-            .filter { repo in
-                query.isEmpty || repo.name.fuzzyContains(query) || repo.path.fuzzyContains(query)
-            }
-            .sorted { lhs, rhs in
-                if lhs.id == state.selectedRepoId { return true }
-                if rhs.id == state.selectedRepoId { return false }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
-    }
+    @State private var viewModel: WorkspacePickerViewModel? = nil
 
     var body: some View {
         VStack(spacing: 0) {
-            if state.repositories.isEmpty {
-                EmptyWorkspaceAddView {
-                    showAnalyzeSheet = true
-                    isPresented = false
-                }
-            } else {
-                PickerHeader(
-                    title: "Workspaces",
-                    count: state.repositories.count,
-                    query: $query,
-                    placeholder: "Search names or paths"
+            if let viewModel {
+                WorkspacePickerContent(
+                    viewModel: viewModel,
+                    isPresented: $isPresented,
+                    showAnalyzeSheet: $showAnalyzeSheet,
+                    showRenameAlert: $showRenameAlert,
+                    showDeleteConfirmation: $showDeleteConfirmation,
+                    newName: $newName
                 )
-
-                Picker("Workspace filter", selection: $filter) {
-                    ForEach(WorkspaceFilter.allCases) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
-
-                PickerDivider()
-
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(visibleRepositories) { repo in
-                                WorkspaceRow(repo: repo, isSelected: repo.id == state.selectedRepoId) {
-                                    Task { await state.selectRepo(repo.id) }
-                                    isPresented = false
-                                }
-                                .id(repo.id)
-                            }
-
-                            if visibleRepositories.isEmpty {
-                                EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
-                            }
-                        }
-                        .padding(8)
-                    }
-                    .frame(height: 280)
+            } else {
+                ProgressView()
+                    .padding(24)
                     .onAppear {
-                        if let selected = state.selectedRepoId {
-                            proxy.scrollTo(selected, anchor: .center)
-                        }
+                        viewModel = WorkspacePickerViewModel(state: state)
                     }
-                }
-
-                PickerDivider()
-
-                HStack(spacing: 8) {
-                    Button {
-                        showAnalyzeSheet = true
-                        isPresented = false
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-
-                    if let selectedRepo = state.selectedRepo {
-                        Button {
-                            NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
-                            isPresented = false
-                        } label: {
-                            Image(systemName: "arrow.up.forward.app")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Open in Finder")
-
-                        Button {
-                            newName = selectedRepo.name
-                            showRenameAlert = true
-                            isPresented = false
-                        } label: {
-                            Image(systemName: "pencil")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Rename Workspace")
-
-                        Button {
-                            Task {
-                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
-                            }
-                        } label: {
-                            Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
-                        }
-                        .buttonStyle(.borderless)
-                        .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
-
-                        Button(role: .destructive) {
-                            showDeleteConfirmation = true
-                            isPresented = false
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Remove Workspace")
-                    }
-                }
-                .padding(12)
             }
         }
         .frame(width: state.repositories.isEmpty ? 300 : 420)
+    }
+}
+
+struct WorkspacePickerContent: View {
+    @Bindable var viewModel: WorkspacePickerViewModel
+    @Binding var isPresented: Bool
+    @Binding var showAnalyzeSheet: Bool
+    @Binding var showRenameAlert: Bool
+    @Binding var showDeleteConfirmation: Bool
+    @Binding var newName: String
+
+    var body: some View {
+        if viewModel.repositories.isEmpty {
+            EmptyWorkspaceAddView {
+                showAnalyzeSheet = true
+                isPresented = false
+            }
+        } else {
+            PickerHeader(
+                title: "Workspaces",
+                count: viewModel.repositories.count,
+                query: $viewModel.query,
+                placeholder: "Search names or paths"
+            )
+
+            Picker("Workspace filter", selection: $viewModel.filter) {
+                ForEach(WorkspaceFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
+
+            PickerDivider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(viewModel.visibleRepositories) { repo in
+                            WorkspaceRow(repo: repo, isSelected: repo.id == viewModel.selectedRepoId) {
+                                Task { await viewModel.selectRepo(repo.id) }
+                                isPresented = false
+                            }
+                            .id(repo.id)
+                        }
+
+                        if viewModel.visibleRepositories.isEmpty {
+                            EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(height: 280)
+                .onAppear {
+                    if let selected = viewModel.selectedRepoId {
+                        proxy.scrollTo(selected, anchor: .center)
+                    }
+                }
+            }
+
+            PickerDivider()
+
+            HStack(spacing: 8) {
+                Button {
+                    showAnalyzeSheet = true
+                    isPresented = false
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                if let selectedRepo = viewModel.selectedRepo {
+                    Button {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "arrow.up.forward.app")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in Finder")
+
+                    Button {
+                        newName = selectedRepo.name
+                        showRenameAlert = true
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Rename Workspace")
+
+                    Button {
+                        Task {
+                            await viewModel.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                        }
+                    } label: {
+                        Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Remove Workspace")
+                }
+            }
+            .padding(12)
+        }
     }
 }
 
@@ -628,82 +613,41 @@ struct WorkspaceRow: View {
     }
 }
 
-private enum BranchFilter: String, CaseIterable, Identifiable {
-    case all = "All"
-    case current = "Current"
-    case dirty = "Dirty"
-    case ahead = "Ahead"
-    case behind = "Behind"
-    case pullRequest = "PR"
-
-    var id: String { rawValue }
-}
-
 struct BranchPickerPopover: View {
     @Environment(AppState.self) private var state
     @Binding var isPresented: Bool
+    @State private var viewModel: BranchPickerViewModel? = nil
 
-    @State private var query = ""
-    @State private var filter: BranchFilter = .all
-
-    private var summaries: [LocalBranchSummary] {
-        if !state.localBranchSummaries.isEmpty { return state.localBranchSummaries }
-        return state.localBranches.map {
-            LocalBranchSummary(
-                branch: $0,
-                isCurrent: $0 == state.selectedBranch,
-                isDirty: false,
-                aheadCount: 0,
-                behindCount: 0,
-                upstream: nil,
-                relatedPRNumber: nil,
-                relatedPRTitle: nil,
-                lastAuthor: "unknown",
-                lastUpdated: "unknown"
-            )
+    var body: some View {
+        VStack(spacing: 0) {
+            if let viewModel {
+                BranchPickerContent(viewModel: viewModel, isPresented: $isPresented)
+            } else {
+                ProgressView()
+                    .padding(24)
+                    .onAppear {
+                        viewModel = BranchPickerViewModel(state: state)
+                    }
+            }
         }
+        .frame(width: 500)
     }
+}
 
-    private var visibleSummaries: [LocalBranchSummary] {
-        summaries
-            .filter { branch in
-                switch filter {
-                case .all: true
-                case .current: branch.branch == state.selectedBranch || branch.isCurrent
-                case .dirty: branch.isDirty
-                case .ahead: branch.aheadCount > 0
-                case .behind: branch.behindCount > 0
-                case .pullRequest: branch.relatedPRNumber != nil
-                }
-            }
-            .filter { branch in
-                query.isEmpty
-                || branch.branch.fuzzyContains(query)
-                || branch.lastAuthor.fuzzyContains(query)
-                || (branch.relatedPRTitle?.fuzzyContains(query) ?? false)
-                || (branch.upstream?.fuzzyContains(query) ?? false)
-            }
-            .sorted { lhs, rhs in
-                if lhs.branch == state.selectedBranch { return true }
-                if rhs.branch == state.selectedBranch { return false }
-                if lhs.isDirty != rhs.isDirty { return lhs.isDirty }
-                let lhsChanged = lhs.aheadCount + lhs.behindCount
-                let rhsChanged = rhs.aheadCount + rhs.behindCount
-                if lhsChanged != rhsChanged { return lhsChanged > rhsChanged }
-                return lhs.branch.localizedCaseInsensitiveCompare(rhs.branch) == .orderedAscending
-            }
-    }
+struct BranchPickerContent: View {
+    @Bindable var viewModel: BranchPickerViewModel
+    @Binding var isPresented: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             PickerHeader(
                 title: "Branches",
-                count: summaries.count,
-                query: $query,
+                count: viewModel.visibleSummaries.count,
+                query: $viewModel.query,
                 placeholder: "Search branch, author, PR, upstream"
             )
 
-            Picker("Branch filter", selection: $filter) {
+            Picker("Branch filter", selection: $viewModel.filter) {
                 ForEach(BranchFilter.allCases) { filter in
                     Text(filter.rawValue).tag(filter)
                 }
@@ -718,15 +662,15 @@ struct BranchPickerPopover: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
-                        ForEach(visibleSummaries) { summary in
-                            BranchRow(summary: summary, isSelected: summary.branch == state.selectedBranch) {
-                                Task { await state.selectBranch(summary.branch) }
+                        ForEach(viewModel.visibleSummaries) { summary in
+                            BranchRow(summary: summary, isSelected: summary.branch == viewModel.selectedBranch) {
+                                Task { await viewModel.selectBranch(summary.branch) }
                                 isPresented = false
                             }
                             .id(summary.branch)
                         }
 
-                        if visibleSummaries.isEmpty {
+                        if viewModel.visibleSummaries.isEmpty {
                             EmptyPickerState(icon: "arrow.triangle.branch", text: "No branches match")
                         }
                     }
@@ -734,13 +678,12 @@ struct BranchPickerPopover: View {
                 }
                 .frame(height: 330)
                 .onAppear {
-                    if let selected = state.selectedBranch {
+                    if let selected = viewModel.selectedBranch {
                         proxy.scrollTo(selected, anchor: .center)
                     }
                 }
             }
         }
-        .frame(width: 500)
     }
 }
 
@@ -802,59 +745,41 @@ struct BranchRow: View {
     }
 }
 
-private enum CommitFilter: String, CaseIterable, Identifiable {
-    case all = "All"
-    case selected = "Selected"
-    case mine = "Mine"
-
-    var id: String { rawValue }
-}
-
 struct CommitScopePickerPopover: View {
     @Environment(AppState.self) private var state
     @Binding var isPresented: Bool
+    @State private var viewModel: CommitScopeViewModel? = nil
 
-    @State private var query = ""
-    @State private var filter: CommitFilter = .all
-
-    private var selectedAuthor: String? {
-        guard let sha = state.selectedCommitSha else { return nil }
-        return state.commits.first(where: { $0.sha == sha })?.author
-    }
-
-    private var visibleCommits: [(offset: Int, element: GitCommit)] {
-        Array(state.commits.enumerated())
-            .filter { pair in
-                switch filter {
-                case .all:
-                    return true
-                case .selected:
-                    return pair.element.sha == state.selectedCommitSha
-                case .mine:
-                    guard let selectedAuthor else { return false }
-                    return pair.element.author == selectedAuthor
-                }
+    var body: some View {
+        VStack(spacing: 0) {
+            if let viewModel {
+                CommitScopePickerContent(viewModel: viewModel, isPresented: $isPresented)
+            } else {
+                ProgressView()
+                    .padding(24)
+                    .onAppear {
+                        viewModel = CommitScopeViewModel(state: state)
+                    }
             }
-            .filter { pair in
-                query.isEmpty
-                || pair.element.subject.fuzzyContains(query)
-                || pair.element.author.fuzzyContains(query)
-                || pair.element.sha.fuzzyContains(query)
-                || pair.element.date.fuzzyContains(query)
-                || "c\(pair.offset + 1)".fuzzyContains(query)
-            }
+        }
+        .frame(width: 520)
     }
+}
+
+struct CommitScopePickerContent: View {
+    @Bindable var viewModel: CommitScopeViewModel
+    @Binding var isPresented: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             PickerHeader(
                 title: "Review Scope",
-                count: state.commits.count,
-                query: $query,
+                count: viewModel.commits.count,
+                query: $viewModel.query,
                 placeholder: "Search C#, subject, author, sha"
             )
 
-            Picker("Commit filter", selection: $filter) {
+            Picker("Commit filter", selection: $viewModel.filter) {
                 ForEach(CommitFilter.allCases) { filter in
                     Text(filter.rawValue).tag(filter)
                 }
@@ -869,29 +794,29 @@ struct CommitScopePickerPopover: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
-                        CommitAllChangesRow(isSelected: state.selectedCommitSha == nil) {
-                            Task { await state.selectCommit(nil) }
+                        CommitAllChangesRow(isSelected: viewModel.selectedCommitSha == nil) {
+                            Task { await viewModel.selectCommit(nil) }
                             isPresented = false
                         }
                         .id("all-changes")
 
-                        if !visibleCommits.isEmpty {
+                        if !viewModel.visibleCommits.isEmpty {
                             SectionLabel("Commits")
                         }
 
-                        ForEach(visibleCommits, id: \.element.sha) { idx, commit in
+                        ForEach(viewModel.visibleCommits, id: \.element.sha) { idx, commit in
                             CommitRow(
                                 index: idx + 1,
                                 commit: commit,
-                                isSelected: commit.sha == state.selectedCommitSha
+                                isSelected: commit.sha == viewModel.selectedCommitSha
                             ) {
-                                Task { await state.selectCommit(commit.sha) }
+                                Task { await viewModel.selectCommit(commit.sha) }
                                 isPresented = false
                             }
                             .id(commit.sha)
                         }
 
-                        if visibleCommits.isEmpty {
+                        if viewModel.visibleCommits.isEmpty {
                             EmptyPickerState(icon: "clock.arrow.circlepath", text: "No commits match")
                         }
                     }
@@ -899,7 +824,7 @@ struct CommitScopePickerPopover: View {
                 }
                 .frame(height: 360)
                 .onAppear {
-                    proxy.scrollTo(state.selectedCommitSha ?? "all-changes", anchor: .center)
+                    proxy.scrollTo(viewModel.selectedCommitSha ?? "all-changes", anchor: .center)
                 }
             }
 
@@ -907,8 +832,8 @@ struct CommitScopePickerPopover: View {
 
             HStack(spacing: 8) {
                 Button {
-                    query = ""
-                    filter = .all
+                    viewModel.query = ""
+                    viewModel.filter = .all
                 } label: {
                     Label("Reset", systemImage: "xmark.circle")
                 }
@@ -917,30 +842,29 @@ struct CommitScopePickerPopover: View {
                 Spacer()
 
                 Button {
-                    if let first = state.commits.first {
-                        Task { await state.selectCommit(first.sha) }
+                    if let first = viewModel.commits.first {
+                        Task { await viewModel.selectCommit(first.sha) }
                         isPresented = false
                     }
                 } label: {
                     Label("First", systemImage: "backward.end")
                 }
                 .buttonStyle(.borderless)
-                .disabled(state.commits.isEmpty)
+                .disabled(viewModel.commits.isEmpty)
 
                 Button {
-                    if let last = state.commits.last {
-                        Task { await state.selectCommit(last.sha) }
+                    if let last = viewModel.commits.last {
+                        Task { await viewModel.selectCommit(last.sha) }
                         isPresented = false
                     }
                 } label: {
                     Label("Latest", systemImage: "forward.end")
                 }
                 .buttonStyle(.borderless)
-                .disabled(state.commits.isEmpty)
+                .disabled(viewModel.commits.isEmpty)
             }
             .padding(12)
         }
-        .frame(width: 520)
     }
 }
 
@@ -1248,32 +1172,52 @@ struct AnalysisDetailView: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
     @State private var navRailWidth: CGFloat = 360
+    @State private var viewModel: AnalysisViewModel? = nil
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left pane: review navigation
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 12) {
-                        AnalysisNavigationRail(details: details)
+        Group {
+            if let viewModel {
+                HStack(spacing: 0) {
+                    // Left pane: review navigation
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            VStack(spacing: 12) {
+                                AnalysisNavigationRail(details: details)
+                            }
+                            .padding(12)
+                        }
+                        .background(Color.bgSidebar)
                     }
-                    .padding(12)
+                    .frame(width: navRailWidth)
+                    .background(Color.bgSidebar)
+
+                    PaneDivider(width: $navRailWidth, minWidth: 220, maxWidth: 560)
+
+                    // Right pane: context + diff
+                    VStack(spacing: 0) {
+                        SelectedContextBar(details: details)
+                        Divider()
+                        DiffViewerPanel(details: details)
+                    }
                 }
-                .background(Color.bgSidebar)
-            }
-            .frame(width: navRailWidth)
-            .background(Color.bgSidebar)
-
-            PaneDivider(width: $navRailWidth, minWidth: 220, maxWidth: 560)
-
-            // Right pane: context + diff
-            VStack(spacing: 0) {
-                SelectedContextBar(details: details)
-                Divider()
-                DiffViewerPanel(details: details)
+                .environment(viewModel)
+            } else {
+                VStack {
+                    LoadingSpinner(size: 24)
+                    Text("Configuring workspace...")
+                        .font(.system(size: 13))
+                        .foregroundColor(.textSecondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    viewModel = AnalysisViewModel(state: state)
+                }
             }
         }
         .background(Color.bgCanvas)
+        .onChange(of: state.analysisDetails?.run.id) { _, _ in
+            viewModel?.refreshIfNecessary()
+        }
     }
 }
 

@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - Review Map Panel
 
 struct AnalysisNavigationRail: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
 
     var visibleTargets: [ReviewTarget] {
-        Array(state.bucketTargets.prefix(8))
+        Array(viewModel.bucketTargets.prefix(8))
     }
 
     var body: some View {
@@ -20,27 +20,27 @@ struct AnalysisNavigationRail: View {
 
             AllChangesNavRow(
                 fileCount: details.files.count,
-                isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected && !state.isNeedsAttentionViewSelected
+                isSelected: viewModel.selectedBucketId == nil && !viewModel.isLowerSignalViewSelected && !viewModel.isNeedsAttentionViewSelected
             ) {
-                state.selectAllChanges()
+                viewModel.selectAllChanges()
             }
 
             if !details.reviewTargets.isEmpty {
                 NeedsAttentionNavRow(
                     fileCount: Set(details.reviewTargets.map(\.filePath)).count,
                     severitySummary: details.reviewTargets.severitySummary,
-                    isSelected: state.isNeedsAttentionViewSelected
+                    isSelected: viewModel.isNeedsAttentionViewSelected
                 ) {
-                    state.selectNeedsAttentionChanges()
+                    viewModel.selectNeedsAttentionChanges()
                 }
             }
 
             if !details.skimTargets.isEmpty {
                 LowerSignalNavRow(
                     fileCount: details.skimTargets.count,
-                    isSelected: state.isLowerSignalViewSelected
+                    isSelected: viewModel.isLowerSignalViewSelected
                 ) {
-                    state.selectLowerSignalChanges()
+                    viewModel.selectLowerSignalChanges()
                 }
             }
 
@@ -58,9 +58,9 @@ struct AnalysisNavigationRail: View {
                         AreaNavRow(
                             bucket: bucket,
                             targetCount: details.reviewTargets.filter { bucket.files.contains($0.filePath) }.count,
-                            isSelected: state.selectedBucketId == bucket.id
+                            isSelected: viewModel.selectedBucketId == bucket.id
                         ) {
-                            state.selectBucket(bucket.id)
+                            viewModel.selectBucket(bucket.id)
                         }
                     }
                 }
@@ -68,19 +68,19 @@ struct AnalysisNavigationRail: View {
 
             RailSectionHeader(
                 title: "In This View",
-                count: state.bucketTargets.count,
+                count: viewModel.bucketTargets.count,
                 help: "Concrete review entry points inside the selected scope, ordered by severity and analyzer confidence."
             )
 
-            if state.bucketTargets.isEmpty {
+            if viewModel.bucketTargets.isEmpty {
                 RailEmptyRow(icon: "checkmark.seal", text: "No targets in this view")
             } else {
                 VStack(spacing: 2) {
                     ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
                         TargetNavRow(target: target, index: index)
                     }
-                    if state.bucketTargets.count > visibleTargets.count {
-                        RailMoreRow(text: "\(state.bucketTargets.count - visibleTargets.count) more targets in this view")
+                    if viewModel.bucketTargets.count > visibleTargets.count {
+                        RailMoreRow(text: "\(viewModel.bucketTargets.count - visibleTargets.count) more targets in this view")
                     }
                 }
             }
@@ -372,14 +372,14 @@ struct AreaNavRow: View {
 }
 
 struct TargetNavRow: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let target: ReviewTarget
     let index: Int
     @State private var isHovered = false
 
     var body: some View {
         Button {
-            state.toggleTarget(target)
+            viewModel.toggleTarget(target)
         } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -419,7 +419,7 @@ struct TargetNavRow: View {
     }
 
     private var isSelected: Bool {
-        state.activeTargetId == target.id
+        viewModel.activeTargetId == target.id
     }
 
     private var rowBackground: Color {
@@ -467,7 +467,7 @@ struct RailMoreRow: View {
 }
 
 struct ReviewMapPanel: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
 
     var topSignals: [RiskHighlight] {
@@ -508,7 +508,7 @@ struct ReviewMapPanel: View {
                     VStack(spacing: 6) {
                         ForEach(topSignals) { signal in
                             SignalCard(signal: signal) {
-                                state.jumpToHighlight(signal)
+                                viewModel.jumpToHighlight(signal)
                             }
                         }
                     }
@@ -563,7 +563,7 @@ struct SignalCard: View {
 // MARK: - Semantic Buckets Panel (Change Buckets)
 
 struct SemanticBucketsPanel: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
 
     var body: some View {
@@ -585,18 +585,18 @@ struct SemanticBucketsPanel: View {
                     AllChangesCard(
                         fileCount: details.files.count,
                         signalCount: details.riskHighlights.filter { $0.severity >= .medium }.count,
-                        isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected && !state.isNeedsAttentionViewSelected
+                        isSelected: viewModel.selectedBucketId == nil && !viewModel.isLowerSignalViewSelected && !viewModel.isNeedsAttentionViewSelected
                     ) {
-                        state.selectAllChanges()
+                        viewModel.selectAllChanges()
                     }
 
                     ForEach(details.changeBuckets) { bucket in
                         BucketCard(
                             bucket: bucket,
                             highlights: details.riskHighlights.filter { $0.bucketId == bucket.id },
-                            isSelected: state.selectedBucketId == bucket.id
+                            isSelected: viewModel.selectedBucketId == bucket.id
                         ) {
-                            state.selectBucket(bucket.id)
+                            viewModel.selectBucket(bucket.id)
                         }
                     }
                 }
@@ -780,7 +780,7 @@ struct ReviewTargetsPanel: View {
 }
 
 struct ReviewTargetCard: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let target: ReviewTarget
     let index: Int
 
@@ -814,10 +814,10 @@ struct ReviewTargetCard: View {
                 Spacer()
                 if target.changedFileId != nil {
                     Button {
-                        state.toggleTarget(target)
+                        viewModel.toggleTarget(target)
                     } label: {
-                        Label(state.activeTargetId == target.id ? "Clear" : "View diff",
-                              systemImage: state.activeTargetId == target.id ? "xmark" : "arrow.right")
+                        Label(viewModel.activeTargetId == target.id ? "Clear" : "View diff",
+                              systemImage: viewModel.activeTargetId == target.id ? "xmark" : "arrow.right")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
@@ -852,8 +852,8 @@ struct ReviewTargetCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(state.activeTargetId == target.id ? Color.warningColor.opacity(0.65) : Color.borderMuted,
-                        lineWidth: state.activeTargetId == target.id ? 1.5 : 0.5)
+                .stroke(viewModel.activeTargetId == target.id ? Color.warningColor.opacity(0.65) : Color.borderMuted,
+                        lineWidth: viewModel.activeTargetId == target.id ? 1.5 : 0.5)
         )
         .overlay(alignment: .leading) {
             Rectangle()
@@ -962,6 +962,7 @@ struct SafeToSkimPanel: View {
 
 struct SelectedContextBar: View {
     @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
     @State private var isProfileRulesPresented = false
     @State private var isProfileRulesHovered = false
@@ -975,11 +976,11 @@ struct SelectedContextBar: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.textTertiary)
                     .kerning(0.5)
-                Text(state.selectedReviewScopeTitle)
+                Text(viewModel.selectedReviewScopeTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
-                Text(state.selectedReviewScopeSubtitle)
+                Text(viewModel.selectedReviewScopeSubtitle)
                     .font(.system(size: 10))
                     .foregroundColor(.textTertiary)
                     .lineLimit(1)
@@ -987,12 +988,12 @@ struct SelectedContextBar: View {
             Spacer()
 
             HStack(spacing: 7) {
-                ContextStatChip(icon: "doc.text.fill", text: "\(state.bucketFiles.count) files")
-                if state.selectedScopeSignalCount > 0 {
-                    ContextStatChip(icon: "exclamationmark.shield.fill", text: "\(state.selectedScopeSignalCount) signals")
+                ContextStatChip(icon: "doc.text.fill", text: "\(viewModel.bucketFiles.count) files")
+                if viewModel.selectedScopeSignalCount > 0 {
+                    ContextStatChip(icon: "exclamationmark.shield.fill", text: "\(viewModel.selectedScopeSignalCount) signals")
                 }
-                if state.bucketTargets.count > 0 {
-                    ContextStatChip(icon: "target", text: "\(state.bucketTargets.count) targets")
+                if viewModel.bucketTargets.count > 0 {
+                    ContextStatChip(icon: "target", text: "\(viewModel.bucketTargets.count) targets")
                 }
 
                 if let repo = state.selectedRepo {
@@ -1484,36 +1485,7 @@ private extension SemanticAreaFindingRule {
     }
 }
 
-private extension AppState {
-    var selectedReviewScopeTitle: String {
-        if isNeedsAttentionViewSelected { return "Needs attention" }
-        if isLowerSignalViewSelected { return "Low-signal / skim" }
-        return selectedBucket?.title ?? "All changes"
-    }
 
-    var selectedReviewScopeSubtitle: String {
-        if isNeedsAttentionViewSelected {
-            guard let details = analysisDetails else {
-                return "Files with concrete review targets from analyzer signals."
-            }
-            let firstTarget = details.reviewTargets.first?.title
-            let summary = "\(details.reviewTargets.severitySummary) across \(Set(details.reviewTargets.map(\.filePath)).count) file\(Set(details.reviewTargets.map(\.filePath)).count == 1 ? "" : "s")."
-            guard let firstTarget else { return summary }
-            return "\(summary) Start with: \(firstTarget)"
-        }
-        if isLowerSignalViewSelected {
-            return "Configuration, documentation, generated, and boilerplate files."
-        }
-        if let selectedBucket {
-            return selectedBucket.summary
-        }
-        return "Unfiltered branch and working tree changes."
-    }
-
-    var selectedScopeSignalCount: Int {
-        bucketHighlights.filter { $0.severity >= .medium }.count
-    }
-}
 
 private extension Array where Element == ReviewTarget {
     var severitySummary: String {

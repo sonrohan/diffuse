@@ -4,6 +4,7 @@ import SwiftUI
 
 struct DiffViewerPanel: View {
     @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
 
     @State private var hideBoilerplate = false
@@ -19,12 +20,12 @@ struct DiffViewerPanel: View {
     @State private var isFilterPopoverPresented = false
 
     var activeFile: ChangedFile? {
-        guard let id = state.activeFileId else { return filteredFiles.first }
+        guard let id = viewModel.activeFileId else { return filteredFiles.first }
         return filteredFiles.first { $0.id == id } ?? filteredFiles.first
     }
 
     var orderedFiles: [ChangedFile] {
-        state.reorderFiles(state.bucketFiles, highlights: details.riskHighlights)
+        viewModel.reorderFiles(viewModel.bucketFiles, highlights: details.riskHighlights)
     }
 
     var filteredFiles: [ChangedFile] {
@@ -181,8 +182,8 @@ struct DiffViewerPanel: View {
                 if let file = activeFile {
                     DiffContent(
                         file: file,
-                        activeHunkIndex: state.activeHunkIndex,
-                        activeTarget: state.activeTarget?.filePath == file.path ? state.activeTarget : nil
+                        activeHunkIndex: viewModel.activeHunkIndex,
+                        activeTarget: viewModel.activeTarget?.filePath == file.path ? viewModel.activeTarget : nil
                     )
                 } else {
                     VStack {
@@ -215,8 +216,8 @@ struct DiffViewerPanel: View {
             if let id { viewedFileIds.insert(id) }
         }
         .onChange(of: filteredFiles.map(\.id)) { _, ids in
-            if let activeId = state.activeFileId, !ids.contains(activeId) {
-                state.jumpToFile(ids.first ?? activeId)
+            if let activeId = viewModel.activeFileId, !ids.contains(activeId) {
+                viewModel.jumpToFile(ids.first ?? activeId)
             }
         }
     }
@@ -510,7 +511,7 @@ struct DiffToolbarButton: View {
 // MARK: - File List Sidebar
 
 struct FileListSidebar: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let files: [ChangedFile]
     let activeFile: ChangedFile?
     let compactTree: Bool
@@ -532,7 +533,7 @@ struct FileListSidebar: View {
                         collapsedFolders: $collapsedFolders,
                         compactTree: compactTree
                     ) { file in
-                        state.jumpToFile(file.id)
+                        viewModel.jumpToFile(file.id)
                     }
                 }
 
@@ -704,13 +705,13 @@ struct FileTreeNodeView: View {
 }
 
 struct FileListItem: View {
-    @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let file: ChangedFile
     let isActive: Bool
     var depth: Int = 0
 
     var fileTargets: [ReviewTarget] {
-        state.bucketTargets.filter { $0.filePath == file.path }
+        viewModel.bucketTargets.filter { $0.filePath == file.path }
     }
 
     var topTargetSeverity: Severity? {
@@ -960,6 +961,7 @@ struct AlignedDiffLine: Identifiable {
 
 struct HunkView: View {
     @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let hunk: DiffHunk
     let hunkIndex: Int
     let fileId: UUID
@@ -1201,7 +1203,7 @@ struct HunkView: View {
             HStack(spacing: 0) {
                 HStack(spacing: 3) {
                     Button {
-                        Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .up) }
+                        Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .up) }
                     } label: {
                         Image(systemName: "arrow.up.to.line")
                             .font(.system(size: 9, weight: .semibold))
@@ -1215,10 +1217,10 @@ struct HunkView: View {
 
                     if hunkIndex > 0 {
                         Button {
-                            Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .all) }
+                            Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .all) }
                         } label: {
                             Image(systemName: "arrow.up.and.down")
-                                .font(.system(size: 9, weight: .semibold))
+                               .font(.system(size: 9, weight: .semibold))
                                 .foregroundColor(.accentBlue)
                                 .frame(width: 17, height: 17)
                                 .background(Color.accentBlue.opacity(0.12))
@@ -1229,7 +1231,7 @@ struct HunkView: View {
                     }
 
                     Button {
-                        Task { await state.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .down) }
+                        Task { await viewModel.expandHunk(fileId: fileId, hunkIndex: hunkIndex, direction: .down) }
                     } label: {
                         Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 9, weight: .semibold))

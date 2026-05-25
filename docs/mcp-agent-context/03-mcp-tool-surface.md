@@ -100,7 +100,7 @@ Input:
 ```json
 {
   "repositoryPath": "/path/to/repo",
-  "path": "diffuse/Services.swift",
+  "path": "diffuse/Services/Services.swift",
   "includeHunks": true,
   "includeSymbols": true,
   "includeFindings": true
@@ -265,7 +265,7 @@ Input:
 ```json
 {
   "repositoryPath": "/path/to/repo",
-  "path": "diffuse/Services.swift",
+  "path": "diffuse/Services/Services.swift",
   "startLine": 320,
   "endLine": 380
 }
@@ -291,4 +291,3 @@ Use the `diffuse.` prefix for all tools so agents can distinguish app-provided r
 - Query tools work without opening the macOS UI.
 - Invalid repo/path/snapshot inputs return clear MCP errors.
 - `get_source_excerpt` enforces repo-root and line-count limits.
-

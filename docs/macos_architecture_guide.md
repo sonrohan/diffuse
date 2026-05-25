@@ -6,13 +6,12 @@ This document outlines the standard, modern architectural patterns for a native 
 
 ## 1. Core Architectural Paradigm: Modern MVVM
 
-Apple’s modern standard for SwiftUI uses a declarative View driven by a state-retaining **ViewModel**, leveraging the modern Swift `Observation` framework.
+Apple’s modern standard for SwiftUI uses a declarative View driven by a state-retaining, MainActor-isolated **ViewModel** powered by the Swift `Observation` framework.
 
-### The Android-to-iOS Conceptual Mapping
-If you are coming from an Android (Jetpack Compose) background, the paradigms translate almost perfectly:
-* **Jetpack Compose** $\rightarrow$ **SwiftUI** (Both are state-driven, declarative UI frameworks).
-* **ViewModel (Architecture Components)** $\rightarrow$ **`@Observable` Class** (Manages UI state and survives View redraws).
-* **StateFlow / MutableStateFlow** $\rightarrow$ **Normal Swift properties** (The `@Observable` macro automatically tracks read/write dependencies—no explicit wrappers needed).
+This architecture ensures a clean unidirectional data flow:
+* **Passive View**: Declarative struct layout that reflects view state.
+* **Observable ViewModel**: `@Observable` class annotated with `@MainActor` that coordinates view-specific transient state and interaction logic.
+* **Service Context**: Asynchronous execution context (such as thread-safe `actor`s) for Git command execution and sidecar communication.
 
 ---
 

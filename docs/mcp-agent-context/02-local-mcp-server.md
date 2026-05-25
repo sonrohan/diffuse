@@ -12,7 +12,7 @@ Recommended components:
 
 - `diffuse-core`: keep as the Rust AST sidecar.
 - `diffuse-mcp`: add a new Rust binary that implements the MCP server.
-- macOS app: starts/stops `diffuse-mcp`, writes connection config, and feeds it the snapshot directory path.
+- macOS app service layer: starts/stops `diffuse-mcp`, writes connection config, and feeds it the snapshot directory path.
 
 Why a helper process:
 
@@ -74,7 +74,13 @@ The app should make the port configurable and auto-select a free port if occupie
 
 ## App Integration
 
-Add a new actor:
+Add the Swift process manager in:
+
+```text
+diffuse/Services/MCPServerManager.swift
+```
+
+Suggested actor:
 
 ```swift
 actor MCPServerManager {
@@ -85,7 +91,9 @@ actor MCPServerManager {
 }
 ```
 
-`MCPServerManager` should be owned by `AppState` or an app-level service singleton. It should start when enabled in settings, not automatically for every user.
+`MCPServerManager` should be owned by `AppState` as a long-running app service, or by an app-level service container if one is introduced. It should start when enabled in settings, not automatically for every user.
+
+Keep it service-like: no popover state, selected tab, search text, copy banners, or presentation booleans. Settings and header UI should talk to it through a `@MainActor @Observable` view model, not directly from a SwiftUI view builder.
 
 ## Security Model
 
@@ -126,4 +134,5 @@ Resources are useful when agents want bulk context. Tools are for targeted queri
 - The helper reloads new snapshots without restart.
 - HTTP mode binds only to localhost.
 - No MCP tool writes to the repository.
-
+- `MCPServerManager` lives in `diffuse/Services/`.
+- Views do not spawn the helper process directly.

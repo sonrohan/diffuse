@@ -17,9 +17,11 @@
    - `diffuse.get_symbol_context`
    - `diffuse.explain_risk`
 7. Add optional bounded source excerpt tool.
-8. Add macOS Settings > Agent Access.
-9. Add header status and copy-agent-context actions.
-10. Add HTTP transport only after stdio works.
+8. Add `MCPServerManager` in `diffuse/Services/` to start/stop the helper.
+9. Add `AgentAccessViewModel` in `diffuse/ViewModels/`.
+10. Add macOS Settings > Agent Access in `diffuse/Views/SettingsSheet.swift`.
+11. Add header status and copy-agent-context actions.
+12. Add HTTP transport only after stdio works.
 
 ## Test Strategy
 
@@ -32,6 +34,15 @@ Add tests for:
 - `_added` metadata becomes `behavioralDeltas`
 - snapshot JSON round-trip
 - stale detection from git fingerprint changes
+- `AgentAccessViewModel` state transitions with a mocked MCP manager protocol
+
+Per `AGENTS.md`, XCTest files must live at the project root, not under `diffuse/`. Add files such as:
+
+```text
+ReviewContextTests.swift
+MCPServerManagerTests.swift
+AgentAccessViewModelTests.swift
+```
 
 ### Rust Unit Tests
 
@@ -86,7 +97,7 @@ Update the Xcode project build phases to:
 2. Build `diffuse-mcp`.
 3. Copy both into the app bundle helpers/auxiliary executables.
 
-The app should locate `diffuse-mcp` similarly to how `ASTAnalysisService.sidecarURL()` locates `diffuse-core`, with dev fallbacks:
+The app should locate `diffuse-mcp` similarly to how `ASTAnalysisService.sidecarURL()` in `diffuse/Services/Services.swift` locates `diffuse-core`, with dev fallbacks:
 
 ```text
 diffuse-mcp/target/debug/diffuse-mcp
@@ -130,4 +141,4 @@ Recommendation for v1: ship stdio, read-only tools, copied config snippets, and 
 - Disabling MCP stops the server and removes HTTP listener if active.
 - No tool mutates repository files or app analysis state.
 - Stale snapshot state is visible in the macOS app.
-
+- `xcodebuild -project diffuse.xcodeproj -scheme diffuse -configuration Debug -quiet` completes successfully.

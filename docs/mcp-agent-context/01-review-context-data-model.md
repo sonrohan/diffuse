@@ -2,7 +2,14 @@
 
 ## Goal
 
-Create one stable, queryable "review context" layer that both the macOS app and the MCP server can read. The app already computes most of the raw material:
+Create one stable, queryable "review context" layer that both the macOS app and the MCP server can read. This plan is revised for the app architecture introduced in `97f271ef80526e1b604e060103eb5786d09933ea`:
+
+- `diffuse/Core/`: immutable Codable models, deterministic builders, analysis rules, and profiles
+- `diffuse/Services/`: actors/services for filesystem, process, sidecar, persistence, and app-wide coordination
+- `diffuse/ViewModels/`: `@MainActor @Observable` classes for transient UI state and UI actions
+- `diffuse/Views/`: declarative SwiftUI layout only
+
+The app already computes most of the raw material:
 
 - changed files and hunks in `ChangedFile`
 - AST symbols in `ChangedSymbol`
@@ -17,7 +24,13 @@ This step should avoid inventing a second analyzer. Build a normalized snapshot 
 
 ### ReviewContextSnapshot
 
-Add a Codable model that represents one analysis run as an agent-facing snapshot:
+Add a new file:
+
+```text
+diffuse/Core/ReviewContextModels.swift
+```
+
+Define Codable models that represent one analysis run as an agent-facing snapshot:
 
 ```swift
 struct ReviewContextSnapshot: Codable, Identifiable {
@@ -87,7 +100,13 @@ Derive `contractChanges` from metadata keys prefixed with `contract_`. Derive `b
 
 ### ReviewContextQueryIndex
 
-Add an in-memory index owned by a new actor, for example:
+Add the in-memory/persistent index as a service actor in:
+
+```text
+diffuse/Services/ReviewContextStore.swift
+```
+
+Suggested API:
 
 ```swift
 actor ReviewContextStore {
@@ -112,7 +131,13 @@ These can be transient and rebuilt when loading the snapshot.
 
 ## Build The Snapshot
 
-Add a `ReviewContextBuilder` that converts `AnalysisDetails` plus repo/profile metadata into `ReviewContextSnapshot`.
+Add a pure builder in:
+
+```text
+diffuse/Core/ReviewContextBuilder.swift
+```
+
+It converts `AnalysisDetails` plus repo/profile metadata into `ReviewContextSnapshot`.
 
 Suggested inputs:
 
@@ -131,7 +156,13 @@ Call it after successful analysis in:
 - `AppState.analyzeSingleCommit(...)`
 - `AppState.reRunAnalysis()`
 
-The builder should not run git or spawn `diffuse-core`; it only normalizes already computed results.
+The builder should not run git or spawn `diffuse-core`; it only normalizes already computed results. This keeps `Core` deterministic and testable.
+
+Publication should be coordinated from `diffuse/Services/AppState.swift` or `AnalysisCoordinator` after analysis completes, but do not put snapshot indexing logic directly in `AppState`. `AppState` should call a service method such as:
+
+```swift
+await reviewContextStore.publish(input)
+```
 
 ## Persistence
 
@@ -172,4 +203,5 @@ Include `schemaVersion: 1` in all MCP-facing response envelopes. Do not expose r
 - The latest snapshot can be loaded after app restart.
 - Snapshot construction does not alter existing UI behavior.
 - Snapshot data includes enough IDs to navigate from file to symbols, findings, buckets, and targets.
-
+- No transient MCP UI state is added to `AppState`.
+- Snapshot builder tests live outside `diffuse/`, for example in root-level `ReviewContextTests.swift`, because files under `diffuse/` compile into the app target.

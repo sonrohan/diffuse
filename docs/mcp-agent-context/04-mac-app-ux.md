@@ -12,6 +12,12 @@ Make the MCP capability visible, controllable, and trustworthy inside the app wi
 
 ## Settings: New "Agent Access" Tab
 
+Update:
+
+```text
+diffuse/Views/SettingsSheet.swift
+```
+
 Add a fourth tab to `SettingsSheet.SettingsTab`:
 
 ```swift
@@ -19,6 +25,24 @@ case agentAccess = "Agent Access"
 ```
 
 Icon: `point.3.connected.trianglepath.dotted` or `server.rack`.
+
+Do not put the Agent Access tab's transient state directly in `SettingsSheet`. Add:
+
+```text
+diffuse/ViewModels/AgentAccessViewModel.swift
+```
+
+The view model should be `@Observable` and `@MainActor`, matching the current `WorkspacePickerViewModel`, `BranchPickerViewModel`, `CommitScopeViewModel`, and `AnalysisViewModel` pattern.
+
+Suggested responsibilities:
+
+- selected workspace for the Agent Access tab
+- selected setup snippet kind
+- copied/config banner state
+- server status polling result
+- included workspace toggles
+- start/stop/restart actions that call `MCPServerManager`
+- generated config snippets
 
 ### Primary Controls
 
@@ -86,18 +110,18 @@ Add a "Refresh Analysis" button that calls the existing analysis path.
 
 ## Main Header Indicator
 
-In `AppHeaderView`, show a small MCP status control near Settings when enabled:
+In `diffuse/Views/ContentView.swift`, update `AppHeaderView` to show a small MCP status control near Settings when enabled:
 
 - icon: `server.rack`
 - green dot when running
 - yellow when stale/error
 - tooltip: "MCP server running: 2 workspaces published"
 
-Clicking opens Settings > Agent Access.
+Clicking opens Settings > Agent Access. If the existing settings sheet cannot be opened to a specific tab yet, add a small view-model-friendly routing hook rather than adding more global UI state to `AppState`.
 
 ## Review UI Integration
 
-Add a small "Ask Agent" or "Copy Agent Context" menu from:
+Add a small "Ask Agent" or "Copy Agent Context" menu from views under `diffuse/Views/`:
 
 - file header in the diff view
 - review target row
@@ -112,7 +136,7 @@ Actions:
 Example copied prompt:
 
 ```text
-Use the Diffuse MCP server. Call diffuse.get_file_context for repo "/path/to/repo" and path "diffuse/Services.swift", then review the returned findings, symbols, and targets before inspecting source.
+Use the Diffuse MCP server. Call diffuse.get_file_context for repo "/path/to/repo" and path "diffuse/Services/Services.swift", then review the returned findings, symbols, and targets before inspecting source.
 ```
 
 This helps bridge the mac app's visual workflow with external agents.
@@ -151,4 +175,5 @@ Each should include one direct action where possible:
 - The app can copy a valid stdio MCP config.
 - The main header makes server status discoverable.
 - The app marks published context stale when the repo changes.
-
+- `AgentAccessViewModel` holds tab state and actions.
+- SwiftUI views remain declarative and do not run git, filesystem, or helper-process code directly.

@@ -4,16 +4,22 @@ You are working in the Diffuse macOS app repository. Implement the MCP agent-con
 
 Start by reading:
 
+- `AGENTS.md`
+- `README.md`
+- `docs/macos_architecture_guide.md`
 - `docs/mcp-agent-context/01-review-context-data-model.md`
 - `docs/mcp-agent-context/02-local-mcp-server.md`
 - `docs/mcp-agent-context/03-mcp-tool-surface.md`
 - `docs/mcp-agent-context/04-mac-app-ux.md`
 - `docs/mcp-agent-context/05-rollout-and-testing.md`
-- `diffuse/Models.swift`
-- `diffuse/Services.swift`
-- `diffuse/AppState.swift`
-- `diffuse/AnalysisProfile.swift`
-- `diffuse/SettingsSheet.swift`
+- `diffuse/Core/Models.swift`
+- `diffuse/Core/AnalysisProfile.swift`
+- `diffuse/Core/AnalysisEngine.swift`
+- `diffuse/Services/Services.swift`
+- `diffuse/Services/AppState.swift`
+- `diffuse/ViewModels/AnalysisViewModel.swift`
+- `diffuse/Views/SettingsSheet.swift`
+- `diffuse/Views/ContentView.swift`
 - `diffuse-core/src/main.rs`
 - `diffuse-core/src/analyzer.rs`
 
@@ -25,12 +31,19 @@ Implementation constraints:
 - Bind HTTP transport only to localhost if you add it. Prefer stdio first.
 - Do not expose full file contents by default. If implementing `diffuse.get_source_excerpt`, enforce repo-root validation and a maximum of 160 lines.
 - Use stable JSON schemas with `schemaVersion: 1`.
+- Preserve the current MVVM boundaries:
+  - `diffuse/Core/`: Codable models and deterministic builders.
+  - `diffuse/Services/`: actors/services for persistence, process management, git, sidecars, and synchronization.
+  - `diffuse/ViewModels/`: `@MainActor @Observable` transient UI state and actions.
+  - `diffuse/Views/`: declarative SwiftUI layout only.
+- Do not bloat `AppState` with Agent Access UI state. `AppState` may own or expose long-running services, but tab-local state belongs in `AgentAccessViewModel`.
+- Put XCTest files at the project root, not under `diffuse/`.
 
 Suggested milestones:
 
-1. Add Swift models for `ReviewContextSnapshot` and related file/symbol/finding/bucket/target records.
-2. Add `ReviewContextBuilder` to normalize `AnalysisDetails` into a snapshot.
-3. Add `ReviewContextStore` to persist and load latest snapshots under Application Support.
+1. Add Swift models for `ReviewContextSnapshot` and related file/symbol/finding/bucket/target records in `diffuse/Core/ReviewContextModels.swift`.
+2. Add `ReviewContextBuilder` in `diffuse/Core/ReviewContextBuilder.swift` to normalize `AnalysisDetails` into a snapshot.
+3. Add `ReviewContextStore` in `diffuse/Services/ReviewContextStore.swift` to persist and load latest snapshots under Application Support.
 4. Call snapshot publication after successful analysis without changing existing UI behavior.
 5. Add a new Rust `diffuse-mcp` binary that reads the snapshot manifest and serves stdio MCP.
 6. Implement these MCP tools first:
@@ -43,9 +56,10 @@ Suggested milestones:
    - `diffuse.find_symbols`
    - `diffuse.get_symbol_context`
    - `diffuse.explain_risk`
-8. Add `MCPServerManager` in Swift to start/stop the helper.
-9. Add Settings > Agent Access with enable toggle, status, included workspaces, setup snippets, and context preview.
-10. Add tests for snapshot building, JSON round-trip, MCP query behavior, and path safety.
+8. Add `MCPServerManager` in `diffuse/Services/MCPServerManager.swift` to start/stop the helper.
+9. Add `AgentAccessViewModel` in `diffuse/ViewModels/AgentAccessViewModel.swift`.
+10. Add Settings > Agent Access in `diffuse/Views/SettingsSheet.swift` with enable toggle, status, included workspaces, setup snippets, and context preview.
+11. Add tests for snapshot building, JSON round-trip, MCP query behavior, path safety, and Agent Access view-model behavior.
 
 Definition of done:
 
@@ -55,4 +69,4 @@ Definition of done:
 - The Settings UI can enable/disable the local server and copy agent config.
 - Existing analysis screens still work with MCP disabled.
 - Tests cover the snapshot builder and MCP query logic.
-
+- The app still passes `xcodebuild -project diffuse.xcodeproj -scheme diffuse -configuration Debug -quiet`.

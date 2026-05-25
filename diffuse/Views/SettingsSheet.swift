@@ -7,9 +7,10 @@ struct SettingsSheet: View {
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
 
-    @State private var selectedTab: SettingsTab = .general
+    @State private var selectedTab: SettingsTab
     @State private var hoveredTab: SettingsTab? = nil
     @State private var hoveredTheme: AppTheme? = nil
+    @State private var mcpViewModel: MCPSettingsViewModel? = nil
 
     // Cache clearing states
     @State private var showClearConfirmation = false
@@ -27,9 +28,15 @@ struct SettingsSheet: View {
     @State private var isProfileRulesPresented = false
     @State private var profileStatusMessage: String = ""
 
+    init(isPresented: Binding<Bool>, initialTab: SettingsTab = .general) {
+        self._isPresented = isPresented
+        self._selectedTab = State(initialValue: initialTab)
+    }
+
     enum SettingsTab: String, CaseIterable, Identifiable {
         case general = "General"
         case workspaces = "Workspaces"
+        case agentAccess = "MCP"
         case appearance = "Appearance"
 
         var id: String { self.rawValue }
@@ -38,6 +45,7 @@ struct SettingsSheet: View {
             switch self {
             case .general: return "slider.horizontal.3"
             case .workspaces: return "folder.fill"
+            case .agentAccess: return "network"
             case .appearance: return "paintpalette.fill"
             }
         }
@@ -58,6 +66,9 @@ struct SettingsSheet: View {
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             initializeWorkspaceSelection()
+            if mcpViewModel == nil {
+                mcpViewModel = MCPSettingsViewModel(state: state)
+            }
         }
         .onChange(of: selectedRepoId) { _, newId in
             loadSelectedWorkspaceDetails(newId)
@@ -188,6 +199,10 @@ struct SettingsSheet: View {
                         generalView
                     case .workspaces:
                         workspacesView
+                    case .agentAccess:
+                        if let mcpViewModel {
+                            MCPSettingsView(viewModel: mcpViewModel)
+                        }
                     case .appearance:
                         appearanceView
                     }

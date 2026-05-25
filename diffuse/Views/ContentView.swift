@@ -45,10 +45,12 @@ struct AppHeaderView: View {
     @State private var newName = ""
     @State private var showDeleteConfirmation = false
     @State private var showSettingsSheet = false
+    @State private var settingsInitialTab: SettingsSheet.SettingsTab = .general
     @State private var isWorkspacePickerPresented = false
     @State private var isBranchPickerPresented = false
     @State private var isCommitPickerPresented = false
     @State private var commitVM: CommitScopeViewModel? = nil
+    @State private var mcpVM: MCPSettingsViewModel? = nil
 
     var body: some View {
         HStack(spacing: 0) {
@@ -296,6 +298,11 @@ struct AppHeaderView: View {
                 }
 
                 if state.selectedRepo != nil {
+                    MCPHeaderStatus(isRunning: mcpVM?.isRunning == true)
+                        .help(
+                            mcpVM?.isRunning == true
+                                ? "MCP server running on localhost" : "MCP server off")
+
                     Button {
                         Task { await state.reRunAnalysis() }
                     } label: {
@@ -308,6 +315,7 @@ struct AppHeaderView: View {
                 }
 
                 Button {
+                    settingsInitialTab = .general
                     showSettingsSheet = true
                 } label: {
                     Image(systemName: "gearshape")
@@ -365,12 +373,19 @@ struct AppHeaderView: View {
             )
         }
         .sheet(isPresented: $showSettingsSheet) {
-            SettingsSheet(isPresented: $showSettingsSheet)
+            SettingsSheet(isPresented: $showSettingsSheet, initialTab: settingsInitialTab)
                 .environment(\.locale, locale)
+        }
+        .onChange(of: showSettingsSheet) { _, isPresented in
+            guard !isPresented else { return }
+            Task { await mcpVM?.refresh() }
         }
         .onAppear {
             if commitVM == nil {
                 commitVM = CommitScopeViewModel(state: state)
+            }
+            if mcpVM == nil {
+                mcpVM = MCPSettingsViewModel(state: state)
             }
         }
     }
@@ -391,6 +406,23 @@ struct AppHeaderView: View {
 
     private var canGoToNextCommit: Bool {
         commitVM?.canGoToNextCommit ?? false
+    }
+}
+
+struct MCPHeaderStatus: View {
+    let isRunning: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text("MCP")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+            Circle()
+                .fill(isRunning ? Color.successColor : Color.dangerColor)
+                .frame(width: 6, height: 6)
+        }
+        .frame(height: 20)
+        .accessibilityLabel(isRunning ? "MCP server running" : "MCP server off")
     }
 }
 

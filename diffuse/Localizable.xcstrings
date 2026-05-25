@@ -228,6 +228,9 @@
         }
       }
     },
+    "Agent Access" : {
+
+    },
     "All" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -273,6 +276,9 @@
           }
         }
       }
+    },
+    "Allow bounded file range reads" : {
+
     },
     "Analysis Profile" : {
 
@@ -714,6 +720,12 @@
     "Configuring workspace..." : {
 
     },
+    "Connect an Agent" : {
+
+    },
+    "Copy Details" : {
+
+    },
     "Create" : {
 
     },
@@ -800,6 +812,9 @@
 
     },
     "Expand context up (20 lines)" : {
+
+    },
+    "Expose local read-only review context to MCP-capable agents." : {
 
     },
     "Fallback" : {
@@ -984,10 +999,25 @@
     "Mark this path as sensitive" : {
 
     },
+    "MCP" : {
+
+    },
+    "MCP server off" : {
+
+    },
+    "MCP server running" : {
+
+    },
+    "MCP server running on localhost" : {
+
+    },
     "Message" : {
 
     },
     "Minimum added source lines: %lld" : {
+
+    },
+    "Mutation tools" : {
 
     },
     "Needs Attention" : {
@@ -1028,6 +1058,9 @@
     "No high-priority targets" : {
 
     },
+    "No local MCP activity yet." : {
+
+    },
     "No PR selected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1061,6 +1094,9 @@
 
     },
     "No workspaces registered" : {
+
+    },
+    "Off" : {
 
     },
     "Open in Finder" : {
@@ -1112,6 +1148,9 @@
         }
       }
     },
+    "Permissions" : {
+
+    },
     "Preset to copy" : {
 
     },
@@ -1142,6 +1181,9 @@
 
     },
     "PROFILE" : {
+
+    },
+    "Recent Events" : {
 
     },
     "Reload" : {
@@ -1309,6 +1351,9 @@
     "Review the full branch diff" : {
 
     },
+    "Rotate token" : {
+
+    },
     "Run diffuse analysis on a local git repository." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1331,6 +1376,9 @@
           }
         }
       }
+    },
+    "Running" : {
+
     },
     "Running analysis…" : {
       "extractionState" : "manual",
@@ -1492,6 +1540,12 @@
 
     },
     "Split" : {
+
+    },
+    "Start" : {
+
+    },
+    "Stop" : {
 
     },
     "Storage & Cache" : {
@@ -1709,6 +1763,9 @@
       }
     },
     "Use the Folder selector in the top header menu to register a Git repository." : {
+
+    },
+    "Use these values in any MCP client that supports Streamable HTTP. The server only accepts loopback requests with the Authorization header." : {
 
     },
     "via %@" : {

@@ -445,106 +445,145 @@ struct WorkspacePickerPopover: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PickerHeader(
-                title: "Workspaces",
-                count: state.repositories.count,
-                query: $query,
-                placeholder: "Search names or paths"
-            )
-
-            Picker("Workspace filter", selection: $filter) {
-                ForEach(WorkspaceFilter.allCases) { filter in
-                    Text(filter.rawValue).tag(filter)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(.horizontal, 12)
-            .padding(.bottom, 10)
-
-            PickerDivider()
-
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(visibleRepositories) { repo in
-                            WorkspaceRow(repo: repo, isSelected: repo.id == state.selectedRepoId) {
-                                Task { await state.selectRepo(repo.id) }
-                                isPresented = false
-                            }
-                            .id(repo.id)
-                        }
-
-                        if visibleRepositories.isEmpty {
-                            EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
-                        }
-                    }
-                    .padding(8)
-                }
-                .frame(height: 280)
-                .onAppear {
-                    if let selected = state.selectedRepoId {
-                        proxy.scrollTo(selected, anchor: .center)
-                    }
-                }
-            }
-
-            PickerDivider()
-
-            HStack(spacing: 8) {
-                Button {
+            if state.repositories.isEmpty {
+                EmptyWorkspaceAddView {
                     showAnalyzeSheet = true
                     isPresented = false
-                } label: {
-                    Label("Add", systemImage: "plus")
                 }
-                .buttonStyle(.bordered)
+            } else {
+                PickerHeader(
+                    title: "Workspaces",
+                    count: state.repositories.count,
+                    query: $query,
+                    placeholder: "Search names or paths"
+                )
 
-                Spacer()
-
-                if let selectedRepo = state.selectedRepo {
-                    Button {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
-                        isPresented = false
-                    } label: {
-                        Image(systemName: "arrow.up.forward.app")
+                Picker("Workspace filter", selection: $filter) {
+                    ForEach(WorkspaceFilter.allCases) { filter in
+                        Text(filter.rawValue).tag(filter)
                     }
-                    .buttonStyle(.borderless)
-                    .help("Open in Finder")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
 
-                    Button {
-                        newName = selectedRepo.name
-                        showRenameAlert = true
-                        isPresented = false
-                    } label: {
-                        Image(systemName: "pencil")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Rename Workspace")
+                PickerDivider()
 
-                    Button {
-                        Task {
-                            await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(visibleRepositories) { repo in
+                                WorkspaceRow(repo: repo, isSelected: repo.id == state.selectedRepoId) {
+                                    Task { await state.selectRepo(repo.id) }
+                                    isPresented = false
+                                }
+                                .id(repo.id)
+                            }
+
+                            if visibleRepositories.isEmpty {
+                                EmptyPickerState(icon: "folder.badge.questionmark", text: "No workspaces match")
+                            }
                         }
-                    } label: {
-                        Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
+                        .padding(8)
                     }
-                    .buttonStyle(.borderless)
-                    .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
+                    .frame(height: 280)
+                    .onAppear {
+                        if let selected = state.selectedRepoId {
+                            proxy.scrollTo(selected, anchor: .center)
+                        }
+                    }
+                }
 
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
+                PickerDivider()
+
+                HStack(spacing: 8) {
+                    Button {
+                        showAnalyzeSheet = true
                         isPresented = false
                     } label: {
-                        Image(systemName: "trash")
+                        Label("Add", systemImage: "plus")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Remove Workspace")
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+
+                    if let selectedRepo = state.selectedRepo {
+                        Button {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: selectedRepo.path))
+                            isPresented = false
+                        } label: {
+                            Image(systemName: "arrow.up.forward.app")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Open in Finder")
+
+                        Button {
+                            newName = selectedRepo.name
+                            showRenameAlert = true
+                            isPresented = false
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Rename Workspace")
+
+                        Button {
+                            Task {
+                                await state.setWorkspaceAutoAnalyze(id: selectedRepo.id, enabled: !selectedRepo.autoAnalyzeEnabled)
+                            }
+                        } label: {
+                            Image(systemName: selectedRepo.autoAnalyzeEnabled ? "bolt.slash" : "bolt")
+                        }
+                        .buttonStyle(.borderless)
+                        .help(selectedRepo.autoAnalyzeEnabled ? "Turn Off Auto-Analyze" : "Turn On Auto-Analyze")
+
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                            isPresented = false
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove Workspace")
+                    }
                 }
+                .padding(12)
             }
-            .padding(12)
         }
-        .frame(width: 420)
+        .frame(width: state.repositories.isEmpty ? 300 : 420)
+    }
+}
+
+struct EmptyWorkspaceAddView: View {
+    let onAdd: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "folder.badge.plus")
+                .font(.system(size: 34, weight: .regular))
+                .foregroundColor(.accentBlue)
+
+            VStack(spacing: 4) {
+                Text("Add Workspace")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Text("Choose a local Git repository to analyze.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button {
+                onAdd()
+            } label: {
+                Label("Add Workspace", systemImage: "plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(24)
+        .frame(width: 300)
     }
 }
 

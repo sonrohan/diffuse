@@ -6,22 +6,33 @@ struct AnalysisNavigationRail: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
 
-    var prioritySignals: [RiskHighlight] {
-        details.riskHighlights
-            .filter { $0.severity >= .medium }
-            .prefix(5)
-            .map { $0 }
+    var visibleTargets: [ReviewTarget] {
+        Array(state.bucketTargets.prefix(8))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            RailSectionHeader(title: "View", count: nil)
+            RailSectionHeader(
+                title: "Review Scope",
+                count: nil,
+                help: "Choose the set of files shown in the review. Areas are focused scopes; targets below are jumps inside the selected scope."
+            )
 
             AllChangesNavRow(
                 fileCount: details.files.count,
-                isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected
+                isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected && !state.isNeedsAttentionViewSelected
             ) {
                 state.selectAllChanges()
+            }
+
+            if !details.reviewTargets.isEmpty {
+                NeedsAttentionNavRow(
+                    fileCount: Set(details.reviewTargets.map(\.filePath)).count,
+                    severitySummary: details.reviewTargets.severitySummary,
+                    isSelected: state.isNeedsAttentionViewSelected
+                ) {
+                    state.selectNeedsAttentionChanges()
+                }
             }
 
             if !details.skimTargets.isEmpty {
@@ -30,24 +41,6 @@ struct AnalysisNavigationRail: View {
                     isSelected: state.isLowerSignalViewSelected
                 ) {
                     state.selectLowerSignalChanges()
-                }
-            }
-
-            RailSectionHeader(
-                title: "Signals",
-                count: prioritySignals.count,
-                help: "Concrete analyzer signals that may deserve attention, such as contract changes, data model shifts, or behavior-impacting edits."
-            )
-
-            if prioritySignals.isEmpty {
-                RailEmptyRow(icon: "checkmark.circle", text: "No priority signals")
-            } else {
-                VStack(spacing: 2) {
-                    ForEach(prioritySignals) { signal in
-                        SignalNavRow(signal: signal) {
-                            state.jumpToHighlight(signal)
-                        }
-                    }
                 }
             }
 
@@ -64,6 +57,7 @@ struct AnalysisNavigationRail: View {
                     ForEach(details.changeBuckets) { bucket in
                         AreaNavRow(
                             bucket: bucket,
+                            targetCount: details.reviewTargets.filter { bucket.files.contains($0.filePath) }.count,
                             isSelected: state.selectedBucketId == bucket.id
                         ) {
                             state.selectBucket(bucket.id)
@@ -73,17 +67,20 @@ struct AnalysisNavigationRail: View {
             }
 
             RailSectionHeader(
-                title: "Targets",
+                title: "In This View",
                 count: state.bucketTargets.count,
-                help: "Suggested review entry points for the currently selected view, ordered by concrete analyzer signals and symbol-level impact."
+                help: "Concrete review entry points inside the selected scope, ordered by severity and analyzer confidence."
             )
 
             if state.bucketTargets.isEmpty {
-                RailEmptyRow(icon: "checkmark.seal", text: "No selected-view targets")
+                RailEmptyRow(icon: "checkmark.seal", text: "No targets in this view")
             } else {
                 VStack(spacing: 2) {
-                    ForEach(Array(state.bucketTargets.prefix(6).enumerated()), id: \.element.id) { index, target in
+                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
                         TargetNavRow(target: target, index: index)
+                    }
+                    if state.bucketTargets.count > visibleTargets.count {
+                        RailMoreRow(text: "\(state.bucketTargets.count - visibleTargets.count) more targets in this view")
                     }
                 }
             }
@@ -204,7 +201,7 @@ struct LowerSignalNavRow: View {
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Lower-Signal Changes")
+                    Text("Low-Signal / Skim")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(1)
@@ -225,6 +222,53 @@ struct LowerSignalNavRow: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .help("Configuration, documentation, generated, or boilerplate files that are usually safe to skim.")
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
+    }
+}
+
+struct NeedsAttentionNavRow: View {
+    let fileCount: Int
+    let severitySummary: String
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: "target")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Needs Attention")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                    Text("\(severitySummary) across \(fileCount) \(fileCount == 1 ? "file" : "files")")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted, lineWidth: isSelected ? 1 : 0.5))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("Files with concrete analyzer targets: \(severitySummary).")
     }
 
     private var rowBackground: Color {
@@ -276,6 +320,7 @@ struct SignalNavRow: View {
 
 struct AreaNavRow: View {
     let bucket: ChangeBucket
+    let targetCount: Int
     let isSelected: Bool
     let action: () -> Void
     @State private var isHovered = false
@@ -294,7 +339,7 @@ struct AreaNavRow: View {
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
 
-                    Text(bucket.files.count == 1 ? "1 file" : "\(bucket.files.count) files")
+                    Text(areaMetadata)
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
                 }
@@ -317,6 +362,13 @@ struct AreaNavRow: View {
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
+
+    private var areaMetadata: String {
+        let files = bucket.files.count == 1 ? "1 file" : "\(bucket.files.count) files"
+        guard targetCount > 0 else { return files }
+        let targets = targetCount == 1 ? "1 target" : "\(targetCount) targets"
+        return "\(files) · \(targets)"
+    }
 }
 
 struct TargetNavRow: View {
@@ -327,9 +379,7 @@ struct TargetNavRow: View {
 
     var body: some View {
         Button {
-            if let fileId = target.changedFileId {
-                state.jumpToFile(fileId, hunkIndex: target.hunkIndex)
-            }
+            state.toggleTarget(target)
         } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -359,12 +409,23 @@ struct TargetNavRow: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 7)
             .contentShape(Rectangle())
-            .background(isHovered ? Color(NSColor.controlColor).opacity(0.55) : Color.clear)
+            .background(rowBackground)
             .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(isSelected ? Color.warningColor.opacity(0.45) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(target.changedFileId == nil)
         .onHover { isHovered = $0 }
+    }
+
+    private var isSelected: Bool {
+        state.activeTargetId == target.id
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.warningColor.opacity(0.12) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
     }
 }
 
@@ -384,6 +445,24 @@ struct RailEmptyRow: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
+    }
+}
+
+struct RailMoreRow: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textTertiary)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(.textTertiary)
+            Spacer()
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
     }
 }
 
@@ -506,7 +585,7 @@ struct SemanticBucketsPanel: View {
                     AllChangesCard(
                         fileCount: details.files.count,
                         signalCount: details.riskHighlights.filter { $0.severity >= .medium }.count,
-                        isSelected: state.selectedBucketId == nil
+                        isSelected: state.selectedBucketId == nil && !state.isLowerSignalViewSelected && !state.isNeedsAttentionViewSelected
                     ) {
                         state.selectAllChanges()
                     }
@@ -733,11 +812,12 @@ struct ReviewTargetCard: View {
                         .lineLimit(3)
                 }
                 Spacer()
-                if let fileId = target.changedFileId {
+                if target.changedFileId != nil {
                     Button {
-                        state.jumpToFile(fileId, hunkIndex: target.hunkIndex)
+                        state.toggleTarget(target)
                     } label: {
-                        Label("View diff", systemImage: "arrow.right")
+                        Label(state.activeTargetId == target.id ? "Clear" : "View diff",
+                              systemImage: state.activeTargetId == target.id ? "xmark" : "arrow.right")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.bordered)
@@ -772,7 +852,8 @@ struct ReviewTargetCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.borderMuted, lineWidth: 0.5)
+                .stroke(state.activeTargetId == target.id ? Color.warningColor.opacity(0.65) : Color.borderMuted,
+                        lineWidth: state.activeTargetId == target.id ? 1.5 : 0.5)
         )
         .overlay(alignment: .leading) {
             Rectangle()
@@ -941,11 +1022,21 @@ struct SelectedContextBar: View {
 
 private extension AppState {
     var selectedReviewScopeTitle: String {
-        if isLowerSignalViewSelected { return "Lower-signal changes" }
+        if isNeedsAttentionViewSelected { return "Needs attention" }
+        if isLowerSignalViewSelected { return "Low-signal / skim" }
         return selectedBucket?.title ?? "All changes"
     }
 
     var selectedReviewScopeSubtitle: String {
+        if isNeedsAttentionViewSelected {
+            guard let details = analysisDetails else {
+                return "Files with concrete review targets from analyzer signals."
+            }
+            let firstTarget = details.reviewTargets.first?.title
+            let summary = "\(details.reviewTargets.severitySummary) across \(Set(details.reviewTargets.map(\.filePath)).count) file\(Set(details.reviewTargets.map(\.filePath)).count == 1 ? "" : "s")."
+            guard let firstTarget else { return summary }
+            return "\(summary) Start with: \(firstTarget)"
+        }
         if isLowerSignalViewSelected {
             return "Configuration, documentation, generated, and boilerplate files."
         }
@@ -957,6 +1048,24 @@ private extension AppState {
 
     var selectedScopeSignalCount: Int {
         bucketHighlights.filter { $0.severity >= .medium }.count
+    }
+}
+
+private extension Array where Element == ReviewTarget {
+    var severitySummary: String {
+        let severities: [(Severity, String)] = [
+            (.high, "high"),
+            (.medium, "medium"),
+            (.low, "low"),
+            (.info, "info")
+        ]
+        let parts = severities.compactMap { severity, label -> String? in
+            let count = filter { $0.severity == severity }.count
+            guard count > 0 else { return nil }
+            return "\(count) \(label)"
+        }
+        if parts.isEmpty { return "0 targets" }
+        return parts.joined(separator: ", ") + " target\(count == 1 ? "" : "s")"
     }
 }
 

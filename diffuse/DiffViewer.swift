@@ -179,7 +179,11 @@ struct DiffViewerPanel: View {
 
                 // Diff content
                 if let file = activeFile {
-                    DiffContent(file: file, activeHunkIndex: state.activeHunkIndex)
+                    DiffContent(
+                        file: file,
+                        activeHunkIndex: state.activeHunkIndex,
+                        activeTarget: state.activeTarget?.filePath == file.path ? state.activeTarget : nil
+                    )
                 } else {
                     VStack {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -700,9 +704,18 @@ struct FileTreeNodeView: View {
 }
 
 struct FileListItem: View {
+    @Environment(AppState.self) private var state
     let file: ChangedFile
     let isActive: Bool
     var depth: Int = 0
+
+    var fileTargets: [ReviewTarget] {
+        state.bucketTargets.filter { $0.filePath == file.path }
+    }
+
+    var topTargetSeverity: Severity? {
+        fileTargets.map(\.severity).max()
+    }
 
     var statusColor: Color {
         switch file.status {
@@ -741,6 +754,10 @@ struct FileListItem: View {
 
             Spacer()
 
+            if !fileTargets.isEmpty {
+                targetIndicator
+            }
+
             classificationBadge(file.classification)
         }
         .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
@@ -753,7 +770,40 @@ struct FileListItem: View {
                 .frame(width: 2)
         }
         .contentShape(Rectangle())
-        .help(file.path)
+        .help(fileHelpText)
+    }
+
+    var targetIndicator: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "target")
+                .font(.system(size: 8, weight: .bold))
+            Text("\(fileTargets.count)")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+        }
+        .foregroundColor(targetColor)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(targetColor.opacity(0.10))
+        .clipShape(Capsule())
+    }
+
+    var targetColor: Color {
+        switch topTargetSeverity {
+        case .high: .dangerColor
+        case .medium: .warningColor
+        case .low: .infoColor
+        case .info, nil: .textTertiary
+        }
+    }
+
+    var fileHelpText: String {
+        guard let firstTarget = fileTargets.first else { return file.path }
+        let severity = firstTarget.severity.rawValue.capitalized
+        let extraCount = fileTargets.count - 1
+        if extraCount > 0 {
+            return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title) (+\(extraCount) more)"
+        }
+        return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title)"
     }
 
     @ViewBuilder
@@ -777,6 +827,7 @@ struct DiffContent: View {
     @Environment(AppState.self) private var state
     let file: ChangedFile
     let activeHunkIndex: Int?
+    let activeTarget: ReviewTarget?
     @State private var teachMessage: String?
 
     var body: some View {
@@ -840,7 +891,8 @@ struct DiffContent: View {
                             hunk: hunk,
                             hunkIndex: idx,
                             fileId: file.id,
-                            isHighlighted: activeHunkIndex == idx
+                            isHighlighted: activeHunkIndex == idx,
+                            activeTarget: activeTarget
                         )
                         .id("hunk-\(file.id)-\(idx)")
                     }
@@ -912,6 +964,7 @@ struct HunkView: View {
     let hunkIndex: Int
     let fileId: UUID
     let isHighlighted: Bool
+    let activeTarget: ReviewTarget?
     @State private var isCollapsed = false
 
     var diffLines: [NumberedDiffLine] {
@@ -970,18 +1023,20 @@ struct HunkView: View {
         return aligned
     }
 
-    var unifiedLineNumbers: String {
-        diffLines.map { line in
-            let old = line.oldLineNumber.map(String.init) ?? ""
-            return old
-        }.joined(separator: "\n")
+    var unifiedLineNumbers: AttributedString {
+        var result = AttributedString()
+        for line in diffLines {
+            result.append(lineNumberText(line.oldLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
+        }
+        return result
     }
 
-    var unifiedNewLineNumbers: String {
-        diffLines.map { line in
-            let new = line.newLineNumber.map(String.init) ?? ""
-            return new
-        }.joined(separator: "\n")
+    var unifiedNewLineNumbers: AttributedString {
+        var result = AttributedString()
+        for line in diffLines {
+            result.append(lineNumberText(line.newLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)))
+        }
+        return result
     }
 
     var unifiedPrefixes: AttributedString {
@@ -1005,6 +1060,9 @@ struct HunkView: View {
             }
             var attr = AttributedString(char + "\n")
             attr.foregroundColor = color
+            if isTargeted(line) {
+                attr.backgroundColor = Color.warningColor.opacity(0.22)
+            }
             result.append(attr)
         }
         return result
@@ -1028,21 +1086,28 @@ struct HunkView: View {
             case .metadata:
                 attr.foregroundColor = Color.textTertiary
             }
+            if isTargeted(line) {
+                attr.foregroundColor = Color.textPrimary
+                attr.backgroundColor = Color.warningColor.opacity(0.28)
+            }
             result.append(attr)
         }
         return result
     }
 
-    func splitLineNumbers(isLeft: Bool) -> String {
-        alignedDiffLines.map { alignedLine in
+    func splitLineNumbers(isLeft: Bool) -> AttributedString {
+        var result = AttributedString()
+        for alignedLine in alignedDiffLines {
             let line = isLeft ? alignedLine.oldLine : alignedLine.newLine
+            let isTargeted = line.map { self.isTargeted($0) } ?? false
             if let line {
                 let num = isLeft ? line.oldLineNumber : line.newLineNumber
-                return num.map(String.init) ?? ""
+                result.append(lineNumberText(num.map(String.init) ?? "", isTargeted: isTargeted))
             } else {
-                return ""
+                result.append(lineNumberText("", isTargeted: false))
             }
-        }.joined(separator: "\n")
+        }
+        return result
     }
 
     func splitPrefixes(isLeft: Bool) -> AttributedString {
@@ -1068,6 +1133,9 @@ struct HunkView: View {
                 }
                 var attr = AttributedString(char + "\n")
                 attr.foregroundColor = color
+                if isTargeted(line) {
+                    attr.backgroundColor = Color.warningColor.opacity(0.22)
+                }
                 result.append(attr)
             } else {
                 result.append(AttributedString("\n"))
@@ -1096,6 +1164,10 @@ struct HunkView: View {
                 case .metadata:
                     attr.foregroundColor = Color.textTertiary
                 }
+                if isTargeted(line) {
+                    attr.foregroundColor = Color.textPrimary
+                    attr.backgroundColor = Color.warningColor.opacity(0.28)
+                }
                 result.append(attr)
             } else {
                 var attr = AttributedString(" \n")
@@ -1104,6 +1176,23 @@ struct HunkView: View {
             }
         }
         return result
+    }
+
+    private func isTargeted(_ line: NumberedDiffLine) -> Bool {
+        guard let activeTarget,
+              let start = activeTarget.lineStart else { return false }
+        let end = activeTarget.lineEnd ?? start
+        guard let newLineNumber = line.newLineNumber else { return false }
+        return newLineNumber >= start && newLineNumber <= end
+    }
+
+    private func lineNumberText(_ text: String, isTargeted: Bool) -> AttributedString {
+        var attr = AttributedString(text + "\n")
+        attr.foregroundColor = isTargeted ? Color.warningColor : Color.textTertiary
+        if isTargeted {
+            attr.backgroundColor = Color.warningColor.opacity(0.22)
+        }
+        return attr
     }
 
     var body: some View {

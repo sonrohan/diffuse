@@ -29,8 +29,10 @@ class AppState {
     var isLoadingAnalysis = false
     var selectedBucketId: String?
     var isLowerSignalViewSelected = false
+    var isNeedsAttentionViewSelected = false
     var activeFileId: UUID?
     var activeHunkIndex: Int?
+    var activeTargetId: UUID?
     var diffLayout: DiffLayout = .unified
     var isAnalyzing = false
 
@@ -63,6 +65,10 @@ class AppState {
 
     var bucketFiles: [ChangedFile] {
         guard let details = analysisDetails else { return [] }
+        if isNeedsAttentionViewSelected {
+            let targetPaths = Set(details.reviewTargets.map(\.filePath))
+            return details.files.filter { targetPaths.contains($0.path) }
+        }
         if isLowerSignalViewSelected {
             let skimPaths = Set(details.skimTargets.map(\.filePath))
             return details.files.filter { skimPaths.contains($0.path) }
@@ -73,6 +79,10 @@ class AppState {
 
     var bucketHighlights: [RiskHighlight] {
         guard let details = analysisDetails else { return [] }
+        if isNeedsAttentionViewSelected {
+            let targetPaths = Set(details.reviewTargets.map(\.filePath))
+            return details.riskHighlights.filter { targetPaths.contains($0.filePath) }
+        }
         if isLowerSignalViewSelected { return [] }
         guard let bucket = selectedBucket else { return details.riskHighlights }
         return details.riskHighlights.filter { $0.bucketId == bucket.id }
@@ -80,9 +90,15 @@ class AppState {
 
     var bucketTargets: [ReviewTarget] {
         guard let details = analysisDetails else { return [] }
+        if isNeedsAttentionViewSelected { return details.reviewTargets }
         if isLowerSignalViewSelected { return [] }
         guard let bucket = selectedBucket else { return details.reviewTargets }
         return details.reviewTargets.filter { bucket.files.contains($0.filePath) }
+    }
+
+    var activeTarget: ReviewTarget? {
+        guard let activeTargetId, let details = analysisDetails else { return nil }
+        return details.reviewTargets.first { $0.id == activeTargetId }
     }
 
     // MARK: - Core Load & Refresh
@@ -108,8 +124,10 @@ class AppState {
         selectedPRId = nil
         selectedBucketId = nil
         isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         activeFileId = nil
         activeHunkIndex = nil
+        activeTargetId = nil
         analysisDetails = nil
         commits = []
         localBranchSummaries = []
@@ -169,8 +187,10 @@ class AppState {
         selectedPRId = id
         selectedBucketId = nil
         isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         activeFileId = nil
         activeHunkIndex = nil
+        activeTargetId = nil
         analysisDetails = nil
         selectedCommitSha = nil // Reset timeline to "All Changes"
         await loadDetails(for: id)
@@ -225,11 +245,15 @@ class AppState {
             if isLowerSignalViewSelected, details.skimTargets.isEmpty {
                 isLowerSignalViewSelected = false
             }
+            if isNeedsAttentionViewSelected, details.reviewTargets.isEmpty {
+                isNeedsAttentionViewSelected = false
+            }
 
             let ordered = reorderFiles(bucketFiles, highlights: details.riskHighlights)
             let firstFile = ordered.first(where: { $0.classification == .source || $0.classification == .test }) ?? ordered.first
             activeFileId = firstFile?.id
             activeHunkIndex = nil
+            activeTargetId = nil
         }
     }
 
@@ -363,37 +387,70 @@ class AppState {
     func selectAllChanges() {
         selectedBucketId = nil
         isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         guard let details = analysisDetails else { return }
         let ordered = reorderFiles(details.files, highlights: details.riskHighlights)
         activeFileId = ordered.first?.id
         activeHunkIndex = nil
+        activeTargetId = nil
+    }
+
+    func selectNeedsAttentionChanges() {
+        selectedBucketId = nil
+        isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = true
+        guard let details = analysisDetails else { return }
+        let targetPaths = Set(details.reviewTargets.map(\.filePath))
+        let files = details.files.filter { targetPaths.contains($0.path) }
+        let ordered = reorderFiles(files, highlights: details.riskHighlights)
+        activeFileId = ordered.first?.id
+        activeHunkIndex = nil
+        activeTargetId = nil
     }
 
     func selectBucket(_ id: String) {
         selectedBucketId = id
         isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         guard let details = analysisDetails else { return }
         let bucket = details.changeBuckets.first { $0.id == id }
         let files = bucket.map { b in details.files.filter { b.files.contains($0.path) } } ?? details.files
         let ordered = reorderFiles(files, highlights: details.riskHighlights)
         activeFileId = ordered.first?.id
         activeHunkIndex = nil
+        activeTargetId = nil
     }
 
     func selectLowerSignalChanges() {
         selectedBucketId = nil
         isLowerSignalViewSelected = true
+        isNeedsAttentionViewSelected = false
         guard let details = analysisDetails else { return }
         let skimPaths = Set(details.skimTargets.map(\.filePath))
         let files = details.files.filter { skimPaths.contains($0.path) }
         let ordered = reorderFiles(files, highlights: details.riskHighlights)
         activeFileId = ordered.first?.id
         activeHunkIndex = nil
+        activeTargetId = nil
     }
 
     func jumpToFile(_ fileId: UUID, hunkIndex: Int? = nil) {
         activeFileId = fileId
         activeHunkIndex = hunkIndex
+        activeTargetId = nil
+    }
+
+    func toggleTarget(_ target: ReviewTarget) {
+        guard activeTargetId != target.id else {
+            activeTargetId = nil
+            activeHunkIndex = nil
+            return
+        }
+        activeTargetId = target.id
+        if let fileId = target.changedFileId {
+            activeFileId = fileId
+            activeHunkIndex = target.hunkIndex
+        }
     }
 
     func jumpToHighlight(_ highlight: RiskHighlight) {
@@ -401,6 +458,7 @@ class AppState {
         if let bucket = details.changeBuckets.first(where: { $0.id == highlight.bucketId }) {
             selectedBucketId = bucket.id
             isLowerSignalViewSelected = false
+            isNeedsAttentionViewSelected = false
         }
         if let file = details.files.first(where: { $0.path == highlight.filePath }) {
             let hunkIdx = hunkIndexForLine(file: file, lineStart: highlight.lineStart)
@@ -473,8 +531,10 @@ class AppState {
         selectedPRId = nil
         selectedBucketId = nil
         isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         activeFileId = nil
         activeHunkIndex = nil
+        activeTargetId = nil
         analysisDetails = nil
         commits = []
         selectedCommitSha = nil
@@ -505,8 +565,10 @@ class AppState {
             selectedPRId = pr.id
             selectedBucketId = nil
             isLowerSignalViewSelected = false
+            isNeedsAttentionViewSelected = false
             activeFileId = nil
             activeHunkIndex = nil
+            activeTargetId = nil
 
             await refreshActiveRepo()
 

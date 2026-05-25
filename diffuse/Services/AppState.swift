@@ -59,7 +59,7 @@ class AppState {
 
         repositories = await coordinator.allRepositories()
 
-        if selectedRepoId == nil {
+        if selectedRepoId == nil || !repositories.contains(where: { $0.id == selectedRepoId }) {
             selectedRepoId = repositories.first?.id
         }
 
@@ -94,7 +94,17 @@ class AppState {
     }
 
     func refreshActiveRepo() async {
-        guard let repo = selectedRepo else { return }
+        guard let repo = selectedRepo else {
+            localBranches = []
+            selectedBranch = nil
+            pullRequests = []
+            localBranchSummaries = []
+            selectedPRId = nil
+            commits = []
+            selectedCommitSha = nil
+            analysisDetails = nil
+            return
+        }
 
         // Load local branches
         localBranches = await coordinator.listLocalBranches(repoPath: repo.path)

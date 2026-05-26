@@ -53,7 +53,7 @@ struct AppHeaderView: View {
         HStack(spacing: 0) {
             // Spacer to clear macOS window traffic light controls natively
             Spacer()
-                .frame(width: 80)
+                .frame(width: 16)
 
             // Workspace selector
             HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {

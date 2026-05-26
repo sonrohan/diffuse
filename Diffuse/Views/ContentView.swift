@@ -302,7 +302,7 @@ struct AppHeaderView: View {
                         Button {
                             isProfileRulesPresented = true
                         } label: {
-                            Label("Profile", systemImage: "slider.horizontal.3")
+                            Label("Profile", systemImage: "person.text.rectangle")
                                 .font(.system(size: 11))
                                 .foregroundColor(.textSecondary)
                                 .padding(.horizontal, 8)

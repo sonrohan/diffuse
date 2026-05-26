@@ -107,7 +107,7 @@ struct AnalysisProfileStudioView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "slider.horizontal.3")
+            Image(systemName: "person.text.rectangle")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(.accentBlue)
 

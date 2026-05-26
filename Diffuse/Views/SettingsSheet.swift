@@ -528,7 +528,7 @@ struct SettingsSheet: View {
                                         isProfileRulesPresented = true
                                     } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: "slider.horizontal.3")
+                                            Image(systemName: "person.text.rectangle")
                                             Text("Profile")
                                         }
                                         .font(.system(size: 11, weight: .semibold))

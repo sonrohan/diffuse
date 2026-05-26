@@ -10,13 +10,24 @@ on:
 jobs:
   build:
     name: Build & Package Release App
-    runs-on: macos-14
+    runs-on: macos-15
     permissions:
       contents: write # Required to create/update GitHub Releases and upload assets
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          # Dynamically locate and select the Xcode 16 toolchain
+          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | head -n 1)
+          if [ -d "$XCODE_PATH" ]; then
+            echo "Selecting Xcode from: $XCODE_PATH"
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          else
+            echo "Xcode 16 specific path not found. Proceeding with default xcodebuild..."
+          fi
 
       - name: Generate Version Info
         id: version_info

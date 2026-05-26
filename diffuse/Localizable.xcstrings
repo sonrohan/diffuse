@@ -153,6 +153,9 @@
         }
       }
     },
+    "About MCP Integration" : {
+
+    },
     "Active (Local)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -228,9 +231,6 @@
         }
       }
     },
-    "Agent Access" : {
-
-    },
     "All" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -276,9 +276,6 @@
           }
         }
       }
-    },
-    "Allow bounded file range reads" : {
-
     },
     "Analysis Profile" : {
 
@@ -601,6 +598,9 @@
     "Choose a preset to copy into this workspace profile" : {
 
     },
+    "Choose a setup recipe" : {
+
+    },
     "Choose your preferred aesthetic style for diffuse." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -720,10 +720,10 @@
     "Configuring workspace..." : {
 
     },
-    "Connect an Agent" : {
+    "Connect AI tools to Diffuse through a local stdio Model Context Protocol process." : {
 
     },
-    "Copy Details" : {
+    "Copy" : {
 
     },
     "Create" : {
@@ -742,6 +742,9 @@
 
     },
     "diffuse" : {
+
+    },
+    "Diffuse exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
 
     },
     "diffuse v1.0.0" : {
@@ -812,9 +815,6 @@
 
     },
     "Expand context up (20 lines)" : {
-
-    },
-    "Expose local read-only review context to MCP-capable agents." : {
 
     },
     "Fallback" : {
@@ -1002,22 +1002,10 @@
     "MCP" : {
 
     },
-    "MCP server off" : {
-
-    },
-    "MCP server running" : {
-
-    },
-    "MCP server running on localhost" : {
-
-    },
     "Message" : {
 
     },
     "Minimum added source lines: %lld" : {
-
-    },
-    "Mutation tools" : {
 
     },
     "Needs Attention" : {
@@ -1058,9 +1046,6 @@
     "No high-priority targets" : {
 
     },
-    "No local MCP activity yet." : {
-
-    },
     "No PR selected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1094,9 +1079,6 @@
 
     },
     "No workspaces registered" : {
-
-    },
-    "Off" : {
 
     },
     "Open in Finder" : {
@@ -1148,9 +1130,6 @@
         }
       }
     },
-    "Permissions" : {
-
-    },
     "Preset to copy" : {
 
     },
@@ -1177,13 +1156,16 @@
         }
       }
     },
+    "Privacy" : {
+
+    },
     "Profile" : {
 
     },
     "PROFILE" : {
 
     },
-    "Recent Events" : {
+    "Read-only local context" : {
 
     },
     "Reload" : {
@@ -1351,9 +1333,6 @@
     "Review the full branch diff" : {
 
     },
-    "Rotate token" : {
-
-    },
     "Run diffuse analysis on a local git repository." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1376,9 +1355,6 @@
           }
         }
       }
-    },
-    "Running" : {
-
     },
     "Running analysis…" : {
       "extractionState" : "manual",
@@ -1540,12 +1516,6 @@
 
     },
     "Split" : {
-
-    },
-    "Start" : {
-
-    },
-    "Stop" : {
 
     },
     "Storage & Cache" : {
@@ -1763,9 +1733,6 @@
       }
     },
     "Use the Folder selector in the top header menu to register a Git repository." : {
-
-    },
-    "Use these values in any MCP client that supports Streamable HTTP. The server only accepts loopback requests with the Authorization header." : {
 
     },
     "via %@" : {

@@ -1,7 +1,21 @@
 import SwiftUI
 
-// swift-format-ignore: TypeNamesShouldBeCapitalized
 @main
+enum DiffuseMain {
+    static func main() {
+        if CommandLine.arguments.contains("--mcp-server") {
+            Task {
+                await MCPStdioServerService.run()
+                exit(0)
+            }
+            dispatchMain()
+        } else {
+            diffuseApp.main()
+        }
+    }
+}
+
+// swift-format-ignore: TypeNamesShouldBeCapitalized
 struct diffuseApp: App {
     @State private var appState = AppState()
     @AppStorage("appTheme") private var appTheme = "System"

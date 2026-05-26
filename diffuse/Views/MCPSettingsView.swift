@@ -2,207 +2,176 @@ import SwiftUI
 
 struct MCPSettingsView: View {
     @Bindable var viewModel: MCPSettingsViewModel
+    @State private var hoveredConfiguration: MCPConfigurationTab? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Agent Access")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.textPrimary)
-                Text("Expose local read-only review context to MCP-capable agents.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-            }
-            .padding(.horizontal, 24)
-
-            statusCard
-            configCard
-            permissionsCard
-            activityCard
-
+        VStack(alignment: .leading, spacing: 22) {
+            configurationSection
+            Divider().padding(.horizontal, 30)
+            privacySection
+            Divider().padding(.horizontal, 30)
+            aboutSection
             Spacer()
         }
-        .task {
-            await viewModel.refresh()
-        }
+        .padding(.top, 6)
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(
-                    viewModel.isRunning ? "Running" : "Off",
-                    systemImage: viewModel.isRunning ? "network" : "power"
-                )
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(viewModel.isRunning ? .successColor : .textSecondary)
-
-                Spacer()
-
-                Button(viewModel.isRunning ? "Stop" : "Start") {
-                    viewModel.isRunning ? viewModel.stop() : viewModel.start()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(viewModel.isRunning ? .dangerColor : .accentBlue)
-            }
-
-            Text(viewModel.endpointText)
-                .font(.system(size: 10.5, design: .monospaced))
-                .foregroundColor(.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.system(size: 10.5))
-                    .foregroundColor(.dangerColor)
-            }
-        }
-        .settingsCard()
-    }
-
-    private var configCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Connect an Agent")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Spacer()
-                Button {
-                    viewModel.rotateToken()
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                }
-                .buttonStyle(.borderless)
-                .help("Rotate token")
-
-                Button {
-                    viewModel.copyConnectionDetails()
-                } label: {
-                    Label("Copy Details", systemImage: "doc.on.doc")
-                }
-                .buttonStyle(.bordered)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                connectionRow("Protocol", value: viewModel.protocolText)
-                connectionRow("URL", value: viewModel.endpointText)
-                connectionRow("Auth", value: "Bearer token")
-                connectionRow("Header", value: viewModel.authHeaderText)
-                connectionRow(
-                    "Token",
-                    value: viewModel.tokenText.isEmpty
-                        ? "Generated when server starts" : viewModel.tokenText)
-            }
+    private var configurationSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("MCP")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(.textPrimary)
 
             Text(
-                "Use these values in any MCP client that supports Streamable HTTP. The server only accepts loopback requests with the Authorization header."
+                "Connect AI tools to Diffuse through a local stdio Model Context Protocol process."
             )
-            .font(.system(size: 10.5))
+            .font(.system(size: 11.5))
             .foregroundColor(.textSecondary)
 
-            if let copied = viewModel.copiedState {
-                Text(copied)
-                    .font(.system(size: 10.5, weight: .semibold))
-                    .foregroundColor(.successColor)
-            }
-        }
-        .settingsCard()
-    }
-
-    private func connectionRow(_ label: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(label)
-                .font(.system(size: 10.5, weight: .semibold))
-                .foregroundColor(.textTertiary)
-                .frame(width: 52, alignment: .leading)
-
-            Text(value)
-                .font(.system(size: 10.5, design: label == "Header" ? .monospaced : .default))
+            Text("Choose a setup recipe")
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
 
-            Spacer(minLength: 0)
-        }
-    }
-
-    private var permissionsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Permissions")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.textPrimary)
-
-            Toggle("Allow bounded file range reads", isOn: $viewModel.allowFileRangeReads)
-                .font(.system(size: 11))
-                .toggleStyle(.checkbox)
-
-            HStack {
-                Text(viewModel.readOnlyPermissionsText)
-                    .font(.system(size: 10.5))
-                    .foregroundColor(.textSecondary)
-                Spacer()
-                Text("\(viewModel.lineRangeLimit) lines")
-                    .font(.system(size: 10.5, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-            }
-
-            Toggle("Mutation tools", isOn: .constant(false))
-                .font(.system(size: 11))
-                .toggleStyle(.checkbox)
-                .disabled(true)
-        }
-        .settingsCard()
-    }
-
-    private var activityCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Recent Events")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.textPrimary)
-
-            if viewModel.recentEvents.isEmpty {
-                Text("No local MCP activity yet.")
-                    .font(.system(size: 10.5))
-                    .foregroundColor(.textSecondary)
-            } else {
-                VStack(spacing: 4) {
-                    ForEach(viewModel.recentEvents.prefix(5)) { event in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(event.status == "ok" ? Color.successColor : Color.dangerColor)
-                                .frame(width: 6, height: 6)
-                            Text(event.name)
-                                .font(.system(size: 10.5))
-                                .foregroundColor(.textPrimary)
-                                .lineLimit(1)
-                            Spacer()
-                            Text(event.errorCode ?? event.status)
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(.textTertiary)
-                        }
-                    }
+            HStack(spacing: 10) {
+                ForEach(MCPConfigurationTab.allCases) { tab in
+                    configurationCard(tab)
                 }
             }
-        }
-        .settingsCard()
-    }
-}
 
-private struct SettingsCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label(
+                        viewModel.selectedConfiguration.title,
+                        systemImage: viewModel.selectedConfiguration.iconName
+                    )
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+
+                    Spacer()
+
+                    Button {
+                        viewModel.copyConfiguration()
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Text(viewModel.configurationSnippet)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .textSelection(.enabled)
+                    .lineLimit(viewModel.selectedConfiguration == .manual ? nil : 2)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.bgSubtle)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6).stroke(
+                            Color.borderMuted, lineWidth: 0.5)
+                    )
+            }
             .padding(12)
             .background(Color.bgSidebarPanel)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
-            .padding(.horizontal, 24)
-    }
-}
 
-extension View {
-    fileprivate func settingsCard() -> some View {
-        modifier(SettingsCardModifier())
+            Text(viewModel.configurationHelpText)
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+
+            if let copied = viewModel.copiedState {
+                Text(copied)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.successColor)
+            }
+
+        }
+        .padding(.horizontal, 30)
+    }
+
+    private func configurationCard(_ tab: MCPConfigurationTab) -> some View {
+        let isSelected = viewModel.selectedConfiguration == tab
+        let isHovered = hoveredConfiguration == tab
+
+        return Button {
+            viewModel.selectedConfiguration = tab
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: tab.iconName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(.accentBlue)
+                    }
+                }
+
+                Text(tab.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+
+                Text(tab.subtitle)
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.accentBlue.opacity(0.10) : Color.bgSidebarPanel)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        isSelected
+                            ? Color.accentBlue.opacity(0.65)
+                            : (isHovered ? Color.borderDefault : Color.borderMuted),
+                        lineWidth: isSelected ? 1.2 : 0.5
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            hoveredConfiguration = hovering ? tab : nil
+        }
+    }
+
+    private var privacySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Privacy")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.textPrimary)
+
+            Label("Read-only local context", systemImage: "checkmark.square.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.textPrimary)
+
+            Text(
+                "Diffuse exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered."
+            )
+            .font(.system(size: 11))
+            .foregroundColor(.textSecondary)
+            .padding(.leading, 22)
+        }
+        .padding(.horizontal, 30)
+    }
+
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("About MCP Integration")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.textSecondary)
+            Text(viewModel.aboutText)
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 30)
     }
 }

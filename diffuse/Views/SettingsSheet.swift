@@ -62,7 +62,7 @@ struct SettingsSheet: View {
             // Right Details Panel
             detailsPane
         }
-        .frame(width: 580, height: 380)
+        .frame(width: 760, height: 540)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             initializeWorkspaceSelection()
@@ -148,13 +148,13 @@ struct SettingsSheet: View {
                                 .frame(width: 16, height: 16)
 
                             Text(LocalizedStringKey(tab.rawValue))
-                                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                                .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
                                 .foregroundColor(isSelected ? .textPrimary : .textSecondary)
 
                             Spacer()
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 9)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
@@ -183,7 +183,7 @@ struct SettingsSheet: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
         }
-        .frame(width: 160)
+        .frame(width: 190)
         .background(Color.bgSidebar)
     }
 

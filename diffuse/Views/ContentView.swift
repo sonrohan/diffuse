@@ -49,6 +49,12 @@ struct AppHeaderView: View {
     @State private var isCommitPickerPresented = false
     @State private var commitVM: CommitScopeViewModel? = nil
 
+    @State private var isDebugMenuPresented = false
+    @State private var isDebugMenuHovered = false
+    @State private var isProfileRulesPresented = false
+    @State private var isProfileRulesHovered = false
+    @State private var isReloadHovered = false
+
     var body: some View {
         HStack(spacing: 0) {
             // Spacer to clear macOS window traffic light controls natively
@@ -265,21 +271,89 @@ struct AppHeaderView: View {
             Spacer()
 
             // Loading and Action buttons
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 if state.isLoadingPRs || state.isLoadingAnalysis || state.isAnalyzing {
                     LoadingSpinner(size: 12)
                 }
 
-                if state.selectedRepo != nil {
-                    Button {
-                        Task { await state.reRunAnalysis() }
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 12))
-                            .foregroundColor(.textSecondary)
+                if let repo = state.selectedRepo {
+                    HStack(spacing: 0) {
+                        Button {
+                            isDebugMenuPresented = true
+                        } label: {
+                            Label("Debug", systemImage: "ladybug")
+                                .font(.system(size: 11))
+                                .foregroundColor(.textSecondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Color(NSColor.controlColor).opacity(
+                                        isDebugMenuHovered ? 0.85 : 0.55
+                                    )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { isDebugMenuHovered = $0 }
+                        .help("Inspect AST and profile mapping")
+                        .sheet(isPresented: $isDebugMenuPresented) {
+                            if let details = state.analysisDetails {
+                                ReviewDebugSheet(details: details, repo: repo)
+                            }
+                        }
+
+                        Divider()
+                            .frame(height: 14)
+                            .padding(.horizontal, 1)
+
+                        Button {
+                            isProfileRulesPresented = true
+                        } label: {
+                            Label("Profile", systemImage: "slider.horizontal.3")
+                                .font(.system(size: 11))
+                                .foregroundColor(.textSecondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Color(NSColor.controlColor).opacity(
+                                        isProfileRulesHovered ? 0.85 : 0.55
+                                    )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { isProfileRulesHovered = $0 }
+                        .help("Edit active analysis profile")
+                        .sheet(isPresented: $isProfileRulesPresented) {
+                            AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
+                        }
+
+                        Divider()
+                            .frame(height: 14)
+                            .padding(.horizontal, 1)
+
+                        Button {
+                            Task { await state.reRunAnalysis() }
+                        } label: {
+                            Label("Reload", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 11))
+                                .foregroundColor(.textSecondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Color(NSColor.controlColor).opacity(
+                                        isReloadHovered ? 0.85 : 0.55
+                                    )
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { isReloadHovered = $0 }
+                        .help("Analyze latest")
                     }
-                    .buttonStyle(.plain)
-                    .help("Analyze latest")
+                    .background(Color(NSColor.controlColor).opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.borderMuted, lineWidth: 0.5)
+                    )
                 }
             }
             .padding(.trailing, 16)

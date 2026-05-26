@@ -1033,13 +1033,8 @@ struct SafeToSkimPanel: View {
 // MARK: - Selected Context Bar
 
 struct SelectedContextBar: View {
-    @Environment(AppState.self) private var state
     @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
-    @State private var isProfileRulesPresented = false
-    @State private var isProfileRulesHovered = false
-    @State private var isDebugMenuPresented = false
-    @State private var isDebugMenuHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1070,52 +1065,6 @@ struct SelectedContextBar: View {
                     ContextStatChip(
                         icon: "target", text: "\(viewModel.bucketTargets.count) targets")
                 }
-
-                if let repo = state.selectedRepo {
-                    Button {
-                        isDebugMenuPresented = true
-                    } label: {
-                        Label("Debug", systemImage: "ladybug")
-                            .font(.system(size: 11))
-                            .foregroundColor(.textSecondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(
-                                Color(NSColor.controlColor).opacity(
-                                    isDebugMenuHovered ? 0.85 : 0.55)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { isDebugMenuHovered = $0 }
-                    .help("Inspect AST and profile mapping")
-                    .sheet(isPresented: $isDebugMenuPresented) {
-                        ReviewDebugSheet(details: details, repo: repo)
-                    }
-                }
-
-                if let repo = state.selectedRepo {
-                    Button {
-                        isProfileRulesPresented = true
-                    } label: {
-                        Label("Profile", systemImage: "slider.horizontal.3")
-                            .font(.system(size: 11))
-                            .foregroundColor(.textSecondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(
-                                Color(NSColor.controlColor).opacity(
-                                    isProfileRulesHovered ? 0.85 : 0.55)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { isProfileRulesHovered = $0 }
-                    .help("Edit active analysis profile")
-                    .sheet(isPresented: $isProfileRulesPresented) {
-                        AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
-                    }
-                }
             }
         }
         .padding(.horizontal, 14)
@@ -1126,7 +1075,7 @@ struct SelectedContextBar: View {
 
 // MARK: - Review Debug Sheet
 
-private struct ReviewDebugSheet: View {
+struct ReviewDebugSheet: View {
     let details: AnalysisDetails
     let repo: GitRepository
     @Environment(\.dismiss) private var dismiss
@@ -1640,6 +1589,8 @@ struct ContextStatChip: View {
         Label(text, systemImage: icon)
             .font(.system(size: 11))
             .foregroundColor(.textSecondary)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .background(Color(NSColor.controlColor).opacity(0.55))

@@ -741,9 +741,6 @@
     "Detected" : {
 
     },
-    "diffuse" : {
-
-    },
     "Diffuse exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
 
     },

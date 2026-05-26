@@ -25,14 +25,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1CCD22F32FC2969E00CB1237 /* diffuse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = diffuse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1CCD22F32FC2969E00CB1237 /* Diffuse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Diffuse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB001A0001000000000001 /* diffuse-core */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "diffuse-core"; path = "diffuse-core/target/release/diffuse-core"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1CCD22F52FC2969E00CB1237 /* diffuse */ = {
+		1CCD22F52FC2969E00CB1237 /* Diffuse */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = diffuse;
+			path = Diffuse;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -51,7 +51,7 @@
 		1CCD22EA2FC2969E00CB1237 = {
 			isa = PBXGroup;
 			children = (
-				1CCD22F52FC2969E00CB1237 /* diffuse */,
+				1CCD22F52FC2969E00CB1237 /* Diffuse */,
 				1CCD22F42FC2969E00CB1237 /* Products */,
 				1CCD23382FC2D3A700CB1237 /* Recovered References */,
 			);
@@ -60,7 +60,7 @@
 		1CCD22F42FC2969E00CB1237 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1CCD22F32FC2969E00CB1237 /* diffuse.app */,
+				1CCD22F32FC2969E00CB1237 /* Diffuse.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,9 +76,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1CCD22F22FC2969E00CB1237 /* diffuse */ = {
+		1CCD22F22FC2969E00CB1237 /* Diffuse */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1CCD22FE2FC2969F00CB1237 /* Build configuration list for PBXNativeTarget "diffuse" */;
+			buildConfigurationList = 1CCD22FE2FC2969F00CB1237 /* Build configuration list for PBXNativeTarget "Diffuse" */;
 			buildPhases = (
 				AB001D0001000000000004 /* Build diffuse-core (Rust Sidecar) */,
 				1CCD22EF2FC2969E00CB1237 /* Sources */,
@@ -91,13 +91,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1CCD22F52FC2969E00CB1237 /* diffuse */,
+				1CCD22F52FC2969E00CB1237 /* Diffuse */,
 			);
-			name = diffuse;
+			name = Diffuse;
 			packageProductDependencies = (
 			);
-			productName = diffuse;
-			productReference = 1CCD22F32FC2969E00CB1237 /* diffuse.app */;
+			productName = Diffuse;
+			productReference = 1CCD22F32FC2969E00CB1237 /* Diffuse.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -132,7 +132,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1CCD22F22FC2969E00CB1237 /* diffuse */,
+				1CCD22F22FC2969E00CB1237 /* Diffuse */,
 			);
 		};
 /* End PBXProject section */
@@ -387,7 +387,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1CCD22FE2FC2969F00CB1237 /* Build configuration list for PBXNativeTarget "diffuse" */ = {
+		1CCD22FE2FC2969F00CB1237 /* Build configuration list for PBXNativeTarget "Diffuse" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1CCD22FF2FC2969F00CB1237 /* Debug */,

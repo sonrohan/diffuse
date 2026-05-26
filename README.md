@@ -32,12 +32,12 @@ For a comprehensive guide, reference:
 We structure the source files by functional domain to keep the codebase highly navigable:
 
 ```
-diffuse/
+Diffuse/
 ├── Core/                        # Immutable models, engine, and analysis profiles
 ├── Services/                    # Long-running services and global coordinator (AppState)
 ├── ViewModels/                  # Observables managing transient view states & actions
 ├── Views/                       # Clean declarative layouts
-└── diffuseApp.swift             # App entry point
+└── DiffuseApp.swift             # App entry point
 
 diffuse-core/                    # Rust static analysis sidecar source code
 ArchitectureTests.swift          # Compile-ready unit testing harness for MVVM ViewModels

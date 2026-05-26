@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import diffuse
+@testable import Diffuse
 
 @MainActor
 final class AgentContextQueryServiceTests: XCTestCase {

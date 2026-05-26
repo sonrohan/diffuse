@@ -208,7 +208,7 @@ Because state and business logic are decoupled from SwiftUI's layout tree, writi
 
 ```swift
 import XCTest
-@testable import diffuse
+@testable import Diffuse
 
 // Mock Service for Unit Testing
 class MockProjectService: ProjectInspectorServiceProtocol, @unchecked Sendable {

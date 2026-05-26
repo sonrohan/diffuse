@@ -48,10 +48,10 @@ To preserve the codebase's integrity and keep it modular and testable, observe t
 ## 📁 Repository Map & Folders
 
 When adding new files, place them strictly inside the corresponding domain subfolders:
-*   `diffuse/Core/`: Immutable data models (`Models.swift`), analysis rule engines, and path classification profiles.
-*   `diffuse/Services/`: Services contacting Rust sidecars, running shell commands, and global synchronization (`AppState.swift`).
-*   `diffuse/ViewModels/`: `@Observable` MainActor classes capturing UI actions and sorting logic.
-*   `diffuse/Views/`: Layout-focused declarative views (`ContentView.swift`, panels, sheets).
+*   `Diffuse/Core/`: Immutable data models (`Models.swift`), analysis rule engines, and path classification profiles.
+*   `Diffuse/Services/`: Services contacting Rust sidecars, running shell commands, and global synchronization (`AppState.swift`).
+*   `Diffuse/ViewModels/`: `@Observable` MainActor classes capturing UI actions and sorting logic.
+*   `Diffuse/Views/`: Layout-focused declarative views (`ContentView.swift`, panels, sheets).
 
 ---
 
@@ -123,13 +123,13 @@ Always use parenthesized scopes to specify the module or component affected when
 ## 🧪 Testing and Verification Protocol
 
 ### Target Constraints
-*   Diffuse is a native macOS application and utilizes `PBXFileSystemSynchronizedRootGroup` on the `diffuse/` directory. Any file placed inside that directory is automatically compiled as part of the main app target.
-*   Because the main target does not link `XCTest`, unit test classes that `import XCTest` will fail to compile if placed inside the `diffuse/` folder.
+*   Diffuse is a native macOS application and utilizes `PBXFileSystemSynchronizedRootGroup` on the `Diffuse/` directory. Any file placed inside that directory is automatically compiled as part of the main app target.
+*   Because the main target does not link `XCTest`, unit test classes that `import XCTest` will fail to compile if placed inside the `Diffuse/` folder.
 *   **Rule**: Put all unit tests in the project root directory (e.g., `ArchitectureTests.swift`). This keeps them in the repository without breaking target compilation.
 
 ### Run Verification Commands
 Always run local compilation checks before finishing a task:
 ```bash
-xcodebuild -project diffuse.xcodeproj -scheme diffuse -configuration Debug -quiet
+xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration Debug -quiet
 ```
 Confirm the build completes successfully (Exit Code `0`).

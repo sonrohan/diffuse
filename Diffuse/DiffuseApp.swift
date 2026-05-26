@@ -10,13 +10,12 @@ enum DiffuseMain {
             }
             dispatchMain()
         } else {
-            diffuseApp.main()
+            DiffuseApp.main()
         }
     }
 }
 
-// swift-format-ignore: TypeNamesShouldBeCapitalized
-struct diffuseApp: App {
+struct DiffuseApp: App {
     @State private var appState = AppState()
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"

@@ -159,7 +159,7 @@ struct AnalysisProfileStudioView: View {
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 10.5))
-                        .foregroundColor(.dangerColor)
+                        .foregroundColor(.danger)
                         .lineLimit(1)
                 } else {
                     Label(saveStatusText, systemImage: saveStatusIcon)
@@ -728,9 +728,9 @@ extension AnalysisProfileStudioView {
         case .saving:
             return .accentBlue
         case .saved:
-            return .successColor
+            return .success
         case .idle:
-            return hasUnsavedChanges ? .warningColor : .textTertiary
+            return hasUnsavedChanges ? .warning : .textTertiary
         }
     }
 

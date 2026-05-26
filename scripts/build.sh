@@ -42,7 +42,14 @@ echo -e "Build Number:      ${GREEN}$BUILD_NUMBER${NC}"
 
 # Run xcodebuild
 echo -e "${YELLOW}Running xcodebuild...${NC}"
-xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build MARKETING_VERSION="$VERSION_NAME" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" clean build
+
+SIGNING_FLAGS=()
+if [ "$CI" = "true" ]; then
+    echo -e "${YELLOW}CI environment detected. Using ad-hoc code signing...${NC}"
+    SIGNING_FLAGS+=(CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED="NO")
+fi
+
+xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build MARKETING_VERSION="$VERSION_NAME" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" "${SIGNING_FLAGS[@]}" clean build
 
 # Locate and display output
 BUILD_PATH="./build/Build/Products/${CONFIG}/Diffuse.app"

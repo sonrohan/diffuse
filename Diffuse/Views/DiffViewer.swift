@@ -757,10 +757,10 @@ struct FileListItem: View {
 
     var statusColor: Color {
         switch file.status {
-        case .added: .successColor
-        case .deleted: .dangerColor
+        case .added: .success
+        case .deleted: .danger
         case .modified: .textSecondary
-        case .renamed: .warningColor
+        case .renamed: .warning
         }
     }
 
@@ -827,9 +827,9 @@ struct FileListItem: View {
 
     var targetColor: Color {
         switch topTargetSeverity {
-        case .high: .dangerColor
-        case .medium: .warningColor
-        case .low: .infoColor
+        case .high: .danger
+        case .medium: .warning
+        case .low: .info
         case .info, nil: .textTertiary
         }
     }
@@ -885,7 +885,7 @@ struct DiffContent: View {
                         if let teachMessage {
                             Text(teachMessage)
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(.successColor)
+                                .foregroundColor(.success)
                         }
                         Menu {
                             Button("Treat this file as generated") {
@@ -912,10 +912,10 @@ struct DiffContent: View {
                         .help("Teach diffuse how to classify this path")
                         Text("+\(file.additions)")
                             .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.successColor)
+                            .foregroundColor(.success)
                         Text("−\(file.deletions)")
                             .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.dangerColor)
+                            .foregroundColor(.danger)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -1094,7 +1094,7 @@ struct HunkView: View {
                 color = Color.diffAddedFg
             case .deleted:
                 char = "−"
-                color = Color.dangerColor
+                color = Color.danger
             case .context:
                 char = " "
                 color = Color.textTertiary
@@ -1105,7 +1105,7 @@ struct HunkView: View {
             var attr = AttributedString(char + "\n")
             attr.foregroundColor = color
             if isTargeted(line) {
-                attr.backgroundColor = Color.warningColor.opacity(0.22)
+                attr.backgroundColor = Color.warning.opacity(0.22)
             }
             result.append(attr)
         }
@@ -1132,7 +1132,7 @@ struct HunkView: View {
             }
             if isTargeted(line) {
                 attr.foregroundColor = Color.textPrimary
-                attr.backgroundColor = Color.warningColor.opacity(0.28)
+                attr.backgroundColor = Color.warning.opacity(0.28)
             }
             result.append(attr)
         }
@@ -1178,7 +1178,7 @@ struct HunkView: View {
                 var attr = AttributedString(char + "\n")
                 attr.foregroundColor = color
                 if isTargeted(line) {
-                    attr.backgroundColor = Color.warningColor.opacity(0.22)
+                    attr.backgroundColor = Color.warning.opacity(0.22)
                 }
                 result.append(attr)
             } else {
@@ -1210,7 +1210,7 @@ struct HunkView: View {
                 }
                 if isTargeted(line) {
                     attr.foregroundColor = Color.textPrimary
-                    attr.backgroundColor = Color.warningColor.opacity(0.28)
+                    attr.backgroundColor = Color.warning.opacity(0.28)
                 }
                 result.append(attr)
             } else {
@@ -1233,9 +1233,9 @@ struct HunkView: View {
 
     private func lineNumberText(_ text: String, isTargeted: Bool) -> AttributedString {
         var attr = AttributedString(text + "\n")
-        attr.foregroundColor = isTargeted ? Color.warningColor : Color.textTertiary
+        attr.foregroundColor = isTargeted ? Color.warning : Color.textTertiary
         if isTargeted {
-            attr.backgroundColor = Color.warningColor.opacity(0.22)
+            attr.backgroundColor = Color.warning.opacity(0.22)
         }
         return attr
     }
@@ -1313,7 +1313,7 @@ struct HunkView: View {
                             "@@ -\(hunk.oldStart),\(hunk.oldLines) +\(hunk.newStart),\(hunk.newLines) @@"
                         )
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.infoColor)
+                        .foregroundColor(.info)
                         Spacer()
                         Text("\(hunk.lines.count) lines")
                             .font(.system(size: 11))
@@ -1431,13 +1431,13 @@ struct HunkView: View {
         .overlay(alignment: .leading) {
             if isHighlighted {
                 Rectangle()
-                    .fill(Color.warningColor.opacity(0.7))
+                    .fill(Color.warning.opacity(0.7))
                     .frame(width: 3)
             }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 0).stroke(
-                isHighlighted ? Color.warningColor.opacity(0.3) : Color.clear, lineWidth: 1
+                isHighlighted ? Color.warning.opacity(0.3) : Color.clear, lineWidth: 1
             ))
     }
 }

@@ -250,7 +250,7 @@ struct SettingsSheet: View {
                     // Status Badge
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(Color.successColor)
+                            .fill(Color.success)
                             .frame(width: 5, height: 5)
                             .scaleEffect(pulseScale)
                             .onAppear {
@@ -263,7 +263,7 @@ struct SettingsSheet: View {
 
                         Text("Active (Local)")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.successColor)
+                            .foregroundColor(.success)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -335,10 +335,10 @@ struct SettingsSheet: View {
                     if cacheClearedSuccessfully {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.successColor)
+                                .foregroundColor(.success)
                             Text("Cleared!")
                                 .font(.system(size: 10.5, weight: .bold))
-                                .foregroundColor(.successColor)
+                                .foregroundColor(.success)
                         }
                         .transition(.scale.combined(with: .opacity))
                     } else {
@@ -346,7 +346,7 @@ struct SettingsSheet: View {
                             showClearConfirmation = true
                         }
                         .buttonStyle(.bordered)
-                        .tint(.dangerColor)
+                        .tint(.danger)
                     }
                 }
             }
@@ -569,7 +569,7 @@ struct SettingsSheet: View {
                                     .font(.system(size: 11, weight: .semibold))
                                 }
                                 .buttonStyle(.bordered)
-                                .tint(.dangerColor)
+                                .tint(.danger)
                             }
                         }
                         .padding(12)
@@ -880,7 +880,7 @@ struct AnalysisProfileWizard: View {
             if let errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 11))
-                    .foregroundColor(.dangerColor)
+                    .foregroundColor(.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

@@ -786,12 +786,12 @@ struct BranchRow: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
 
-                        if summary.isDirty { PickerBadge("Dirty", color: .warningColor) }
+                        if summary.isDirty { PickerBadge("Dirty", color: .warning) }
                         if summary.aheadCount > 0 {
-                            PickerBadge("↑\(summary.aheadCount)", color: .successColor)
+                            PickerBadge("↑\(summary.aheadCount)", color: .success)
                         }
                         if summary.behindCount > 0 {
-                            PickerBadge("↓\(summary.behindCount)", color: .dangerColor)
+                            PickerBadge("↓\(summary.behindCount)", color: .danger)
                         }
                         if let number = summary.relatedPRNumber {
                             PickerBadge("#\(number)", color: .accentPurple)
@@ -1206,7 +1206,7 @@ struct DetailView: View {
             if let error = state.analysisError {
                 Text(error)
                     .font(.system(size: 12))
-                    .foregroundColor(.dangerColor)
+                    .foregroundColor(.danger)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -1452,10 +1452,10 @@ struct AnalyzeRepoSheet: View {
             if let error = state.analysisError {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.dangerColor)
+                        .foregroundColor(.danger)
                     Text(error)
                         .font(.system(size: 12))
-                        .foregroundColor(.dangerColor)
+                        .foregroundColor(.danger)
                 }
                 .padding(10)
                 .background(Color.dangerBg)
@@ -1554,13 +1554,13 @@ struct AnalyzeRepoSheet: View {
                 Spacer()
                 Text(hasProfile ? "Repo-defined" : "Preset to copy")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(hasProfile ? .successColor : .accentBlue)
+                    .foregroundColor(hasProfile ? .success : .accentBlue)
             }
 
             HStack(spacing: 10) {
                 Image(systemName: hasProfile ? "checkmark.seal.fill" : "wand.and.stars")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(hasProfile ? .successColor : .accentBlue)
+                    .foregroundColor(hasProfile ? .success : .accentBlue)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1614,7 +1614,7 @@ struct AnalyzeRepoSheet: View {
                 Text(profileMessage)
                     .font(.system(size: 10.5))
                     .foregroundColor(
-                        profileMessage.hasPrefix("Could not") ? .dangerColor : .textSecondary)
+                        profileMessage.hasPrefix("Could not") ? .danger : .textSecondary)
             }
         }
     }

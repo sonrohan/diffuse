@@ -83,7 +83,7 @@ struct MCPSettingsView: View {
             if let copied = viewModel.copiedState {
                 Text(copied)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.successColor)
+                    .foregroundColor(.success)
             }
 
         }

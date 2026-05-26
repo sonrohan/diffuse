@@ -525,7 +525,7 @@ struct ReviewMapPanel: View {
                 if topSignals.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.successColor)
+                            .foregroundColor(.success)
                         Text("No priority signals detected by configured rules.")
                             .font(.system(size: 12))
                             .foregroundColor(.textSecondary)
@@ -810,7 +810,7 @@ struct ReviewTargetsPanel: View {
                 if targets.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.seal.fill")
-                            .foregroundColor(.successColor)
+                            .foregroundColor(.success)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("No high-priority targets")
                                 .font(.system(size: 12, weight: .medium))
@@ -843,9 +843,9 @@ struct ReviewTargetCard: View {
 
     var borderColor: Color {
         switch target.severity {
-        case .high: .dangerColor
-        case .medium: .warningColor
-        case .low: .infoColor
+        case .high: .danger
+        case .medium: .warning
+        case .low: .info
         case .info: .borderDefault
         }
     }
@@ -917,7 +917,7 @@ struct ReviewTargetCard: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
                     viewModel.activeTargetId == target.id
-                        ? Color.warningColor.opacity(0.65) : Color.borderMuted,
+                        ? Color.warning.opacity(0.65) : Color.borderMuted,
                     lineWidth: viewModel.activeTargetId == target.id ? 1.5 : 0.5)
         )
         .overlay(alignment: .leading) {

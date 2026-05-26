@@ -53,7 +53,7 @@ extension Color {
     static let accentPurple = Color(red: 0.51, green: 0.31, blue: 0.87)
 
     // Status Colors (Dynamic)
-    static let successColor = Color.dynamic(
+    static let success = Color.dynamic(
         light: NSColor(red: 0.10, green: 0.50, blue: 0.22, alpha: 1.0),
         dark: NSColor(red: 0.25, green: 0.73, blue: 0.31, alpha: 1.0)
     )
@@ -62,7 +62,7 @@ extension Color {
         dark: NSColor(red: 0.06, green: 0.18, blue: 0.08, alpha: 1.0)
     )
 
-    static let warningColor = Color.dynamic(
+    static let warning = Color.dynamic(
         light: NSColor(red: 0.60, green: 0.41, blue: 0.00, alpha: 1.0),
         dark: NSColor(red: 0.82, green: 0.60, blue: 0.13, alpha: 1.0)
     )
@@ -71,7 +71,7 @@ extension Color {
         dark: NSColor(red: 0.18, green: 0.14, blue: 0.04, alpha: 1.0)
     )
 
-    static let dangerColor = Color.dynamic(
+    static let danger = Color.dynamic(
         light: NSColor(red: 0.81, green: 0.13, blue: 0.18, alpha: 1.0),
         dark: NSColor(red: 0.97, green: 0.32, blue: 0.29, alpha: 1.0)
     )
@@ -80,7 +80,7 @@ extension Color {
         dark: NSColor(red: 0.18, green: 0.06, blue: 0.06, alpha: 1.0)
     )
 
-    static let infoColor = Color.dynamic(
+    static let info = Color.dynamic(
         light: NSColor(red: 0.04, green: 0.41, blue: 0.85, alpha: 1.0),
         dark: NSColor(red: 0.35, green: 0.65, blue: 1.00, alpha: 1.0)
     )
@@ -126,10 +126,10 @@ struct BadgeView: View {
 
     var fgColor: Color {
         switch variant {
-        case .danger: .dangerColor
-        case .warning: .warningColor
-        case .info: .infoColor
-        case .success: .successColor
+        case .danger: Color.danger
+        case .warning: Color.warning
+        case .info: Color.info
+        case .success: Color.success
         case .neutral: .textSecondary
         }
     }

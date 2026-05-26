@@ -49,7 +49,7 @@ extension Color {
     static let borderMuted = Color(NSColor.separatorColor).opacity(0.5)
 
     // Accent
-    static let accentBlue = Color(red: 0.18, green: 0.51, blue: 0.97)
+    static let accentBlue = Color.accentColor
     static let accentPurple = Color(red: 0.51, green: 0.31, blue: 0.87)
 
     // Status Colors (Dynamic)
@@ -136,7 +136,7 @@ struct BadgeView: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .medium))
+            .font(.appBadge)
             .foregroundColor(fgColor)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
@@ -204,18 +204,48 @@ struct SectionHeading: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 13))
+                .font(.appSubheadline)
                 .foregroundColor(.accentBlue)
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.appHeading)
                 .foregroundColor(.textPrimary)
             if let meta {
                 Spacer()
                 Text(meta)
-                    .font(.system(size: 11))
+                    .font(.appCaption)
                     .foregroundColor(.textSecondary)
             }
         }
         .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Semantic Typography Extensions
+
+extension Font {
+    /// Large title style for main headings
+    public static let appLargeTitle = Font.title
+
+    /// Standard section and panel headings
+    public static let appHeading = Font.system(.body).weight(.semibold)
+
+    /// Primary body text for content, tables, and lists
+    public static let appBody = Font.body
+
+    /// Highlighted or bold body text
+    public static let appBodyBold = Font.body.weight(.semibold)
+
+    /// Subtitles, descriptions, and secondary metadata text
+    public static let appSubheadline = Font.subheadline
+
+    /// Captions, help descriptions, and tertiary labels
+    public static let appCaption = Font.caption
+
+    /// Standard badges, tags, and chips typography
+    public static let appBadge = Font.system(.caption2, design: .default).weight(.medium)
+
+    /// Monospaced typography for SHAs, code snippets, and branch names
+    public static func appMonospaced(_ size: CGFloat = 11, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
     }
 }

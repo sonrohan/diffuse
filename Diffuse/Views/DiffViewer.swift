@@ -187,13 +187,13 @@ struct DiffViewerPanel: View {
 
             Divider()
 
-            HStack(spacing: 0) {
+            HSplitView {
                 // File list sidebar
                 if !isFileSidebarCollapsed {
                     FileListSidebar(
-                        files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree,
-                        width: fileSidebarWidth)
-                    PaneDivider(width: $fileSidebarWidth, minWidth: 140, maxWidth: 420)
+                        files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree
+                    )
+                    .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
                 }
 
                 // Diff content
@@ -581,7 +581,7 @@ struct FileListSidebar: View {
                 }
             }
         }
-        .frame(width: width)
+        .frame(maxWidth: .infinity)
         .background(Color.bgSubtle)
     }
 }

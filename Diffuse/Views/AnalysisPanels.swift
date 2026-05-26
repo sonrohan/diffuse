@@ -441,7 +441,7 @@ struct TargetNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.warningColor.opacity(0.45) : Color.clear, lineWidth: 1))
+                    isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(target.changedFileId == nil)
@@ -453,7 +453,7 @@ struct TargetNavRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.warningColor.opacity(0.12) }
+        if isSelected { return Color.accentBlue.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }

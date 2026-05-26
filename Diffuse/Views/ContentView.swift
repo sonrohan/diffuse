@@ -10,17 +10,14 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AppHeaderView(showAnalyzeSheet: $showAnalyzeSheet)
-            Divider()
             DetailView()
         }
         .frame(minWidth: 950, minHeight: 600)
-        .background(
-            WindowAccessor { window in
-                window.titlebarAppearsTransparent = true
-                window.titleVisibility = .hidden
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                AppHeaderView(showAnalyzeSheet: $showAnalyzeSheet)
             }
-        )
+        }
         .sheet(isPresented: $showAnalyzeSheet) {
             AnalyzeRepoSheet(isPresented: $showAnalyzeSheet)
                 .environment(\.locale, locale)
@@ -57,27 +54,24 @@ struct AppHeaderView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Spacer to clear macOS window traffic light controls natively
-            Spacer()
-                .frame(width: 16)
 
             // Workspace selector
             HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {
                 HStack(spacing: 5) {
                     Image(systemName: "folder.fill")
-                        .font(.system(size: 11))
+                        .font(.appSubheadline)
                         .foregroundColor(.accentBlue)
                     if let repo = state.selectedRepo {
                         Text(repo.name)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.appHeading)
                             .foregroundColor(.textPrimary)
                     } else {
                         Text("Select Workspace")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.appHeading)
                             .foregroundColor(.textPrimary)
                     }
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.appBadge)
                         .foregroundColor(.textTertiary)
                 }
                 .contentShape(Rectangle())
@@ -103,15 +97,15 @@ struct AppHeaderView: View {
                 HeaderPickerButton(isPresented: $isBranchPickerPresented) {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.triangle.branch")
-                            .font(.system(size: 11))
+                            .font(.appSubheadline)
                             .foregroundColor(.accentBlue)
                         Text(state.selectedBranch ?? "main")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .font(.appMonospaced(12, weight: .semibold))
                             .foregroundColor(.textPrimary)
 
                         if selectedRepo.autoAnalyzeEnabled {
                             Text("Live")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.appBadge)
                                 .foregroundColor(.accentBlue)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
@@ -120,7 +114,7 @@ struct AppHeaderView: View {
                         }
 
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .bold))
+                            .font(.appBadge)
                             .foregroundColor(.textTertiary)
                     }
                     .contentShape(Rectangle())
@@ -358,17 +352,23 @@ struct AppHeaderView: View {
             }
             .padding(.trailing, 16)
         }
-        .frame(height: 40)
-        .background(Color.bgToolbar)
+        .padding(.leading, 12)
+        .padding(.vertical, 4)
         .sheet(isPresented: $showRenameAlert) {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 Text("Rename Workspace")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.appHeading)
+                    .foregroundColor(.textPrimary)
+
                 TextField("Workspace Name", text: $newName)
                     .textFieldStyle(.roundedBorder)
-                HStack {
-                    Button("Cancel") { showRenameAlert = false }
+                    .font(.appBody)
+
+                HStack(spacing: 8) {
                     Spacer()
+                    Button("Cancel") { showRenameAlert = false }
+                        .keyboardShortcut(.cancelAction)
+
                     Button("Rename") {
                         if let selectedRepo = state.selectedRepo {
                             Task {
@@ -378,10 +378,11 @@ struct AppHeaderView: View {
                         showRenameAlert = false
                     }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
                 }
             }
-            .padding(16)
-            .frame(width: 280)
+            .padding(18)
+            .frame(width: 320)
             .environment(\.locale, locale)
         }
         .confirmationDialog(
@@ -497,7 +498,13 @@ struct WorkspacePickerContent: View {
                 title: "Workspaces",
                 count: viewModel.repositories.count,
                 query: $viewModel.query,
-                placeholder: "Search names or paths"
+                placeholder: "Search names or paths",
+                onSubmit: {
+                    if let first = viewModel.visibleRepositories.first {
+                        Task { await viewModel.selectRepo(first.id) }
+                        isPresented = false
+                    }
+                }
             )
 
             Picker("Workspace filter", selection: $viewModel.filter) {
@@ -705,7 +712,13 @@ struct BranchPickerContent: View {
                 title: "Branches",
                 count: viewModel.visibleSummaries.count,
                 query: $viewModel.query,
-                placeholder: "Search branch, author, PR, upstream"
+                placeholder: "Search branch, author, PR, upstream",
+                onSubmit: {
+                    if let first = viewModel.visibleSummaries.first {
+                        Task { await viewModel.selectBranch(first.branch) }
+                        isPresented = false
+                    }
+                }
             )
 
             Picker("Branch filter", selection: $viewModel.filter) {
@@ -847,7 +860,13 @@ struct CommitScopePickerContent: View {
                 title: "Review Scope",
                 count: viewModel.commits.count,
                 query: $viewModel.query,
-                placeholder: "Search C#, subject, author, sha"
+                placeholder: "Search C#, subject, author, sha",
+                onSubmit: {
+                    if let first = viewModel.visibleCommits.first {
+                        Task { await viewModel.selectCommit(first.element.sha) }
+                        isPresented = false
+                    }
+                }
             )
 
             Picker("Commit filter", selection: $viewModel.filter) {
@@ -1021,6 +1040,8 @@ struct PickerHeader: View {
     let count: Int
     @Binding var query: String
     let placeholder: String
+    var onSubmit: (() -> Void)? = nil
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         VStack(spacing: 10) {
@@ -1043,6 +1064,15 @@ struct PickerHeader: View {
                 TextField(placeholder, text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
+                    .focused($isSearchFocused)
+                    .onSubmit {
+                        onSubmit?()
+                    }
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isSearchFocused = true
+                        }
+                    }
                 if !query.isEmpty {
                     Button {
                         query = ""
@@ -1266,13 +1296,12 @@ struct DetailView: View {
 struct AnalysisDetailView: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
-    @State private var navRailWidth: CGFloat = 360
     @State private var viewModel: AnalysisViewModel? = nil
 
     var body: some View {
         Group {
             if let viewModel {
-                HStack(spacing: 0) {
+                HSplitView {
                     // Left pane: review navigation
                     VStack(spacing: 0) {
                         ScrollView {
@@ -1283,10 +1312,8 @@ struct AnalysisDetailView: View {
                         }
                         .background(Color.bgSidebar)
                     }
-                    .frame(width: navRailWidth)
+                    .frame(minWidth: 220, idealWidth: 360, maxWidth: 560)
                     .background(Color.bgSidebar)
-
-                    PaneDivider(width: $navRailWidth, minWidth: 220, maxWidth: 560)
 
                     // Right pane: context + diff
                     VStack(spacing: 0) {

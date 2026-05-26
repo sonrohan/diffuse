@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import Diffuse
+@testable import Chobi
 
 @MainActor
 final class MCPRequestRouterTests: XCTestCase {
@@ -12,7 +12,7 @@ final class MCPRequestRouterTests: XCTestCase {
         )
         let router = MCPRequestRouter(queryService: query)
 
-        let result = await router.callTool(name: "diffuse.mutate_repo", arguments: [:])
+        let result = await router.callTool(name: "chobi.mutate_repo", arguments: [:])
 
         XCTAssertEqual(result.isError, true)
         XCTAssertTrue(result.content.first?["text"]?.contains("unsupported_query") == true)
@@ -27,7 +27,7 @@ final class MCPRequestRouterTests: XCTestCase {
         let router = MCPRequestRouter(queryService: query)
 
         let result = await router.callTool(
-            name: "diffuse.get_run_review_context",
+            name: "chobi.get_run_review_context",
             arguments: ["runId": "not-a-uuid"]
         )
 

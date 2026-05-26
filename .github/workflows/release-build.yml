@@ -82,13 +82,13 @@ jobs:
 
       - name: Zip the App Bundle
         run: |
-          APP_PATH="./build/Build/Products/Release/Diffuse.app"
-          ZIP_NAME="Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
+          APP_PATH="./build/Build/Products/Release/Chobi.app"
+          ZIP_NAME="Chobi-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
           
           if [ -d "$APP_PATH" ]; then
             echo "Packaging $APP_PATH into $ZIP_NAME..."
             cd "./build/Build/Products/Release"
-            zip -r "../../../../$ZIP_NAME" "Diffuse.app"
+            zip -r "../../../../$ZIP_NAME" "Chobi.app"
             cd "../../../.."
             echo "Successfully created $ZIP_NAME"
           else
@@ -99,15 +99,15 @@ jobs:
       - name: Upload Actions Run Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}
-          path: Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip
+          name: Chobi-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}
+          path: Chobi-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip
           retention-days: 90
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ZIP_NAME="Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
+          ZIP_NAME="Chobi-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
           
           # Determine if this is a pre-release build
           PRERELEASE_FLAG=""
@@ -121,7 +121,7 @@ jobs:
           # Create official GitHub release and attach zip package
           # --generate-notes automatically builds a beautiful changelog from commits
           gh release create "${{ env.TAG_NAME }}" \
-            --title "Diffuse ${{ env.TAG_NAME }}" \
+            --title "Chobi ${{ env.TAG_NAME }}" \
             --generate-notes \
             $PRERELEASE_FLAG \
             "$ZIP_NAME"

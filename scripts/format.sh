@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "Formatting Swift files in Diffuse/ and Tests/..."
-swift format format --in-place --recursive Diffuse Tests
+echo "Formatting Swift files in Chobi/ and Tests/..."
+swift format format --in-place --recursive Chobi Tests
 
 echo "Formatting complete!"

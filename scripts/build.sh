@@ -26,7 +26,7 @@ elif [ -n "$1" ]; then
 fi
 
 echo -e "${BLUE}=======================================${NC}"
-echo -e "${BLUE} Building Diffuse (${CONFIG} Mode) ${NC}"
+echo -e "${BLUE} Building Chobi (${CONFIG} Mode) ${NC}"
 echo -e "${BLUE}=======================================${NC}"
 
 # Auto-generate version and build number if not provided in the environment
@@ -49,20 +49,20 @@ if [ "$CI" = "true" ]; then
     SIGNING_FLAGS+=(CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED="NO")
 fi
 
-xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build MARKETING_VERSION="$VERSION_NAME" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" "${SIGNING_FLAGS[@]}" clean build
+xcodebuild -project Chobi.xcodeproj -scheme Chobi -configuration "$CONFIG" -derivedDataPath ./build MARKETING_VERSION="$VERSION_NAME" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" "${SIGNING_FLAGS[@]}" clean build
 
 # Locate and display output
-BUILD_PATH="./build/Build/Products/${CONFIG}/Diffuse.app"
+BUILD_PATH="./build/Build/Products/${CONFIG}/Chobi.app"
 
 if [ -d "$BUILD_PATH" ]; then
     echo -e "${GREEN}=======================================${NC}"
     echo -e "${GREEN} Build Succeeded!${NC}"
     echo -e "${GREEN}=======================================${NC}"
-    echo -e "App Binary: ${BLUE}$(pwd)/$BUILD_PATH${NC}"
+    echo -e "App Binary: $(pwd)/$BUILD_PATH"
     
     # If it is release, provide helpful zip instructions
     if [ "$CONFIG" = "Release" ]; then
-        ZIP_PATH="$HOME/Desktop/Diffuse-release.zip"
+        ZIP_PATH="$HOME/Desktop/Chobi-release.zip"
         echo -e "\nTo package this for another Mac, you can run:"
         echo -e "  ${YELLOW}zip -r \"$ZIP_PATH\" \"$BUILD_PATH\"${NC}"
     fi

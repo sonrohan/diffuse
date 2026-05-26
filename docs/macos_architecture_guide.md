@@ -207,11 +207,11 @@ struct ProjectInspectorView: View {
 Because state and business logic are decoupled from SwiftUI's layout tree, writing unit tests for your ViewModels is straightforward. We can inject mock services to verify standard behaviors and failure cases.
 
 > [!NOTE]
-> All unit tests are organized inside the `Tests/` directory at the project root. They are located outside the `Diffuse/` directory to prevent the main app target (which doesn't link `XCTest`) from trying to compile them.
+> All unit tests are organized inside the `Tests/` directory at the project root. They are located outside the `Chobi/` directory to prevent the main app target (which doesn't link `XCTest`) from trying to compile them.
 
 ```swift
 import XCTest
-@testable import Diffuse
+@testable import Chobi
 
 // Mock Service for Unit Testing
 class MockProjectService: ProjectInspectorServiceProtocol, @unchecked Sendable {

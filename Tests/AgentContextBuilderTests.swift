@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import Diffuse
+@testable import Chobi
 
 @MainActor
 final class AgentContextBuilderTests: XCTestCase {
@@ -20,7 +20,7 @@ final class AgentContextBuilderTests: XCTestCase {
             baseSha: "base",
             headSha: "head",
             author: "Rohan",
-            repository: "local/Diffuse"
+            repository: "local/Chobi"
         )
         let first = ChangedFile(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000301")!,
@@ -57,8 +57,8 @@ final class AgentContextBuilderTests: XCTestCase {
         )
         let repo = GitRepository(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000401")!,
-            name: "Diffuse",
-            path: "/tmp/Diffuse"
+            name: "Chobi",
+            path: "/tmp/Chobi"
         )
 
         let context = AgentContextBuilder.build(

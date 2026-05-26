@@ -1,6 +1,6 @@
 # AI Coding Agent Guidance: Architecture & Refactoring Standards
 
-Welcome, Agent! This document outlines the core architectural boundaries, state management rules, and development practices you **must** follow when extending or refactoring the **Diffuse** codebase.
+Welcome, Agent! This document outlines the core architectural boundaries, state management rules, and development practices you **must** follow when extending or refactoring the **Chobi** codebase.
 
 ---
 
@@ -48,21 +48,21 @@ To preserve the codebase's integrity and keep it modular and testable, observe t
 ## 📁 Repository Map & Folders
 
 When adding new files, place them strictly inside the corresponding domain subfolders:
-*   `Diffuse/Core/`: Immutable data models (`Models.swift`), analysis rule engines, and path classification profiles.
-*   `Diffuse/Services/`: Services contacting Rust sidecars, running shell commands, and global synchronization (`AppState.swift`).
-*   `Diffuse/ViewModels/`: `@Observable` MainActor classes capturing UI actions and sorting logic.
-*   `Diffuse/Views/`: Layout-focused declarative views (`ContentView.swift`, panels, sheets).
-*   `Tests/`: Unit and integration test suites (located outside `Diffuse/` to avoid compilation in the main target).
+*   `Chobi/Core/`: Immutable data models (`Models.swift`), analysis rule engines, and path classification profiles.
+*   `Chobi/Services/`: Services contacting Rust sidecars, running shell commands, and global synchronization (`AppState.swift`).
+*   `Chobi/ViewModels/`: `@Observable` MainActor classes capturing UI actions and sorting logic.
+*   `Chobi/Views/`: Layout-focused declarative views (`ContentView.swift`, panels, sheets).
+*   `Tests/`: Unit and integration test suites (located outside `Chobi/` to avoid compilation in the main target).
 
 ---
 
 ## 🎨 Code Style & Formatting Standards
 
-To ensure a cohesive and readable codebase, Diffuse enforces strict code formatting using Apple's official `swift-format` engine.
+To ensure a cohesive and readable codebase, Chobi enforces strict code formatting using Apple's official `swift-format` engine.
 
 ### 1. Formatting Configuration
 *   We use a central [`.swift-format`](.swift-format) configuration at the repository root.
-*   **Indentation Rule**: Diffuse enforces **4-space indentation** for Swift files to match the existing code layout. Do not use 2-space or tab indentation.
+*   **Indentation Rule**: Chobi enforces **4-space indentation** for Swift files to match the existing code layout. Do not use 2-space or tab indentation.
 
 ### 2. Available Formatting Scripts
 Always check and format your code before pushing or requesting reviews using the provided bash scripts under `scripts/`:
@@ -79,7 +79,7 @@ When writing code that explicitly requires exceptions to style rules (e.g., matc
 
 ## ✍️ Commit Message Standards (Conventional Commits)
 
-Diffuse enforces the **Conventional Commits 1.0.0** specification. All commit messages and pull request titles MUST follow this structure to facilitate automated changelog generation and semantic versioning.
+Chobi enforces the **Conventional Commits 1.0.0** specification. All commit messages and pull request titles MUST follow this structure to facilitate automated changelog generation and semantic versioning.
 
 ### 1. Commit Structure
 ```
@@ -124,13 +124,13 @@ Always use parenthesized scopes to specify the module or component affected when
 ## 🧪 Testing and Verification Protocol
 
 ### Target Constraints
-*   Diffuse is a native macOS application and utilizes `PBXFileSystemSynchronizedRootGroup` on the `Diffuse/` directory. Any file placed inside that directory is automatically compiled as part of the main app target.
-*   Because the main target does not link `XCTest`, unit test classes that `import XCTest` will fail to compile if placed inside the `Diffuse/` folder.
+*   Chobi is a native macOS application and utilizes `PBXFileSystemSynchronizedRootGroup` on the `Chobi/` directory. Any file placed inside that directory is automatically compiled as part of the main app target.
+*   Because the main target does not link `XCTest`, unit test classes that `import XCTest` will fail to compile if placed inside the `Chobi/` folder.
 *   **Rule**: Put all unit tests in the dedicated `Tests/` directory at the project root (e.g., `Tests/ArchitectureTests.swift`). This keeps them in the repository without breaking target compilation.
 
 ### Run Verification Commands
 Always run local compilation checks before finishing a task:
 ```bash
-xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration Debug -quiet
+xcodebuild -project Chobi.xcodeproj -scheme Chobi -configuration Debug -quiet
 ```
 Confirm the build completes successfully (Exit Code `0`).

@@ -1,7 +1,7 @@
 import SwiftUI
 import XCTest
 
-@testable import Diffuse
+@testable import Chobi
 
 @MainActor
 final class ArchitectureTests: XCTestCase {

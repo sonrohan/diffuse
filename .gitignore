@@ -1,5 +1,5 @@
 .DS_Store
 build/
-diffuse-core/target/
+chobi-core/target/
 .vscode/
 xcuserdata/

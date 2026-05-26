@@ -1,14 +1,14 @@
-# Diffuse
+# Chobi
 
-Diffuse is a native macOS application designed to deliver an intelligent, localized code review and diff analysis experience. It parses changes, assesses risk, categorizes files semantically, and triages code issues entirely locally without sending data to external servers.
+Chobi is a native macOS application designed to deliver an intelligent, localized code review and diff analysis experience. It parses changes, assesses risk, categorizes files semantically, and triages code issues entirely locally without sending data to external servers.
 
 ---
 
 ## 🚀 Technology Stack
 
-Diffuse utilizes a modern hybrid architecture:
+Chobi utilizes a modern hybrid architecture:
 1.  **UI/App Layer (SwiftUI)**: Built with Apple's standard native declarative UI framework, leveraging Swift 5.9+ modern concurrency (`async/await`, actors) and compile-safe data flow.
-2.  **Core Analysis Engine (Rust Sidecar)**: Under `diffuse-core`, a high-performance Rust service executes local static analysis, syntax tree parsing, and deterministic rules matching.
+2.  **Core Analysis Engine (Rust Sidecar)**: Under `chobi-core`, a high-performance Rust service executes local static analysis, syntax tree parsing, and deterministic rules matching.
 
 ---
 
@@ -32,14 +32,14 @@ For a comprehensive guide, reference:
 We structure the source files by functional domain to keep the codebase highly navigable:
 
 ```
-Diffuse/
+Chobi/
 ├── Core/                        # Immutable models, engine, and analysis profiles
 ├── Services/                    # Long-running services and global coordinator (AppState)
 ├── ViewModels/                  # Observables managing transient view states & actions
 ├── Views/                       # Clean declarative layouts
-└── DiffuseApp.swift             # App entry point
+└── ChobiApp.swift               # App entry point
 
-diffuse-core/                    # Rust static analysis sidecar source code
+chobi-core/                      # Rust static analysis sidecar source code
 ArchitectureTests.swift          # Compile-ready unit testing harness for MVVM ViewModels
 ```
 
@@ -47,7 +47,7 @@ ArchitectureTests.swift          # Compile-ready unit testing harness for MVVM V
 
 ## 🎨 Style, Formatting & Commits
 
-Diffuse uses Apple's official `swift-format` engine to ensure style consistency, and enforces Conventional Commits to automate changelog generation.
+Chobi uses Apple's official `swift-format` engine to ensure style consistency, and enforces Conventional Commits to automate changelog generation.
 *   **Indentation**: Enforced **4-space indentation** for all Swift files.
 *   **Scripts**:
     *   `./scripts/format.sh`: Format Swift files locally.
@@ -59,6 +59,6 @@ Diffuse uses Apple's official `swift-format` engine to ensure style consistency,
 
 ## 🤖 Agentic & AI Coding Guidance
 
-Are you an AI coding agent or an external contributor looking to extend Diffuse? Please review our specialized instructions for preserving architectural boundaries, testing models, and implementing clean data flows.
+Are you an AI coding agent or an external contributor looking to extend Chobi? Please review our specialized instructions for preserving architectural boundaries, testing models, and implementing clean data flows.
 
 👉 See **[AGENTS.md](AGENTS.md)**

@@ -40,6 +40,13 @@ struct diffuseApp: App {
                 .keyboardShortcut("o", modifiers: .command)
             }
         }
+
+        Settings {
+            SettingsSheet()
+                .environment(appState)
+                .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
+                .environment(\.locale, currentLocale)
+        }
     }
 
     private var currentLocale: Locale {

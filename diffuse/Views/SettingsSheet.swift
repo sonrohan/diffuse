@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct SettingsSheet: View {
-    @Binding var isPresented: Bool
+    var isPresented: Binding<Bool>?
     @Environment(AppState.self) private var state
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
@@ -28,8 +28,8 @@ struct SettingsSheet: View {
     @State private var isProfileRulesPresented = false
     @State private var profileStatusMessage: String = ""
 
-    init(isPresented: Binding<Bool>, initialTab: SettingsTab = .general) {
-        self._isPresented = isPresented
+    init(isPresented: Binding<Bool>? = nil, initialTab: SettingsTab = .general) {
+        self.isPresented = isPresented
         self._selectedTab = State(initialValue: initialTab)
     }
 
@@ -211,21 +211,23 @@ struct SettingsSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Divider()
+            if let isPresented = isPresented {
+                Divider()
 
-            // Footer Control View
-            HStack {
-                Spacer()
-                Button("Done") {
-                    isPresented = false
+                // Footer Control View
+                HStack {
+                    Spacer()
+                    Button("Done") {
+                        isPresented.wrappedValue = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentBlue)
+                    .keyboardShortcut(.defaultAction)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentBlue)
-                .keyboardShortcut(.defaultAction)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(Color.bgSidebarPanel)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(Color.bgSidebarPanel)
         }
     }
 

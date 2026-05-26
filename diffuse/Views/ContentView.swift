@@ -44,8 +44,6 @@ struct AppHeaderView: View {
     @State private var showRenameAlert = false
     @State private var newName = ""
     @State private var showDeleteConfirmation = false
-    @State private var showSettingsSheet = false
-    @State private var settingsInitialTab: SettingsSheet.SettingsTab = .general
     @State private var isWorkspacePickerPresented = false
     @State private var isBranchPickerPresented = false
     @State private var isCommitPickerPresented = false
@@ -53,33 +51,9 @@ struct AppHeaderView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Spacer to avoid macOS traffic lights window controls
+            // Spacer to clear macOS window traffic light controls natively
             Spacer()
-                .frame(width: 16)
-
-            // Logo & Title
-            HStack(spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.bgSidebarPanel)
-                        .frame(width: 22, height: 22)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(Color.borderDefault.opacity(0.8), lineWidth: 0.5)
-                        )
-                    Image(systemName: "arrow.triangle.branch")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.accentBlue)
-                }
-                Text("diffuse")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-            }
-            .padding(.trailing, 16)
-
-            Divider()
-                .frame(height: 20)
-                .padding(.trailing, 16)
+                .frame(width: 80)
 
             // Workspace selector
             HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {
@@ -307,17 +281,6 @@ struct AppHeaderView: View {
                     .buttonStyle(.plain)
                     .help("Analyze latest")
                 }
-
-                Button {
-                    settingsInitialTab = .general
-                    showSettingsSheet = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12))
-                        .foregroundColor(.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("Settings")
             }
             .padding(.trailing, 16)
         }
@@ -365,10 +328,6 @@ struct AppHeaderView: View {
             Text(
                 "This will remove the workspace from diffuse. Your local Git repository and files will not be deleted."
             )
-        }
-        .sheet(isPresented: $showSettingsSheet) {
-            SettingsSheet(isPresented: $showSettingsSheet, initialTab: settingsInitialTab)
-                .environment(\.locale, locale)
         }
         .onAppear {
             if commitVM == nil {
@@ -1155,23 +1114,38 @@ struct DetailView: View {
     var welcomeView: some View {
         VStack(spacing: 16) {
             ZStack {
-                RoundedRectangle(cornerRadius: 20)
+                // Squircle Background perfectly matching the redesigned AppIcon
+                RoundedRectangle(cornerRadius: 18)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.accentBlue.opacity(0.15), Color.accentPurple.opacity(0.1),
+                                Color(red: 0.08, green: 0.09, blue: 0.14),
+                                Color(red: 0.03, green: 0.04, blue: 0.06),
                             ],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
                     .frame(width: 80, height: 80)
-                Image(systemName: "arrow.triangle.pull")
-                    .font(.system(size: 36, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.accentBlue, .accentPurple], startPoint: .topLeading,
-                            endPoint: .bottomTrailing)
+                    .shadow(color: Color.black.opacity(0.45), radius: 8, x: 0, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.12), Color.accentBlue.opacity(0.02),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1.2
+                            )
                     )
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 34, height: 34)
+                    .shadow(color: Color.accentBlue.opacity(0.3), radius: 6, x: 0, y: 0)
             }
             VStack(spacing: 6) {
                 Text("Welcome to diffuse")

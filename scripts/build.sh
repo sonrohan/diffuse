@@ -31,10 +31,10 @@ echo -e "${BLUE}=======================================${NC}"
 
 # Run xcodebuild
 echo -e "${YELLOW}Running xcodebuild...${NC}"
-xcodebuild -project diffuse.xcodeproj -scheme diffuse -configuration "$CONFIG" -derivedDataPath ./build clean build
+xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build clean build
 
 # Locate and display output
-BUILD_PATH="./build/Build/Products/${CONFIG}/diffuse.app"
+BUILD_PATH="./build/Build/Products/${CONFIG}/Diffuse.app"
 
 if [ -d "$BUILD_PATH" ]; then
     echo -e "${GREEN}=======================================${NC}"
@@ -44,7 +44,7 @@ if [ -d "$BUILD_PATH" ]; then
     
     # If it is release, provide helpful zip instructions
     if [ "$CONFIG" = "Release" ]; then
-        ZIP_PATH="$HOME/Desktop/diffuse-release.zip"
+        ZIP_PATH="$HOME/Desktop/Diffuse-release.zip"
         echo -e "\nTo package this for another Mac, you can run:"
         echo -e "  ${YELLOW}zip -r \"$ZIP_PATH\" \"$BUILD_PATH\"${NC}"
     fi

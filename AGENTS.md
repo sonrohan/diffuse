@@ -52,6 +52,7 @@ When adding new files, place them strictly inside the corresponding domain subfo
 *   `Diffuse/Services/`: Services contacting Rust sidecars, running shell commands, and global synchronization (`AppState.swift`).
 *   `Diffuse/ViewModels/`: `@Observable` MainActor classes capturing UI actions and sorting logic.
 *   `Diffuse/Views/`: Layout-focused declarative views (`ContentView.swift`, panels, sheets).
+*   `Tests/`: Unit and integration test suites (located outside `Diffuse/` to avoid compilation in the main target).
 
 ---
 
@@ -125,7 +126,7 @@ Always use parenthesized scopes to specify the module or component affected when
 ### Target Constraints
 *   Diffuse is a native macOS application and utilizes `PBXFileSystemSynchronizedRootGroup` on the `Diffuse/` directory. Any file placed inside that directory is automatically compiled as part of the main app target.
 *   Because the main target does not link `XCTest`, unit test classes that `import XCTest` will fail to compile if placed inside the `Diffuse/` folder.
-*   **Rule**: Put all unit tests in the project root directory (e.g., `ArchitectureTests.swift`). This keeps them in the repository without breaking target compilation.
+*   **Rule**: Put all unit tests in the dedicated `Tests/` directory at the project root (e.g., `Tests/ArchitectureTests.swift`). This keeps them in the repository without breaking target compilation.
 
 ### Run Verification Commands
 Always run local compilation checks before finishing a task:

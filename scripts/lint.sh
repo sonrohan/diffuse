@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "Linting Swift files in diffuse/ and root..."
-swift format lint --strict --recursive diffuse ArchitectureTests.swift
+echo "Linting Swift files in Diffuse/ and Tests/..."
+swift format lint --strict --recursive Diffuse Tests
 
 echo "Linting complete! All files conform to swift-format specifications."

@@ -52,12 +52,14 @@ jobs:
             # Sourced from main branch push
             VERSION_NAME="$DATE_VERSION"
             RELEASE_STAGE="alpha.${{ github.run_number }}"
+            TAG_NAME="v${VERSION_NAME}-${RELEASE_STAGE}"
           fi
           
           # Write parameters to environment for subsequent steps
           echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
           echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
           echo "RELEASE_STAGE=${RELEASE_STAGE}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
           
           echo "----------------------------------------"
           echo "Computed Version Parameters:"
@@ -102,7 +104,6 @@ jobs:
           retention-days: 90
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -119,8 +120,8 @@ jobs:
           
           # Create official GitHub release and attach zip package
           # --generate-notes automatically builds a beautiful changelog from commits
-          gh release create "${{ github.ref_name }}" \
-            --title "Diffuse ${{ github.ref_name }}" \
+          gh release create "${{ env.TAG_NAME }}" \
+            --title "Diffuse ${{ env.TAG_NAME }}" \
             --generate-notes \
             $PRERELEASE_FLAG \
             "$ZIP_NAME"

@@ -1,0 +1,117 @@
+name: Release Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build & Package Release App
+    runs-on: macos-14
+    permissions:
+      contents: write # Required to create/update GitHub Releases and upload assets
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate Version Info
+        id: version_info
+        run: |
+          # Generate base version based on current date
+          DATE_VERSION=$(date +"%y.%m.%d")
+          BUILD_NUMBER=$(date +"%y%m%d%H%M")
+          
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            # Extract version from tag (e.g. v26.05.26-beta.1 -> 26.05.26)
+            VERSION_NAME=$(echo "$TAG_NAME" | sed -E 's/^v//' | cut -d'-' -f1)
+            
+            # Extract stage suffix (e.g. beta.1 or stable)
+            STAGE_SUFFIX=$(echo "$TAG_NAME" | sed -E 's/^v//' | cut -d'-' -f2- -s)
+            if [ -z "$STAGE_SUFFIX" ]; then
+              RELEASE_STAGE="stable"
+            else
+              RELEASE_STAGE="$STAGE_SUFFIX"
+            fi
+          else
+            # Sourced from main branch push
+            VERSION_NAME="$DATE_VERSION"
+            RELEASE_STAGE="alpha.${{ github.run_number }}"
+          fi
+          
+          # Write parameters to environment for subsequent steps
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
+          echo "RELEASE_STAGE=${RELEASE_STAGE}" >> $GITHUB_ENV
+          
+          echo "----------------------------------------"
+          echo "Computed Version Parameters:"
+          echo "Marketing Version:  $VERSION_NAME"
+          echo "Build Number:       $BUILD_NUMBER"
+          echo "Release Stage:      $RELEASE_STAGE"
+          echo "----------------------------------------"
+
+      - name: Verify Xcode Version
+        run: xcodebuild -version
+
+      - name: Run Build Script (Release Mode)
+        env:
+          VERSION_NAME: ${{ env.VERSION_NAME }}
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+        run: |
+          # Ensure execution permission on script
+          chmod +x ./scripts/build.sh
+          ./scripts/build.sh release
+
+      - name: Zip the App Bundle
+        run: |
+          APP_PATH="./build/Build/Products/Release/Diffuse.app"
+          ZIP_NAME="Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
+          
+          if [ -d "$APP_PATH" ]; then
+            echo "Packaging $APP_PATH into $ZIP_NAME..."
+            cd "./build/Build/Products/Release"
+            zip -r "../../../../$ZIP_NAME" "Diffuse.app"
+            cd "../../../.."
+            echo "Successfully created $ZIP_NAME"
+          else
+            echo "Error: Built app not found at $APP_PATH"
+            exit 1
+          fi
+
+      - name: Upload Actions Run Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}
+          path: Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip
+          retention-days: 90
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ZIP_NAME="Diffuse-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
+          
+          # Determine if this is a pre-release build
+          PRERELEASE_FLAG=""
+          if [[ "${{ env.RELEASE_STAGE }}" == *"alpha"* || "${{ env.RELEASE_STAGE }}" == *"beta"* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+            echo "Publishing as a Pre-Release..."
+          else
+            echo "Publishing as a Stable Release..."
+          fi
+          
+          # Create official GitHub release and attach zip package
+          # --generate-notes automatically builds a beautiful changelog from commits
+          gh release create "${{ github.ref_name }}" \
+            --title "Diffuse ${{ github.ref_name }}" \
+            --generate-notes \
+            $PRERELEASE_FLAG \
+            "$ZIP_NAME"
+          
+          echo "Successfully created GitHub Release and uploaded $ZIP_NAME!"

@@ -29,9 +29,20 @@ echo -e "${BLUE}=======================================${NC}"
 echo -e "${BLUE} Building Diffuse (${CONFIG} Mode) ${NC}"
 echo -e "${BLUE}=======================================${NC}"
 
+# Auto-generate version and build number if not provided in the environment
+if [ -z "$VERSION_NAME" ]; then
+    VERSION_NAME=$(date +"%y.%m.%d")
+fi
+if [ -z "$BUILD_NUMBER" ]; then
+    BUILD_NUMBER=$(date +"%y%m%d%H%M")
+fi
+
+echo -e "Marketing Version: ${GREEN}$VERSION_NAME${NC}"
+echo -e "Build Number:      ${GREEN}$BUILD_NUMBER${NC}"
+
 # Run xcodebuild
 echo -e "${YELLOW}Running xcodebuild...${NC}"
-xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build clean build
+xcodebuild -project Diffuse.xcodeproj -scheme Diffuse -configuration "$CONFIG" -derivedDataPath ./build MARKETING_VERSION="$VERSION_NAME" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" clean build
 
 # Locate and display output
 BUILD_PATH="./build/Build/Products/${CONFIG}/Diffuse.app"

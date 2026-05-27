@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Chobi Logo" width="200">
+</p>
+
 # Chobi
 
 Chobi is a native macOS application designed to deliver an intelligent, localized code review and diff analysis experience. It parses changes, assesses risk, categorizes files semantically, and triages code issues entirely locally without sending data to external servers.

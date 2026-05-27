@@ -281,9 +281,8 @@ struct AppHeaderView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Color(NSColor.controlColor).opacity(
-                                        isDebugMenuHovered ? 0.85 : 0.55
-                                    )
+                                    isDebugMenuHovered
+                                        ? Color.textPrimary.opacity(0.08) : Color.clear
                                 )
                         }
                         .buttonStyle(.plain)
@@ -295,9 +294,9 @@ struct AppHeaderView: View {
                             }
                         }
 
-                        Divider()
-                            .frame(height: 14)
-                            .padding(.horizontal, 1)
+                        Rectangle()
+                            .fill(Color.borderMuted)
+                            .frame(width: 0.5, height: 14)
 
                         Button {
                             isProfileRulesPresented = true
@@ -308,9 +307,8 @@ struct AppHeaderView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Color(NSColor.controlColor).opacity(
-                                        isProfileRulesHovered ? 0.85 : 0.55
-                                    )
+                                    isProfileRulesHovered
+                                        ? Color.textPrimary.opacity(0.08) : Color.clear
                                 )
                         }
                         .buttonStyle(.plain)
@@ -320,9 +318,9 @@ struct AppHeaderView: View {
                             AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
                         }
 
-                        Divider()
-                            .frame(height: 14)
-                            .padding(.horizontal, 1)
+                        Rectangle()
+                            .fill(Color.borderMuted)
+                            .frame(width: 0.5, height: 14)
 
                         Button {
                             Task { await state.reRunAnalysis() }
@@ -333,9 +331,7 @@ struct AppHeaderView: View {
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Color(NSColor.controlColor).opacity(
-                                        isReloadHovered ? 0.85 : 0.55
-                                    )
+                                    isReloadHovered ? Color.textPrimary.opacity(0.08) : Color.clear
                                 )
                         }
                         .buttonStyle(.plain)

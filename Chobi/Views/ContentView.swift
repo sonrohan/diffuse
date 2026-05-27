@@ -68,11 +68,11 @@ struct AppHeaderView: View {
                 } label: {
                     Image(systemName: "sidebar.left")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(isNavigationRailCollapsed ? .accentBlue : .textPrimary)
+                        .foregroundColor(isNavigationRailCollapsed ? .brandAccent : .textPrimary)
                         .frame(width: 20, height: 20)
                         .background(
                             isNavigationRailCollapsed
-                                ? Color.accentBlue.opacity(0.12)
+                                ? Color.brandAccent.opacity(0.12)
                                 : Color.bgSidebarPanel
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -80,7 +80,7 @@ struct AppHeaderView: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .stroke(
                                     isNavigationRailCollapsed
-                                        ? Color.accentBlue.opacity(0.35)
+                                        ? Color.brandAccent.opacity(0.35)
                                         : Color.borderDefault.opacity(0.8),
                                     lineWidth: 0.5
                                 )
@@ -98,7 +98,7 @@ struct AppHeaderView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "folder.fill")
                         .font(.appSubheadline)
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                     if let repo = state.selectedRepo {
                         Text(repo.name)
                             .font(.appHeading)
@@ -136,7 +136,7 @@ struct AppHeaderView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "arrow.triangle.branch")
                             .font(.appSubheadline)
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                         Text(state.selectedBranch ?? "main")
                             .font(.appMonospaced(12, weight: .semibold))
                             .foregroundColor(.textPrimary)
@@ -144,10 +144,10 @@ struct AppHeaderView: View {
                         if selectedRepo.autoAnalyzeEnabled {
                             Text("Live")
                                 .font(.appBadge)
-                                .foregroundColor(.accentBlue)
+                                .foregroundColor(.brandAccent)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .background(Color.accentBlue.opacity(0.12))
+                                .background(Color.brandAccent.opacity(0.12))
                                 .clipShape(Capsule())
                         }
 
@@ -201,7 +201,7 @@ struct AppHeaderView: View {
                                     if state.selectedCommitSha == nil {
                                         Image(systemName: "sum")
                                             .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(.accentBlue)
+                                            .foregroundColor(.brandAccent)
                                         Text("All Changes")
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundColor(.textPrimary)
@@ -237,7 +237,7 @@ struct AppHeaderView: View {
                                     if state.selectedCommitSha == nil {
                                         Image(systemName: "sum")
                                             .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(.accentBlue)
+                                            .foregroundColor(.brandAccent)
                                         Text("All")
                                             .font(.system(size: 11, weight: .semibold))
                                             .foregroundColor(.textPrimary)
@@ -649,7 +649,7 @@ struct EmptyWorkspaceAddView: View {
         VStack(spacing: 18) {
             Image(systemName: "folder.badge.plus")
                 .font(.system(size: 34, weight: .regular))
-                .foregroundColor(.accentBlue)
+                .foregroundColor(.brandAccent)
 
             VStack(spacing: 4) {
                 Text("Add Workspace")
@@ -684,7 +684,7 @@ struct WorkspaceRow: View {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "folder")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .foregroundColor(isSelected ? .brandAccent : .textTertiary)
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -694,7 +694,7 @@ struct WorkspaceRow: View {
                             .foregroundColor(.textPrimary)
                             .lineLimit(1)
                         if repo.autoAnalyzeEnabled {
-                            PickerBadge("Live", color: .accentBlue)
+                            PickerBadge("Live", color: .brandAccent)
                         }
                     }
                     Text(repo.path)
@@ -708,7 +708,7 @@ struct WorkspaceRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .background(isSelected ? Color.brandAccent.opacity(0.10) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -809,7 +809,7 @@ struct BranchRow: View {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "arrow.triangle.branch")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .foregroundColor(isSelected ? .brandAccent : .textTertiary)
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -856,7 +856,7 @@ struct BranchRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .background(isSelected ? Color.brandAccent.opacity(0.10) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -1002,7 +1002,7 @@ struct CommitAllChangesRow: View {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "sum")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .foregroundColor(isSelected ? .brandAccent : .textTertiary)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("All Changes")
@@ -1016,7 +1016,7 @@ struct CommitAllChangesRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .background(isSelected ? Color.brandAccent.opacity(0.10) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -1034,7 +1034,7 @@ struct CommitRow: View {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textTertiary)
+                    .foregroundColor(isSelected ? .brandAccent : .textTertiary)
                     .frame(width: 18)
 
                 Text("C\(index)")
@@ -1062,7 +1062,7 @@ struct CommitRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(isSelected ? Color.accentBlue.opacity(0.10) : Color.clear)
+            .background(isSelected ? Color.brandAccent.opacity(0.10) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -1258,7 +1258,7 @@ struct DetailView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 96, height: 96)
-                .shadow(color: Color.accentBlue.opacity(0.25), radius: 16, x: 0, y: 0)
+                .shadow(color: Color.brandAccent.opacity(0.25), radius: 16, x: 0, y: 0)
 
             VStack(spacing: 6) {
                 Text("Welcome to Chobi")
@@ -1368,7 +1368,7 @@ struct PaneDivider: View {
 
     var body: some View {
         Rectangle()
-            .fill(isDragging ? Color.accentBlue.opacity(0.55) : Color.borderDefault.opacity(0.9))
+            .fill(isDragging ? Color.brandAccent.opacity(0.55) : Color.borderDefault.opacity(0.9))
             .frame(width: 1)
             .overlay(
                 // Wider invisible hit area for easy grabbing
@@ -1437,7 +1437,7 @@ struct AnalyzeRepoSheet: View {
                 HStack(spacing: 8) {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 20))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                     Text("Analyze Local Repo")
                         .font(.system(size: 17, weight: .semibold))
                 }
@@ -1501,7 +1501,7 @@ struct AnalyzeRepoSheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.accentBlue)
+                .tint(.brandAccent)
                 .disabled(state.isAnalyzing)
                 .keyboardShortcut(.defaultAction)
             }
@@ -1567,13 +1567,13 @@ struct AnalyzeRepoSheet: View {
                 Spacer()
                 Text(hasProfile ? "Repo-defined" : "Preset to copy")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(hasProfile ? .success : .accentBlue)
+                    .foregroundColor(hasProfile ? .success : .brandAccent)
             }
 
             HStack(spacing: 10) {
                 Image(systemName: hasProfile ? "checkmark.seal.fill" : "wand.and.stars")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(hasProfile ? .success : .accentBlue)
+                    .foregroundColor(hasProfile ? .success : .brandAccent)
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 2) {

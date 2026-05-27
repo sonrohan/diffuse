@@ -94,7 +94,7 @@ struct AnalysisProfileStudioView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
-                        selectedSection == section ? Color.accentBlue.opacity(0.10) : Color.clear
+                        selectedSection == section ? Color.brandAccent.opacity(0.10) : Color.clear
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
@@ -111,7 +111,7 @@ struct AnalysisProfileStudioView: View {
         HStack(spacing: 10) {
             Image(systemName: "person.text.rectangle")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.accentBlue)
+                .foregroundColor(.brandAccent)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Analysis Profile Studio")
@@ -203,7 +203,7 @@ struct AnalysisProfileStudioView: View {
                 saveButtonLabel
             }
             .buttonStyle(.borderedProminent)
-            .tint(.accentBlue)
+            .tint(.brandAccent)
             .disabled(!hasUnsavedChanges || savePhase == .saving)
             .keyboardShortcut("s", modifiers: [.command])
         }
@@ -224,9 +224,9 @@ struct AnalysisProfileStudioView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                         .frame(width: 24, height: 24)
-                        .background(Color.accentBlue.opacity(0.10))
+                        .background(Color.brandAccent.opacity(0.10))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -779,7 +779,7 @@ extension AnalysisProfileStudioView {
     fileprivate var saveStatusColor: Color {
         switch savePhase {
         case .saving:
-            return .accentBlue
+            return .brandAccent
         case .saved:
             return .success
         case .idle:
@@ -1494,9 +1494,9 @@ struct SymbolPreviewTeachingRow: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.accentBlue)
+                .foregroundColor(.brandAccent)
                 .frame(width: 22, height: 22)
-                .background(Color.accentBlue.opacity(0.10))
+                .background(Color.brandAccent.opacity(0.10))
                 .clipShape(RoundedRectangle(cornerRadius: 5))
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1507,10 +1507,10 @@ struct SymbolPreviewTeachingRow: View {
                         .lineLimit(1)
                     Text("\(row.count)")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
-                        .background(Color.accentBlue.opacity(0.10))
+                        .background(Color.brandAccent.opacity(0.10))
                         .clipShape(Capsule())
                 }
                 if !row.sampleName.isEmpty {
@@ -1611,9 +1611,9 @@ struct StudioMetric: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.accentBlue)
+                .foregroundColor(.brandAccent)
                 .frame(width: 24, height: 24)
-                .background(Color.accentBlue.opacity(0.10))
+                .background(Color.brandAccent.opacity(0.10))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 1) {
                 Text(value)

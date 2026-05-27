@@ -155,7 +155,7 @@ struct AllChangesNavRow: View {
             HStack(spacing: 9) {
                 Image(systemName: "rectangle.stack")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -165,10 +165,10 @@ struct AllChangesNavRow: View {
                             .foregroundColor(.textPrimary)
                         Text("Unfiltered")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
-                            .background(Color.accentBlue.opacity(0.10))
+                            .background(Color.brandAccent.opacity(0.10))
                             .clipShape(Capsule())
                     }
                     Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
@@ -185,7 +185,7 @@ struct AllChangesNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.borderMuted,
                     lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
@@ -193,7 +193,7 @@ struct AllChangesNavRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isSelected { return Color.brandAccent.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
@@ -210,7 +210,7 @@ struct LowerSignalNavRow: View {
             HStack(spacing: 9) {
                 Image(systemName: "eye.slash")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -232,7 +232,7 @@ struct LowerSignalNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.borderMuted,
                     lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
@@ -243,7 +243,7 @@ struct LowerSignalNavRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isSelected { return Color.brandAccent.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
@@ -261,7 +261,7 @@ struct NeedsAttentionNavRow: View {
             HStack(spacing: 9) {
                 Image(systemName: "target")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                     .frame(width: 18)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -286,7 +286,7 @@ struct NeedsAttentionNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.accentBlue.opacity(0.55) : Color.borderMuted,
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.borderMuted,
                     lineWidth: isSelected ? 1 : 0.5))
         }
         .buttonStyle(.plain)
@@ -295,7 +295,7 @@ struct NeedsAttentionNavRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isSelected { return Color.brandAccent.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
@@ -328,7 +328,7 @@ struct SignalNavRow: View {
 
                 Text(signal.filePath + (signal.lineStart.map { ":L\($0)" } ?? ""))
                     .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -356,7 +356,7 @@ struct AreaNavRow: View {
             HStack(alignment: .top, spacing: 9) {
                 Image(systemName: bucket.type.icon)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                    .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                     .frame(width: 18, height: 18)
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -379,14 +379,14 @@ struct AreaNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isSelected { return Color.brandAccent.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
@@ -441,7 +441,7 @@ struct TargetNavRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.accentBlue.opacity(0.55) : Color.clear, lineWidth: 1))
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(target.changedFileId == nil)
@@ -453,7 +453,7 @@ struct TargetNavRow: View {
     }
 
     private var rowBackground: Color {
-        if isSelected { return Color.accentBlue.opacity(0.10) }
+        if isSelected { return Color.brandAccent.opacity(0.10) }
         if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
         return Color.clear
     }
@@ -513,7 +513,7 @@ struct ReviewMapPanel: View {
                 HStack(spacing: 6) {
                     Image(systemName: "map")
                         .font(.system(size: 13))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                     Text("Review Map")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
@@ -576,7 +576,7 @@ struct SignalCard: View {
                         .font(.system(size: 9))
                     Text(signal.filePath + (signal.lineStart.map { ":L\($0)" } ?? ""))
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
@@ -584,11 +584,11 @@ struct SignalCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .contentShape(Rectangle())
-            .background(isHovered ? Color.accentBlue.opacity(0.06) : Color(NSColor.controlColor))
+            .background(isHovered ? Color.brandAccent.opacity(0.06) : Color(NSColor.controlColor))
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(
                 RoundedRectangle(cornerRadius: 7).stroke(
-                    isHovered ? Color.accentBlue.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
+                    isHovered ? Color.brandAccent.opacity(0.3) : Color.borderMuted, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
@@ -607,7 +607,7 @@ struct SemanticBucketsPanel: View {
                 HStack(spacing: 6) {
                     Image(systemName: "folder.badge.gearshape")
                         .font(.system(size: 13))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                     Text("Semantic Views")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
@@ -672,10 +672,10 @@ struct AllChangesCard: View {
                     Spacer()
                     Text("Unfiltered")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.accentBlue.opacity(0.10))
+                        .background(Color.brandAccent.opacity(0.10))
                         .clipShape(Capsule())
                 }
 
@@ -698,7 +698,7 @@ struct AllChangesCard: View {
             .contentShape(Rectangle())
             .background(
                 isSelected
-                    ? Color.accentBlue.opacity(0.08)
+                    ? Color.brandAccent.opacity(0.08)
                     : (isHovered
                         ? Color(NSColor.controlColor).opacity(0.8)
                         : Color(NSColor.controlColor).opacity(0.4))
@@ -707,7 +707,7 @@ struct AllChangesCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted,
+                        isSelected ? Color.brandAccent.opacity(0.6) : Color.borderMuted,
                         lineWidth: isSelected ? 1 : 0.5)
             )
         }
@@ -776,7 +776,7 @@ struct BucketCard: View {
             .contentShape(Rectangle())
             .background(
                 isSelected
-                    ? Color.accentBlue.opacity(0.08)
+                    ? Color.brandAccent.opacity(0.08)
                     : (isHovered
                         ? Color(NSColor.controlColor).opacity(0.8)
                         : Color(NSColor.controlColor).opacity(0.4))
@@ -785,7 +785,7 @@ struct BucketCard: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        isSelected ? Color.accentBlue.opacity(0.6) : Color.borderMuted,
+                        isSelected ? Color.brandAccent.opacity(0.6) : Color.borderMuted,
                         lineWidth: isSelected ? 1 : 0.5)
             )
         }
@@ -1116,7 +1116,7 @@ struct ReviewDebugSheet: View {
             HStack(spacing: 10) {
                 Image(systemName: "ladybug")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Review Debug")
                         .font(.system(size: 15, weight: .semibold))
@@ -1231,7 +1231,7 @@ struct ReviewDebugSheet: View {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(String(format: "%.3f", metrics.totalTime))
                             .font(.system(size: 28, weight: .bold, design: .monospaced))
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                         Text("seconds")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.textSecondary)
@@ -1366,7 +1366,7 @@ private struct PerformanceStepRow: View {
                             .fill(Color.borderMuted.opacity(0.4))
                             .frame(height: 4)
                         Capsule()
-                            .fill(Color.accentBlue)
+                            .fill(Color.brandAccent)
                             .frame(width: geo.size.width * CGFloat(percentage), height: 4)
                     }
                 }

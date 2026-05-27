@@ -72,15 +72,15 @@ struct DiffViewerPanel: View {
                         if activeFilterCount > 0 {
                             Text("\(activeFilterCount)")
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.accentBlue)
+                                .foregroundColor(.brandAccent)
                         }
                     }
-                    .foregroundColor(activeFilterCount > 0 ? .accentBlue : .textSecondary)
+                    .foregroundColor(activeFilterCount > 0 ? .brandAccent : .textSecondary)
                     .frame(minWidth: 28, minHeight: 22)
                     .padding(.horizontal, activeFilterCount > 0 ? 5 : 0)
                     .background(
                         activeFilterCount > 0
-                            ? Color.accentBlue.opacity(0.10)
+                            ? Color.brandAccent.opacity(0.10)
                             : Color(NSColor.controlColor).opacity(0.45)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -88,7 +88,7 @@ struct DiffViewerPanel: View {
                         RoundedRectangle(cornerRadius: 5)
                             .stroke(
                                 activeFilterCount > 0
-                                    ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                                    ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
                                 lineWidth: 0.5)
                     )
                 }
@@ -314,7 +314,7 @@ struct FileFilterPopover: View {
                 Button("Reset", action: reset)
                     .font(.system(size: 11, weight: .semibold))
                     .buttonStyle(.plain)
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
             }
 
             FilterSection(title: "Extensions") {
@@ -514,17 +514,18 @@ struct DiffToolbarButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(isActive ? .accentBlue : .textSecondary)
+                .foregroundColor(isActive ? .brandAccent : .textSecondary)
                 .frame(width: 26, height: 22)
                 .background(
                     isActive
-                        ? Color.accentBlue.opacity(0.10) : Color(NSColor.controlColor).opacity(0.45)
+                        ? Color.brandAccent.opacity(0.10)
+                        : Color(NSColor.controlColor).opacity(0.45)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
                         .stroke(
-                            isActive ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                            isActive ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
                             lineWidth: 0.5)
                 )
         }
@@ -772,7 +773,7 @@ struct FileListItem: View {
 
             Image(systemName: "doc.text")
                 .font(.system(size: 11))
-                .foregroundColor(isActive ? .accentBlue : .textTertiary)
+                .foregroundColor(isActive ? .brandAccent : .textTertiary)
 
             Text(file.filename)
                 .font(.system(size: 11, design: .monospaced))
@@ -791,10 +792,10 @@ struct FileListItem: View {
         .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
         .padding(.trailing, 8)
         .padding(.vertical, 5)
-        .background(isActive ? Color.accentBlue.opacity(0.08) : Color.clear)
+        .background(isActive ? Color.brandAccent.opacity(0.08) : Color.clear)
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(isActive ? Color.accentBlue : Color.clear)
+                .fill(isActive ? Color.brandAccent : Color.clear)
                 .frame(width: 2)
         }
         .contentShape(Rectangle())
@@ -1243,9 +1244,9 @@ struct HunkView: View {
                     } label: {
                         Image(systemName: "arrow.up.to.line")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                             .frame(width: 17, height: 17)
-                            .background(Color.accentBlue.opacity(0.12))
+                            .background(Color.brandAccent.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
                     .buttonStyle(.plain)
@@ -1260,9 +1261,9 @@ struct HunkView: View {
                         } label: {
                             Image(systemName: "arrow.up.and.down")
                                 .font(.system(size: 9, weight: .semibold))
-                                .foregroundColor(.accentBlue)
+                                .foregroundColor(.brandAccent)
                                 .frame(width: 17, height: 17)
-                                .background(Color.accentBlue.opacity(0.12))
+                                .background(Color.brandAccent.opacity(0.12))
                                 .clipShape(RoundedRectangle(cornerRadius: 3))
                         }
                         .buttonStyle(.plain)
@@ -1277,9 +1278,9 @@ struct HunkView: View {
                     } label: {
                         Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                             .frame(width: 17, height: 17)
-                            .background(Color.accentBlue.opacity(0.12))
+                            .background(Color.brandAccent.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
                     .buttonStyle(.plain)

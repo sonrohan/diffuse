@@ -101,12 +101,12 @@ struct MCPSettingsView: View {
                 HStack {
                     Image(systemName: tab.iconName)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                        .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 13))
-                            .foregroundColor(.accentBlue)
+                            .foregroundColor(.brandAccent)
                     }
                 }
 
@@ -124,13 +124,13 @@ struct MCPSettingsView: View {
             .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentBlue.opacity(0.10) : Color.bgSidebarPanel)
+                    .fill(isSelected ? Color.brandAccent.opacity(0.10) : Color.bgSidebarPanel)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         isSelected
-                            ? Color.accentBlue.opacity(0.65)
+                            ? Color.brandAccent.opacity(0.65)
                             : (isHovered ? Color.borderDefault : Color.borderMuted),
                         lineWidth: isSelected ? 1.2 : 0.5
                     )

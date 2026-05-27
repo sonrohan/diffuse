@@ -121,7 +121,7 @@ struct SettingsSheet: View {
             HStack(spacing: 6) {
                 Image(systemName: "gearshape.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
                 Text("Settings")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.textPrimary)
@@ -144,7 +144,7 @@ struct SettingsSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: tab.iconName)
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(isSelected ? .accentBlue : .textSecondary)
+                                .foregroundColor(isSelected ? .brandAccent : .textSecondary)
                                 .frame(width: 16, height: 16)
 
                             Text(LocalizedStringKey(tab.rawValue))
@@ -159,7 +159,7 @@ struct SettingsSheet: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
                                     isSelected
-                                        ? Color.accentBlue.opacity(0.12)
+                                        ? Color.brandAccent.opacity(0.12)
                                         : (isHovered ? Color.bgSubtle : Color.clear))
                         )
                     }
@@ -221,7 +221,7 @@ struct SettingsSheet: View {
                         isPresented.wrappedValue = false
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.accentBlue)
+                    .tint(.brandAccent)
                     .keyboardShortcut(.defaultAction)
                 }
                 .padding(.horizontal, 24)
@@ -240,7 +240,7 @@ struct SettingsSheet: View {
                 HStack(spacing: 6) {
                     Image(systemName: "cpu")
                         .font(.system(size: 11))
-                        .foregroundColor(.accentBlue)
+                        .foregroundColor(.brandAccent)
                     Text("AST Analysis Engine")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.textPrimary)
@@ -654,13 +654,13 @@ struct SettingsSheet: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(
                                     isSelected
-                                        ? Color.accentBlue
+                                        ? Color.brandAccent
                                         : (isHovered ? Color.borderDefault : Color.borderMuted),
                                     lineWidth: isSelected ? 2 : 1
                                 )
                         )
                         .shadow(
-                            color: isSelected ? Color.accentBlue.opacity(0.12) : Color.clear,
+                            color: isSelected ? Color.brandAccent.opacity(0.12) : Color.clear,
                             radius: 4, x: 0, y: 2)
 
                     // Theme illustration graphic inside
@@ -673,7 +673,7 @@ struct SettingsSheet: View {
                                 Spacer()
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 13))
-                                    .foregroundColor(.accentBlue)
+                                    .foregroundColor(.brandAccent)
                                     .background(Circle().fill(Color.white))
                                     .padding(4)
                             }
@@ -801,7 +801,7 @@ struct AnalysisProfileWizard: View {
             HStack(spacing: 10) {
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Analysis Profile")
@@ -829,7 +829,7 @@ struct AnalysisProfileWizard: View {
                             )
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(
-                                selectedPresetId == preset.id ? .accentBlue : .textTertiary
+                                selectedPresetId == preset.id ? .brandAccent : .textTertiary
                             )
                             .frame(width: 18)
 
@@ -842,10 +842,10 @@ struct AnalysisProfileWizard: View {
                                     if preset.id == detectedPresetId {
                                         Text("Detected")
                                             .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.accentBlue)
+                                            .foregroundColor(.brandAccent)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)
-                                            .background(Color.accentBlue.opacity(0.10))
+                                            .background(Color.brandAccent.opacity(0.10))
                                             .clipShape(Capsule())
                                     }
                                 }
@@ -863,13 +863,13 @@ struct AnalysisProfileWizard: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
                                     selectedPresetId == preset.id
-                                        ? Color.accentBlue.opacity(0.08) : Color.bgSidebarPanel)
+                                        ? Color.brandAccent.opacity(0.08) : Color.bgSidebarPanel)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(
                                     selectedPresetId == preset.id
-                                        ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
+                                        ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
                                     lineWidth: 0.5)
                         )
                     }
@@ -1001,7 +1001,7 @@ struct ProfileSummarySection<Content: View>: View {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.accentBlue)
+                    .foregroundColor(.brandAccent)
                     .frame(width: 16)
                 Text(title)
                     .font(.system(size: 11, weight: .bold))

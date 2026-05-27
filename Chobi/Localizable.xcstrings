@@ -4,6 +4,12 @@
     "" : {
 
     },
+    "(.chobi.json)" : {
+
+    },
+    "(~/.chobi/repos/...)" : {
+
+    },
     "@@ -%lld,%lld +%lld,%lld @@" : {
       "localizations" : {
         "en" : {
@@ -833,9 +839,6 @@
 
     },
     "First" : {
-
-    },
-    "flat profile" : {
 
     },
     "Folder Path" : {
@@ -1932,12 +1935,6 @@
           }
         }
       }
-    },
-    "Writes globally to ~/.chobi/repos/..." : {
-
-    },
-    "Writes locally to .chobi.json (committed or git-ignored)" : {
-
     }
   },
   "version" : "1.0"

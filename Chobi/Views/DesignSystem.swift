@@ -48,12 +48,17 @@ extension Color {
     static let borderDefault = Color(NSColor.separatorColor)
     static let borderMuted = Color(NSColor.separatorColor).opacity(0.5)
 
-    // Accent (Chobi Brand Green)
+    // Brand Accent Color (Chobi Brand Green)
     // light: #1E9E49 (readable green), dark: #30D158 (vibrant green)
-    static let accentBlue = Color.dynamic(
+    static let brandAccent = Color.dynamic(
         light: NSColor(red: 0.118, green: 0.620, blue: 0.286, alpha: 1.0),
         dark: NSColor(red: 0.188, green: 0.820, blue: 0.345, alpha: 1.0)
     )
+    static let accentGreen = brandAccent
+
+    // Legacy alias to support migration and external extensions
+    @available(*, deprecated, renamed: "brandAccent")
+    static var accentBlue: Color { brandAccent }
     static let accentPurple = Color(red: 0.51, green: 0.31, blue: 0.87)
 
     // Status Colors (Dynamic)
@@ -182,7 +187,7 @@ struct LoadingSpinner: View {
     var body: some View {
         Circle()
             .trim(from: 0.1, to: 0.9)
-            .stroke(Color.accentBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .stroke(Color.brandAccent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
             .frame(width: size, height: size)
             .rotationEffect(.degrees(isAnimating ? 360 : 0))
             .animation(
@@ -209,7 +214,7 @@ struct SectionHeading: View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.appSubheadline)
-                .foregroundColor(.accentBlue)
+                .foregroundColor(.brandAccent)
             Text(title)
                 .font(.appHeading)
                 .foregroundColor(.textPrimary)

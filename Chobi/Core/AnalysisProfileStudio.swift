@@ -126,10 +126,6 @@ struct AnalysisProfileStudioView: View {
 
             Spacer()
 
-            Text("flat profile")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.textTertiary)
-
             Button("Done") {
                 dismiss()
             }
@@ -343,17 +339,22 @@ struct AnalysisProfileStudioView: View {
                         TextField("id", text: bucketIdBinding(index))
                             .font(.system(size: 11, design: .monospaced))
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 150)
+                            .frame(width: 110)
 
                         TextField("Title", text: bucketTitleBinding(index))
                             .textFieldStyle(.roundedBorder)
+
+                        Text("Type")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.textSecondary)
 
                         Picker("Type", selection: bucketTypeBinding(index)) {
                             ForEach(ChangeBucketType.allCases, id: \.rawValue) { type in
                                 Text(type.displayTitle).tag(type.rawValue)
                             }
                         }
-                        .frame(width: 190)
+                        .labelsHidden()
+                        .frame(width: 140)
 
                         Button(role: .destructive) {
                             removeBucket(at: index)
@@ -476,13 +477,13 @@ struct AnalysisProfileStudioView: View {
                         TextField("id", text: symbolGroupIdBinding(index))
                             .font(.system(size: 11, design: .monospaced))
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 150)
+                            .frame(width: 110)
                         TextField("Label", text: symbolGroupLabelBinding(index))
                             .textFieldStyle(.roundedBorder)
                         TextField("Icon", text: symbolGroupIconBinding(index))
                             .font(.system(size: 11, design: .monospaced))
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
+                            .frame(width: 80)
                         Toggle("Fallback", isOn: symbolGroupFallbackBinding(index))
                             .toggleStyle(.checkbox)
                         Button(role: .destructive) {
@@ -531,18 +532,31 @@ struct AnalysisProfileStudioView: View {
                         TextField("Semantic area", text: symbolSignalSemanticAreaBinding(index))
                             .font(.system(size: 11, design: .monospaced))
                             .textFieldStyle(.roundedBorder)
+
+                        Text("Severity")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.textSecondary)
+
                         Picker("Severity", selection: symbolSignalSeverityBinding(index)) {
                             ForEach(Severity.allCases, id: \.rawValue) { severity in
                                 Text(severity.rawValue).tag(severity.rawValue)
                             }
                         }
-                        .frame(width: 110)
+                        .labelsHidden()
+                        .frame(width: 75)
+
+                        Text("Category")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.textSecondary)
+
                         Picker("Category", selection: symbolSignalCategoryBinding(index)) {
                             ForEach(findingCategoryOptions, id: \.self) { category in
                                 Text(category).tag(category)
                             }
                         }
-                        .frame(width: 140)
+                        .labelsHidden()
+                        .frame(width: 100)
+
                         Button(role: .destructive) {
                             removeSymbolSignal(at: index)
                         } label: {
@@ -659,19 +673,29 @@ struct AnalysisProfileStudioView: View {
                             .font(.system(size: 11, design: .monospaced))
                             .textFieldStyle(.roundedBorder)
 
+                        Text("Severity")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.textSecondary)
+
                         Picker("Severity", selection: boundarySeverityBinding(index)) {
                             ForEach(Severity.allCases, id: \.rawValue) { severity in
                                 Text(severity.rawValue).tag(severity.rawValue)
                             }
                         }
-                        .frame(width: 110)
+                        .labelsHidden()
+                        .frame(width: 75)
+
+                        Text("Category")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.textSecondary)
 
                         Picker("Category", selection: boundaryCategoryBinding(index)) {
                             ForEach(findingCategoryOptions, id: \.self) { category in
                                 Text(category).tag(category)
                             }
                         }
-                        .frame(width: 140)
+                        .labelsHidden()
+                        .frame(width: 100)
 
                         Button(role: .destructive) {
                             removeBoundary(at: index)

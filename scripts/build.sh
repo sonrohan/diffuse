@@ -58,6 +58,19 @@ xcodebuild -project Chobi.xcodeproj -scheme Chobi -configuration "$CONFIG" -deri
 BUILD_PATH="./build/Build/Products/${CONFIG}/Chobi.app"
 
 if [ -d "$BUILD_PATH" ]; then
+    # If a custom signing identity is provided, explicitly sign the nested sidecar and main app
+    # with the Hardened Runtime options to ensure Apple Notarization succeeds.
+    if [ -n "$CODE_SIGN_IDENTITY" ] && [ "$CODE_SIGN_IDENTITY" != "-" ]; then
+        echo -e "${YELLOW}Explicitly signing sidecar and main app with Hardened Runtime...${NC}"
+        SIDECAR_PATH="$BUILD_PATH/Contents/MacOS/chobi-core"
+        if [ -f "$SIDECAR_PATH" ]; then
+            codesign --force --options runtime --sign "$CODE_SIGN_IDENTITY" "$SIDECAR_PATH"
+        fi
+        codesign --force --options runtime --sign "$CODE_SIGN_IDENTITY" "$BUILD_PATH"
+        echo -e "${GREEN}Code signing verification:${NC}"
+        codesign --verify --verbose --deep "$BUILD_PATH"
+    fi
+
     echo -e "${GREEN}=======================================${NC}"
     echo -e "${GREEN} Build Succeeded!${NC}"
     echo -e "${GREEN}=======================================${NC}"

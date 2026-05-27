@@ -8,7 +8,6 @@ struct DiffViewerPanel: View {
     let details: AnalysisDetails
 
     @State private var hideBoilerplate = false
-    @State private var isFileSidebarCollapsed = false
     @State private var compactFileTree = true
     @State private var fileSidebarWidth: CGFloat = 220
     @State private var fileSearchText = ""
@@ -157,13 +156,6 @@ struct DiffViewerPanel: View {
                 .help("Change diff layout")
 
                 DiffToolbarButton(
-                    systemImage: "sidebar.left",
-                    help: isFileSidebarCollapsed ? "Show changed files" : "Hide changed files"
-                ) {
-                    isFileSidebarCollapsed.toggle()
-                }
-
-                DiffToolbarButton(
                     systemImage: hideBoilerplate ? "eye.slash.fill" : "eye",
                     isActive: hideBoilerplate,
                     help: hideBoilerplate ? "Show boilerplate files" : "Hide boilerplate files"
@@ -189,12 +181,10 @@ struct DiffViewerPanel: View {
 
             HSplitView {
                 // File list sidebar
-                if !isFileSidebarCollapsed {
-                    FileListSidebar(
-                        files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree
-                    )
-                    .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
-                }
+                FileListSidebar(
+                    files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree
+                )
+                .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
 
                 // Diff content
                 if let file = activeFile {

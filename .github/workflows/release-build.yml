@@ -71,30 +71,100 @@ jobs:
       - name: Verify Xcode Version
         run: xcodebuild -version
 
+      - name: Install Apple Certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: "temporary-keychain-password"
+        run: |
+          if [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
+            echo "No code signing certificate secret found. Skipping certificate installation..."
+            exit 0
+          fi
+          
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # Import certificate from secrets
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security default-keychain -s $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          echo "Certificate successfully installed in temporary keychain."
+
       - name: Run Build Script (Release Mode)
         env:
           VERSION_NAME: ${{ env.VERSION_NAME }}
           BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          HAS_SECRET: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
         run: |
           # Ensure execution permission on script
           chmod +x ./scripts/build.sh
+          
+          if [ "$HAS_SECRET" = "true" ]; then
+            export CODE_SIGN_IDENTITY="Developer ID Application: Rohan Harrison ($TEAM_ID)"
+          fi
+          
           ./scripts/build.sh release
 
-      - name: Zip the App Bundle
+      - name: Notarize, Staple, and Package App Bundle
+        env:
+          NOTARIZATION_USERNAME: ${{ secrets.NOTARIZATION_USERNAME }}
+          NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          HAS_SECRET: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
         run: |
           APP_PATH="./build/Build/Products/Release/Chobi.app"
           ZIP_NAME="Chobi-v${{ env.VERSION_NAME }}-${{ env.RELEASE_STAGE }}.zip"
           
-          if [ -d "$APP_PATH" ]; then
-            echo "Packaging $APP_PATH into $ZIP_NAME..."
-            cd "./build/Build/Products/Release"
-            zip -r "../../../../$ZIP_NAME" "Chobi.app"
-            cd "../../../.."
-            echo "Successfully created $ZIP_NAME"
-          else
+          if [ ! -d "$APP_PATH" ]; then
             echo "Error: Built app not found at $APP_PATH"
             exit 1
           fi
+
+          if [ "$HAS_SECRET" = "true" ]; then
+            echo "Code signing secret detected. Starting Notarization and Stapling flow..."
+            
+            # 1. Create a temporary zip for notarization submission
+            cd "./build/Build/Products/Release"
+            zip -r "../../../../notarize_temp.zip" "Chobi.app"
+            cd "../../../.."
+            
+            # 2. Submit to Apple Notary Service and wait for completion
+            echo "Submitting to Apple Notary Service..."
+            xcrun notarytool submit notarize_temp.zip \
+              --apple-id "$NOTARIZATION_USERNAME" \
+              --password "$NOTARIZATION_PASSWORD" \
+              --team-id "$TEAM_ID" \
+              --wait
+            
+            # 3. Staple the ticket directly to the built app bundle
+            echo "Stapling notarization ticket to Chobi.app..."
+            xcrun stapler staple "$APP_PATH"
+            
+            # 4. Create the final distribution zip containing the stapled app
+            echo "Packaging stapled Chobi.app into final distribution zip: $ZIP_NAME..."
+            cd "./build/Build/Products/Release"
+            zip -r "../../../../$ZIP_NAME" "Chobi.app"
+            cd "../../../.."
+            
+            # Clean up temporary zip
+            rm notarize_temp.zip
+          else
+            echo "No code signing secret found. Packaging ad-hoc signed app without notarization..."
+            cd "./build/Build/Products/Release"
+            zip -r "../../../../$ZIP_NAME" "Chobi.app"
+            cd "../../../.."
+          fi
+          echo "Packaging complete!"
 
       - name: Upload Actions Run Artifact
         uses: actions/upload-artifact@v4

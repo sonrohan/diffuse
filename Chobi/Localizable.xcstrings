@@ -589,6 +589,12 @@
     "Changed Files" : {
 
     },
+    "Chobi will copy %@ into a flat .chobi.json." : {
+
+    },
+    "Chobi will use this repo's configured rules and groupings." : {
+
+    },
     "Choose" : {
 
     },
@@ -732,7 +738,7 @@
     "Create" : {
 
     },
-    "Create .diffuse.json before first analysis" : {
+    "Create .chobi.json before first analysis" : {
 
     },
     "Debug" : {
@@ -748,12 +754,6 @@
 
     },
     "diffuse v1.0.0" : {
-
-    },
-    "Diffuse will copy %@ into a flat .diffuse.json." : {
-
-    },
-    "Diffuse will use this repo's configured rules and groupings." : {
 
     },
     "Done" : {
@@ -1359,7 +1359,7 @@
         }
       }
     },
-    "Run diffuse analysis on a local git repository." : {
+    "Run Chobi analysis on a local git repository." : {
 
     },
     "Running analysis…" : {
@@ -1625,6 +1625,9 @@
         }
       }
     },
+    "This will remove the workspace from Chobi. Your local Git repository and files will not be deleted." : {
+
+    },
     "This will remove the workspace from chobi. Your local Git repository and files will remain intact." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1647,9 +1650,6 @@
           }
         }
       }
-    },
-    "This will remove the workspace from diffuse. Your local Git repository and files will not be deleted." : {
-
     },
     "This will remove the workspace from diffuse. Your local Git repository and files will remain intact." : {
 
@@ -1782,7 +1782,7 @@
         }
       }
     },
-    "Welcome to diffuse" : {
+    "Welcome to Chobi" : {
 
     },
     "Wizard" : {

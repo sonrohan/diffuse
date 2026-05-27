@@ -7,7 +7,7 @@ struct ContentView: View {
     @Environment(AppState.self) private var state
     @Environment(\.locale) private var locale
     @State private var showAnalyzeSheet = false
-    @State private var isNavigationRailCollapsed = false
+    @AppStorage("isNavigationRailCollapsed") private var isNavigationRailCollapsed = false
 
     var body: some View {
         VStack(spacing: 0) {

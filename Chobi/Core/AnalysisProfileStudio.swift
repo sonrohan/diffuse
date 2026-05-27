@@ -153,35 +153,30 @@ struct AnalysisProfileStudioView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text("Save to:")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(1)
+            HStack(spacing: 8) {
+                Text("Save to:")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
-                    Picker("Save Location", selection: $saveLocation) {
-                        Text("Repository").tag(ProfileSaveLocation.repository)
-                        Text("Global Folder").tag(ProfileSaveLocation.global)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 170)
-                    .disabled(savePhase == .saving)
+                Picker("Save Location", selection: $saveLocation) {
+                    Text("Repository").tag(ProfileSaveLocation.repository)
+                    Text("Global Folder").tag(ProfileSaveLocation.global)
                 }
-                .layoutPriority(1)
+                .pickerStyle(.segmented)
+                .frame(width: 170)
+                .disabled(savePhase == .saving)
 
                 Text(
                     saveLocation == .repository
-                        ? "Writes locally to .chobi.json (committed or git-ignored)"
-                        : "Writes globally to ~/.chobi/repos/..."
+                        ? "(.chobi.json)"
+                        : "(~/.chobi/repos/...)"
                 )
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundColor(.textTertiary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
-                .layoutPriority(1)
             }
 
             Spacer()
@@ -217,7 +212,7 @@ struct AnalysisProfileStudioView: View {
             .keyboardShortcut("s", modifiers: [.command])
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .background(Color.bgSidebarPanel)
     }
 

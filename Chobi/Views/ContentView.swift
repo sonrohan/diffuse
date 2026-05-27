@@ -1234,6 +1234,7 @@ struct DetailView: View {
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
             }
+            .padding(.top, -8)
             Text("Use ⌘O or the header dropdown to analyze a local repo.")
                 .font(.system(size: 12))
                 .foregroundColor(.textTertiary)

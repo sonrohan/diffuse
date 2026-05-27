@@ -46,7 +46,7 @@ echo -e "${YELLOW}Running xcodebuild...${NC}"
 SIGNING_FLAGS=()
 if [ -n "$CODE_SIGN_IDENTITY" ]; then
     echo -e "${YELLOW}Using specified code signing identity: $CODE_SIGN_IDENTITY${NC}"
-    SIGNING_FLAGS+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY")
+    SIGNING_FLAGS+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" CODE_SIGN_STYLE="Manual")
 elif [ "$CI" = "true" ]; then
     echo -e "${YELLOW}CI environment detected. Using ad-hoc code signing...${NC}"
     SIGNING_FLAGS+=(CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED="NO")

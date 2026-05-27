@@ -678,10 +678,12 @@ enum AnalysisProfileStore {
         let decoder = JSONDecoder()
         let bundleURL = Bundle.main.url(
             forResource: id, withExtension: "json", subdirectory: "AnalysisProfiles")
+        let flatBundleURL = Bundle.main.url(
+            forResource: id, withExtension: "json")
         let sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .appendingPathComponent("AnalysisProfiles/\(id).json")
-        let urls = [bundleURL, sourceURL].compactMap { $0 }
+        let urls = [bundleURL, flatBundleURL, sourceURL].compactMap { $0 }
 
         for url in urls {
             if let data = try? Data(contentsOf: url),

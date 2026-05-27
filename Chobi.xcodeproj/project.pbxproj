@@ -115,7 +115,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 1CCD22EE2FC2969E00CB1237 /* Build configuration list for PBXProject "chobi" */;
+			buildConfigurationList = 1CCD22EE2FC2969E00CB1237 /* Build configuration list for PBXProject "Chobi" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -378,7 +378,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1CCD22EE2FC2969E00CB1237 /* Build configuration list for PBXProject "chobi" */ = {
+		1CCD22EE2FC2969E00CB1237 /* Build configuration list for PBXProject "Chobi" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1CCD22FC2FC2969F00CB1237 /* Debug */,

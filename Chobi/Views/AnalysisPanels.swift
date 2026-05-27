@@ -1192,6 +1192,8 @@ struct ReviewDebugSheet: View {
                             mappingBreakdown
                         case .performance:
                             performanceBreakdown
+                        case .logs:
+                            LogsConsoleView()
                         }
                     }
                     .padding(18)
@@ -1363,6 +1365,7 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
     case ast
     case mapping
     case performance
+    case logs
 
     var id: String { rawValue }
 
@@ -1371,6 +1374,7 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
         case .ast: "Raw AST"
         case .mapping: "Profile Mapping"
         case .performance: "Performance"
+        case .logs: "Logs Console"
         }
     }
 
@@ -1379,6 +1383,7 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
         case .ast: "point.3.connected.trianglepath.dotted"
         case .mapping: "person.text.rectangle"
         case .performance: "timer"
+        case .logs: "terminal"
         }
     }
 }
@@ -1799,5 +1804,209 @@ struct ContextStatChip: View {
             .padding(.vertical, 3)
             .background(Color(NSColor.controlColor).opacity(0.55))
             .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+}
+
+// MARK: - Logs Console View
+
+struct LogsConsoleView: View {
+    @State private var query = ""
+    @State private var selectedTag = "All"
+    @State private var selectedLevel = "All"
+
+    private var logger: AppLogger {
+        AppLogger.shared
+    }
+
+    private var availableTags: [String] {
+        var tags = Array(Set(logger.entries.map { $0.tag })).sorted()
+        tags.insert("All", at: 0)
+        return tags
+    }
+
+    private var filteredEntries: [LogEntry] {
+        logger.entries.filter { entry in
+            let matchesQuery =
+                query.isEmpty
+                || entry.message.localizedCaseInsensitiveContains(query)
+                || entry.tag.localizedCaseInsensitiveContains(query)
+
+            let matchesTag = selectedTag == "All" || entry.tag == selectedTag
+
+            let matchesLevel =
+                selectedLevel == "All"
+                || entry.level.rawValue == selectedLevel
+
+            return matchesQuery && matchesTag && matchesLevel
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Control bar
+            HStack(spacing: 8) {
+                // Search field
+                HStack(spacing: 4) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                    TextField("Filter message...", text: $query)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11))
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.textTertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color(NSColor.controlColor).opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5)
+                )
+                .frame(maxWidth: 180)
+
+                // Level Filter
+                Picker("Level", selection: $selectedLevel) {
+                    Text("All Levels").tag("All")
+                    ForEach(LogLevel.allCases, id: \.self) { level in
+                        Text(level.rawValue).tag(level.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 100)
+
+                // Tag Filter
+                Picker("Tag", selection: $selectedTag) {
+                    ForEach(availableTags, id: \.self) { tag in
+                        Text(tag).tag(tag)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 120)
+
+                Spacer()
+
+                // Copy logs button
+                Button {
+                    let text = filteredEntries.map { entry in
+                        "[\(entry.timestamp)] [\(entry.level.rawValue)] [\(entry.tag)] \(entry.message)"
+                    }.joined(separator: "\n")
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.declareTypes([.string], owner: nil)
+                    pasteboard.setString(text, forType: .string)
+                } label: {
+                    Label("Copy filtered logs", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .help("Copy logs to clipboard")
+
+                // Clear button
+                Button {
+                    logger.clear()
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundColor(.textSecondary)
+                }
+                .buttonStyle(.bordered)
+                .help("Clear console logs")
+            }
+            .padding(.bottom, 12)
+
+            // Log Console Box
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 5) {
+                        if filteredEntries.isEmpty {
+                            VStack(spacing: 8) {
+                                Image(systemName: "terminal")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.textTertiary)
+                                Text("No console logs match filters")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 180)
+                            .padding(.vertical, 40)
+                        } else {
+                            ForEach(filteredEntries) { entry in
+                                LogEntryRow(entry: entry)
+                                    .id(entry.id)
+                            }
+                        }
+                    }
+                    .padding(10)
+                }
+                .background(Color(NSColor.underPageBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5)
+                )
+                .frame(minHeight: 380, maxHeight: 460)
+                .onChange(of: filteredEntries.count) {
+                    if let last = filteredEntries.last {
+                        withAnimation {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct LogEntryRow: View {
+    let entry: LogEntry
+
+    private var timeString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: entry.timestamp)
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            // Level Indicator Badge
+            Text(entry.level.rawValue)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundColor(entry.level.color)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(entry.level.color.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+                .frame(width: 42, alignment: .leading)
+
+            // Timestamp
+            Text(timeString)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.textTertiary)
+                .frame(width: 68, alignment: .leading)
+
+            // Tag/Category Badge
+            Text(entry.tag)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundColor(.accentPurple)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(Color.accentPurple.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            // Message
+            Text(entry.message)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.leading)
+        }
+        .padding(.vertical, 1)
     }
 }

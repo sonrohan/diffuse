@@ -22,6 +22,7 @@ actor GitService {
     }
 
     static func run(_ command: String, cwd: String) -> String {
+        AppLogger.shared.log("Running shell command: \(command) (cwd: \(cwd))", tag: "Git")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-c", command]
@@ -35,11 +36,18 @@ actor GitService {
         process.waitUntilExit()
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result =
+            String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? ""
+        AppLogger.shared.log(
+            "Command complete. Output: \(result.prefix(120))\(result.count > 120 ? "..." : "") (\(result.count) chars)",
+            tag: "Git")
+        return result
     }
 
     static func runGit(_ arguments: [String], cwd: String) -> String {
+        AppLogger.shared.log(
+            "Running Git: git \(arguments.joined(separator: " ")) (cwd: \(cwd))", tag: "Git")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = arguments
@@ -53,8 +61,13 @@ actor GitService {
         process.waitUntilExit()
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result =
+            String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? ""
+        AppLogger.shared.log(
+            "Git complete. Output: \(result.prefix(120))\(result.count > 120 ? "..." : "") (\(result.count) chars)",
+            tag: "Git")
+        return result
     }
 
     static func fileContent(at revision: String, path filePath: String, cwd: String) -> String {
@@ -359,13 +372,16 @@ actor ASTAnalysisService {
     ) async -> [ChangedSymbol] {
         guard !changedLines.isEmpty else { return [] }
         guard let helperURL = sidecarURL() else {
-            print("[ASTAnalysisService] diffuse-core binary not found")
+            AppLogger.shared.log(
+                "diffuse-core binary not found for symbol parsing", level: .error, tag: "AST")
             return []
         }
 
         let process = Process()
         process.executableURL = helperURL
         let linesArg = changedLines.map(String.init).joined(separator: ",")
+        AppLogger.shared.log(
+            "Running diffuse-core analyze on \(filePath) (lines: \(linesArg))", tag: "AST")
         process.arguments = ["analyze", "--file", fileURL.path, "--lines", linesArg]
 
         let stdout = Pipe()
@@ -378,9 +394,16 @@ actor ASTAnalysisService {
             process.waitUntilExit()
 
             let data = stdout.fileHandleForReading.readDataToEndOfFile()
-            guard !data.isEmpty else { return [] }
+            guard !data.isEmpty else {
+                AppLogger.shared.log(
+                    "No symbols returned by diffuse-core for \(filePath)", level: .warning,
+                    tag: "AST")
+                return []
+            }
 
             let sidecarSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
+            AppLogger.shared.log(
+                "Parsed \(sidecarSymbols.count) symbols successfully for \(filePath)", tag: "AST")
             return sidecarSymbols.map { s in
                 var metadata = s.metadata
                 metadata["language"] = s.language
@@ -411,8 +434,10 @@ actor ASTAnalysisService {
             let errOutput =
                 String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
                 ?? ""
-            print(
-                "[ASTAnalysisService] error for \(fileURL.lastPathComponent): \(error) — sidecar: \(errOutput)"
+            AppLogger.shared.log(
+                "Error parsing symbols for \(fileURL.lastPathComponent): \(error) — sidecar: \(errOutput)",
+                level: .error,
+                tag: "AST"
             )
             return []
         }
@@ -492,8 +517,10 @@ actor ASTAnalysisService {
             let errOutput =
                 String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
                 ?? ""
-            print(
-                "[ASTAnalysisService] compare error for \(headURL.lastPathComponent): \(error) — sidecar: \(errOutput)"
+            AppLogger.shared.log(
+                "Compare error for \(headURL.lastPathComponent): \(error) — sidecar: \(errOutput)",
+                level: .error,
+                tag: "AST"
             )
         }
     }
@@ -531,6 +558,10 @@ actor ASTAnalysisService {
             }
         guard !changedRefs.isEmpty else { return (symbols, 0, 0) }
 
+        AppLogger.shared.log(
+            "Running optimized Call Graph analysis for \(changedRefs.count) changed symbols",
+            tag: "CallGraph")
+
         let refsByName = Dictionary(grouping: changedRefs, by: { $0.name.lowercased() })
         var callersByKey: [String: Set<String>] = [:]
 
@@ -543,6 +574,8 @@ actor ASTAnalysisService {
             .appendingPathComponent("diffuse-grep-patterns-\(UUID().uuidString).txt")
 
         var filesToScan: [String] = []
+        let trackedFilesCount = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
+            .count
         do {
             try patternContent.write(to: patternFileURL, atomically: true, encoding: .utf8)
             var grepArgs = ["grep", "-l", "-i", "-F", "-f", patternFileURL.path]
@@ -571,13 +604,17 @@ actor ASTAnalysisService {
                     filesToScan.append(cleanPath)
                 }
             }
+            AppLogger.shared.log(
+                "Git grep identified \(filesToScan.count) candidate files containing symbol references (out of \(trackedFilesCount) tracked files)",
+                tag: "CallGraph")
         } catch {
+            AppLogger.shared.log(
+                "Git grep filter failed: \(error). Falling back to full scan of all files.",
+                level: .warning, tag: "CallGraph")
             // Fallback: scan all tracked files if git grep setup fails
             filesToScan = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
         }
 
-        let trackedFilesCount = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
-            .count
         var indexedCount = 0
 
         func matches(for callee: String) -> [SymbolRef] {
@@ -613,6 +650,7 @@ actor ASTAnalysisService {
                 guard FileManager.default.isReadableFile(atPath: fileURL.path) else { continue }
             }
 
+            AppLogger.shared.log("Running diffuse-core index on \(relativePath)", tag: "CallGraph")
             let process = Process()
             process.executableURL = helperURL
             process.arguments = ["index", "--file", fileURL.path]
@@ -666,6 +704,10 @@ actor ASTAnalysisService {
             }
             return updated
         }
+        let totalCallersFound = callersByKey.values.reduce(0) { $0 + $1.count }
+        AppLogger.shared.log(
+            "Call Graph indexing complete. Found \(totalCallersFound) caller relationships across \(updatedSymbols.filter { !$0.callers.isEmpty }.count) symbols.",
+            tag: "CallGraph")
         return (
             symbols: updatedSymbols, trackedCount: trackedFilesCount, indexedCount: indexedCount
         )
@@ -1294,15 +1336,21 @@ class AnalysisCoordinator: ObservableObject {
         analysisError = nil
         defer { isAnalyzing = false }
 
+        AppLogger.shared.log(
+            "Starting analysis pipeline for repository at path: \(path)", tag: "Pipeline")
         var metrics = PerformanceMetrics()
         let startTotal = Date()
 
         do {
             let profile = AnalysisProfileStore.load(repoPath: path)
+            AppLogger.shared.log("Loaded analysis profile: \(profile.displayName)", tag: "Pipeline")
 
             let startGit = Date()
             let gitInfo = try await git.gatherDiff(repoPath: path, baseRef: baseRef)
             metrics.gitGatherDiffTime = Date().timeIntervalSince(startGit)
+            AppLogger.shared.log(
+                "Git gather diff complete (Sha: \(gitInfo.headSha.prefix(7))). Subject: \(gitInfo.commitSubject)",
+                tag: "Pipeline")
 
             let repoName = URL(fileURLWithPath: path).lastPathComponent
 
@@ -1336,6 +1384,9 @@ class AnalysisCoordinator: ObservableObject {
             let parsedFiles = DiffParser.parse(gitInfo.diff, profile: profile)
             metrics.diffParsingTime = Date().timeIntervalSince(startDiff)
             metrics.changedFilesCount = parsedFiles.count
+            AppLogger.shared.log(
+                "Diff parsing complete. Discovered \(metrics.changedFilesCount) changed files.",
+                tag: "Pipeline")
 
             // Create ChangedFile records
             let changedFiles = parsedFiles.map { pf -> ChangedFile in
@@ -1352,6 +1403,8 @@ class AnalysisCoordinator: ObservableObject {
             await persistence.insertFiles(changedFiles)
 
             let astService = ASTAnalysisService()
+            AppLogger.shared.log(
+                "Extracting AST symbols and comparing base/head...", tag: "Pipeline")
             let astResult = await astService.extractChangedSymbols(
                 repoPath: path,
                 baseRevision: gitInfo.baseSha,
@@ -1365,6 +1418,9 @@ class AnalysisCoordinator: ObservableObject {
             metrics.trackedFilesCount = astResult.trackedFilesCount
             metrics.indexedFilesCount = astResult.indexedFilesCount
             metrics.symbolsCount = allSymbols.count
+            AppLogger.shared.log(
+                "AST parsing complete. Extracted \(metrics.symbolsCount) changed symbols.",
+                tag: "Pipeline")
 
             if !allSymbols.isEmpty {
                 await persistence.insertSymbols(allSymbols)
@@ -1377,6 +1433,7 @@ class AnalysisCoordinator: ObservableObject {
 
             // Run deterministic rules (FIX 1: pass filePathMap)
             let startRules = Date()
+            AppLogger.shared.log("Executing deterministic rules engine...", tag: "Pipeline")
             let ruleResults = RulesEngine.runDeterministicRules(
                 files: parsedFiles, symbols: allSymbols, filePathMap: filePathMap, profile: profile
             )
@@ -1407,6 +1464,9 @@ class AnalysisCoordinator: ObservableObject {
                             evidence: $0.evidence)
                     }, profile: profile)
             metrics.rulesEngineTime = Date().timeIntervalSince(startRules)
+            AppLogger.shared.log(
+                "Rules engine complete. Found \(allFindings.count) findings. Risk score calculated: \(breakdown.score)",
+                tag: "Pipeline")
 
             run.status = .completed
             run.riskScore = breakdown.score
@@ -1418,11 +1478,17 @@ class AnalysisCoordinator: ObservableObject {
 
             metrics.totalTime = Date().timeIntervalSince(startTotal)
             self.lastRunMetrics = metrics
+            AppLogger.shared.log(
+                "Analysis pipeline completed successfully in \(String(format: "%.3f", metrics.totalTime))s.",
+                tag: "Pipeline")
 
             return pr
 
         } catch {
             analysisError = error.localizedDescription
+            AppLogger.shared.log(
+                "Analysis pipeline failed with error: \(error.localizedDescription)", level: .error,
+                tag: "Pipeline")
             return nil
         }
     }

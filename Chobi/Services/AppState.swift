@@ -395,6 +395,8 @@ class AppState {
 
     func reRunAnalysis() async {
         guard let repo = selectedRepo else { return }
+        AppLogger.shared.log(
+            "User triggered manual analysis rerun for repo: \(repo.name)", tag: "AppState")
         isAnalyzing = true
         analysisError = nil
 

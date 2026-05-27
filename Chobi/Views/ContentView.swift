@@ -1272,17 +1272,19 @@ struct AnalysisDetailView: View {
             if let viewModel {
                 HSplitView {
                     // Left pane: review navigation
-                    VStack(spacing: 0) {
-                        ScrollView {
-                            VStack(spacing: 12) {
-                                AnalysisNavigationRail(details: details)
+                    if !viewModel.isNavigationRailCollapsed {
+                        VStack(spacing: 0) {
+                            ScrollView {
+                                VStack(spacing: 12) {
+                                    AnalysisNavigationRail(details: details)
+                                }
+                                .padding(12)
                             }
-                            .padding(12)
+                            .background(Color.bgSidebar)
                         }
+                        .frame(minWidth: 220, idealWidth: 360, maxWidth: 560)
                         .background(Color.bgSidebar)
                     }
-                    .frame(minWidth: 220, idealWidth: 360, maxWidth: 560)
-                    .background(Color.bgSidebar)
 
                     // Right pane: context + diff
                     VStack(spacing: 0) {

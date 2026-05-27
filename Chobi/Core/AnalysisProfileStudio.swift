@@ -158,6 +158,9 @@ struct AnalysisProfileStudioView: View {
                     Text("Save to:")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
 
                     Picker("Save Location", selection: $saveLocation) {
                         Text("Repository").tag(ProfileSaveLocation.repository)
@@ -167,6 +170,7 @@ struct AnalysisProfileStudioView: View {
                     .frame(width: 170)
                     .disabled(savePhase == .saving)
                 }
+                .layoutPriority(1)
 
                 Text(
                     saveLocation == .repository
@@ -177,6 +181,7 @@ struct AnalysisProfileStudioView: View {
                 .foregroundColor(.textTertiary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
             }
 
             Spacer()

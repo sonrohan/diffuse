@@ -197,14 +197,25 @@ class AppState {
     private func analyzeSingleCommit(
         repoPath: String, sha: String, pr: PullRequest, run: AnalysisRun
     ) async {
+        var metrics = PerformanceMetrics()
+        let startTotal = Date()
+
+        let startGit = Date()
         let commitDiff = GitService.run("git diff \(sha)~1..\(sha)", cwd: repoPath)
+        metrics.gitGatherDiffTime = Date().timeIntervalSince(startGit)
+
         guard !commitDiff.isEmpty else {
             self.analysisDetails = nil
             return
         }
 
         let profile = AnalysisProfileStore.load(repoPath: repoPath)
+
+        let startDiff = Date()
         let parsedFiles = DiffParser.parse(commitDiff, profile: profile)
+        metrics.diffParsingTime = Date().timeIntervalSince(startDiff)
+        metrics.changedFilesCount = parsedFiles.count
+
         let changedFiles = parsedFiles.map { pf -> ChangedFile in
             ChangedFile(
                 analysisRunId: run.id,
@@ -218,14 +229,22 @@ class AppState {
         }
 
         let astService = ASTAnalysisService()
-        let allSymbols = await astService.extractChangedSymbols(
+        let astResult = await astService.extractChangedSymbols(
             repoPath: repoPath,
             baseRevision: "\(sha)~1",
             headRevision: sha,
             analysisRunId: run.id,
             changedFiles: changedFiles
         )
+        let allSymbols = astResult.symbols
+        metrics.astParseTime = astResult.parseTime
+        metrics.astCompareTime = astResult.compareTime
+        metrics.astCallGraphTime = astResult.callGraphTime
+        metrics.trackedFilesCount = astResult.trackedFilesCount
+        metrics.indexedFilesCount = astResult.indexedFilesCount
+        metrics.symbolsCount = allSymbols.count
 
+        let startRules = Date()
         let ruleResults = RulesEngine.runDeterministicRules(
             files: parsedFiles, symbols: allSymbols,
             filePathMap: Dictionary(uniqueKeysWithValues: changedFiles.map { ($0.id, $0.path) }),
@@ -255,10 +274,13 @@ class AppState {
                         lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource,
                         evidence: $0.evidence)
                 }, profile: profile)
+        metrics.rulesEngineTime = Date().timeIntervalSince(startRules)
 
+        let startTriage = Date()
         let triage = TriageEngine.deriveTriage(
             files: changedFiles, symbols: allSymbols, findings: allFindings,
             riskScore: breakdown.score, profile: profile)
+        metrics.triageEngineTime = Date().timeIntervalSince(startTriage)
 
         var mockRun = run
         mockRun.riskScore = breakdown.score
@@ -272,6 +294,9 @@ class AppState {
             riskFactors: triage.riskFactors,
             symbolReviewGroups: triage.symbolReviewGroups
         )
+
+        metrics.totalTime = Date().timeIntervalSince(startTotal)
+        coordinator.lastRunMetrics = metrics
     }
 
     func selectCommit(_ sha: String?) async {

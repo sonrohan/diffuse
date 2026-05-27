@@ -499,9 +499,9 @@ actor ASTAnalysisService {
     }
 
     func symbolsWithCallerData(repoPath: String, symbols: [ChangedSymbol], revision: String? = nil)
-        async -> [ChangedSymbol]
+        async -> (symbols: [ChangedSymbol], trackedCount: Int, indexedCount: Int)
     {
-        guard !symbols.isEmpty, let helperURL = sidecarURL() else { return symbols }
+        guard !symbols.isEmpty, let helperURL = sidecarURL() else { return (symbols, 0, 0) }
 
         struct SymbolRef {
             let key: String
@@ -529,11 +529,56 @@ actor ASTAnalysisService {
                     qualifiedName: $0.metadata["qualified_name"] ?? $0.name
                 )
             }
-        guard !changedRefs.isEmpty else { return symbols }
+        guard !changedRefs.isEmpty else { return (symbols, 0, 0) }
 
         let refsByName = Dictionary(grouping: changedRefs, by: { $0.name.lowercased() })
         var callersByKey: [String: Set<String>] = [:]
-        let trackedFiles = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
+
+        // --- Optimized caller resolution path using single git grep filter ---
+        let uniqueNames = Array(Set(changedRefs.map { $0.name })).filter { !$0.isEmpty }
+        guard !uniqueNames.isEmpty else { return (symbols, 0, 0) }
+
+        let patternContent = uniqueNames.joined(separator: "\n")
+        let patternFileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("diffuse-grep-patterns-\(UUID().uuidString).txt")
+
+        var filesToScan: [String] = []
+        do {
+            try patternContent.write(to: patternFileURL, atomically: true, encoding: .utf8)
+            var grepArgs = ["grep", "-l", "-i", "-F", "-f", patternFileURL.path]
+            if let revision, !revision.isEmpty {
+                grepArgs.append(revision)
+            }
+            let grepOutput = GitService.runGit(grepArgs, cwd: repoPath)
+            try? FileManager.default.removeItem(at: patternFileURL)
+
+            let matchingPaths = grepOutput.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            let supportedExtensions: Set<String> = [
+                "swift", "kt", "kts", "ts", "tsx", "js", "jsx", "py", "rs",
+            ]
+            let prefixToStrip = (revision != nil && !revision!.isEmpty) ? "\(revision!):" : ""
+
+            for path in matchingPaths {
+                var cleanPath = path
+                if !prefixToStrip.isEmpty && cleanPath.hasPrefix(prefixToStrip) {
+                    cleanPath = String(cleanPath.dropFirst(prefixToStrip.count))
+                }
+                let ext = URL(fileURLWithPath: cleanPath).pathExtension.lowercased()
+                if supportedExtensions.contains(ext) {
+                    filesToScan.append(cleanPath)
+                }
+            }
+        } catch {
+            // Fallback: scan all tracked files if git grep setup fails
+            filesToScan = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
+        }
+
+        let trackedFilesCount = GitService.trackedSourceFiles(cwd: repoPath, revision: revision)
+            .count
+        var indexedCount = 0
 
         func matches(for callee: String) -> [SymbolRef] {
             let normalized = normalizedLookupName(callee)
@@ -549,7 +594,7 @@ actor ASTAnalysisService {
             return candidates.count == 1 ? candidates : []
         }
 
-        for relativePath in trackedFiles {
+        for relativePath in filesToScan {
             var temporaryIndexedURL: URL?
             let fileURL: URL
             if let revision, !revision.isEmpty {
@@ -580,7 +625,13 @@ actor ASTAnalysisService {
                 try process.run()
                 process.waitUntilExit()
                 let data = stdout.fileHandleForReading.readDataToEndOfFile()
-                guard !data.isEmpty else { continue }
+                indexedCount += 1
+                guard !data.isEmpty else {
+                    if let temporaryIndexedURL {
+                        try? FileManager.default.removeItem(at: temporaryIndexedURL)
+                    }
+                    continue
+                }
 
                 let indexedSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
                 for indexed in indexedSymbols {
@@ -606,7 +657,7 @@ actor ASTAnalysisService {
             }
         }
 
-        return symbols.map { symbol in
+        let updatedSymbols = symbols.map { symbol in
             var updated = symbol
             let callers = Array(callersByKey[symbolKey(symbol)] ?? []).sorted()
             if !callers.isEmpty {
@@ -615,6 +666,9 @@ actor ASTAnalysisService {
             }
             return updated
         }
+        return (
+            symbols: updatedSymbols, trackedCount: trackedFilesCount, indexedCount: indexedCount
+        )
     }
 
     func extractChangedSymbols(
@@ -623,7 +677,13 @@ actor ASTAnalysisService {
         headRevision: String? = nil,
         analysisRunId: UUID,
         changedFiles: [ChangedFile]
-    ) async -> [ChangedSymbol] {
+    ) async -> (
+        symbols: [ChangedSymbol], parseTime: Double, compareTime: Double, callGraphTime: Double,
+        trackedFilesCount: Int, indexedFilesCount: Int
+    ) {
+        var parseTime: Double = 0.0
+        var compareTime: Double = 0.0
+        var callGraphTime: Double = 0.0
         var allSymbols: [ChangedSymbol] = []
 
         for changedFile in changedFiles
@@ -649,6 +709,7 @@ actor ASTAnalysisService {
                 fileURL = URL(fileURLWithPath: repoPath).appendingPathComponent(changedFile.path)
             }
 
+            let startParse = Date()
             var symbols = await parseSymbols(
                 for: fileURL,
                 filePath: changedFile.path,
@@ -656,6 +717,7 @@ actor ASTAnalysisService {
                 analysisRunId: analysisRunId,
                 changedFileId: changedFile.id
             )
+            parseTime += Date().timeIntervalSince(startParse)
 
             if !symbols.isEmpty {
                 let baseContent = GitService.fileContent(
@@ -664,12 +726,14 @@ actor ASTAnalysisService {
                     let baseTmp = temporarySourceURL(
                         prefix: "diffuse-base", filePath: changedFile.path, content: baseContent)
                 {
+                    let startCompare = Date()
                     await compareSymbols(
                         baseURL: baseTmp,
                         headURL: fileURL,
                         changedLines: lines,
                         existingSymbols: &symbols
                     )
+                    compareTime += Date().timeIntervalSince(startCompare)
                     try? FileManager.default.removeItem(at: baseTmp)
                 } else if changedFile.status == .added {
                     for index in symbols.indices {
@@ -689,8 +753,19 @@ actor ASTAnalysisService {
             allSymbols.append(contentsOf: symbols)
         }
 
-        return await symbolsWithCallerData(
+        let startCallGraph = Date()
+        let callerResult = await symbolsWithCallerData(
             repoPath: repoPath, symbols: allSymbols, revision: headRevision)
+        callGraphTime = Date().timeIntervalSince(startCallGraph)
+
+        return (
+            symbols: callerResult.symbols,
+            parseTime: parseTime,
+            compareTime: compareTime,
+            callGraphTime: callGraphTime,
+            trackedFilesCount: callerResult.trackedCount,
+            indexedFilesCount: callerResult.indexedCount
+        )
     }
 
     private func temporarySourceURL(prefix: String, filePath: String, content: String) -> URL? {
@@ -1204,9 +1279,6 @@ actor PersistenceService: ModelActor {
     }
 }
 
-// MARK: - Analysis Coordinator
-// Orchestrates the full analysis pipeline
-
 @MainActor
 class AnalysisCoordinator: ObservableObject {
 
@@ -1215,15 +1287,23 @@ class AnalysisCoordinator: ObservableObject {
 
     @Published var isAnalyzing = false
     @Published var analysisError: String?
+    @Published var lastRunMetrics: PerformanceMetrics? = nil
 
     func analyzeRepo(path: String, baseRef: String? = nil) async -> PullRequest? {
         isAnalyzing = true
         analysisError = nil
         defer { isAnalyzing = false }
 
+        var metrics = PerformanceMetrics()
+        let startTotal = Date()
+
         do {
             let profile = AnalysisProfileStore.load(repoPath: path)
+
+            let startGit = Date()
             let gitInfo = try await git.gatherDiff(repoPath: path, baseRef: baseRef)
+            metrics.gitGatherDiffTime = Date().timeIntervalSince(startGit)
+
             let repoName = URL(fileURLWithPath: path).lastPathComponent
 
             // Upsert PR
@@ -1252,7 +1332,10 @@ class AnalysisCoordinator: ObservableObject {
             await persistence.insertRun(run)
 
             // Parse diff
+            let startDiff = Date()
             let parsedFiles = DiffParser.parse(gitInfo.diff, profile: profile)
+            metrics.diffParsingTime = Date().timeIntervalSince(startDiff)
+            metrics.changedFilesCount = parsedFiles.count
 
             // Create ChangedFile records
             let changedFiles = parsedFiles.map { pf -> ChangedFile in
@@ -1269,12 +1352,20 @@ class AnalysisCoordinator: ObservableObject {
             await persistence.insertFiles(changedFiles)
 
             let astService = ASTAnalysisService()
-            let allSymbols = await astService.extractChangedSymbols(
+            let astResult = await astService.extractChangedSymbols(
                 repoPath: path,
                 baseRevision: gitInfo.baseSha,
                 analysisRunId: run.id,
                 changedFiles: changedFiles
             )
+            let allSymbols = astResult.symbols
+            metrics.astParseTime = astResult.parseTime
+            metrics.astCompareTime = astResult.compareTime
+            metrics.astCallGraphTime = astResult.callGraphTime
+            metrics.trackedFilesCount = astResult.trackedFilesCount
+            metrics.indexedFilesCount = astResult.indexedFilesCount
+            metrics.symbolsCount = allSymbols.count
+
             if !allSymbols.isEmpty {
                 await persistence.insertSymbols(allSymbols)
             }
@@ -1285,6 +1376,7 @@ class AnalysisCoordinator: ObservableObject {
             )
 
             // Run deterministic rules (FIX 1: pass filePathMap)
+            let startRules = Date()
             let ruleResults = RulesEngine.runDeterministicRules(
                 files: parsedFiles, symbols: allSymbols, filePathMap: filePathMap, profile: profile
             )
@@ -1314,6 +1406,7 @@ class AnalysisCoordinator: ObservableObject {
                             lineStart: $0.lineStart, lineEnd: $0.lineEnd, ruleSource: $0.ruleSource,
                             evidence: $0.evidence)
                     }, profile: profile)
+            metrics.rulesEngineTime = Date().timeIntervalSince(startRules)
 
             run.status = .completed
             run.riskScore = breakdown.score
@@ -1322,6 +1415,10 @@ class AnalysisCoordinator: ObservableObject {
 
             pr.latestRun = run
             pr = await persistence.upsertPullRequest(pr)
+
+            metrics.totalTime = Date().timeIntervalSince(startTotal)
+            self.lastRunMetrics = metrics
+
             return pr
 
         } catch {

@@ -373,6 +373,22 @@ struct SkimTarget: Identifiable, Codable {
     }
 }
 
+struct PerformanceMetrics: Codable, Hashable {
+    var gitGatherDiffTime: Double = 0.0
+    var diffParsingTime: Double = 0.0
+    var astParseTime: Double = 0.0
+    var astCompareTime: Double = 0.0
+    var astCallGraphTime: Double = 0.0
+    var rulesEngineTime: Double = 0.0
+    var triageEngineTime: Double = 0.0
+    var totalTime: Double = 0.0
+
+    var changedFilesCount: Int = 0
+    var trackedFilesCount: Int = 0
+    var indexedFilesCount: Int = 0
+    var symbolsCount: Int = 0
+}
+
 // MARK: - Analysis Details (full result)
 
 struct AnalysisDetails {

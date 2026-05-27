@@ -1078,6 +1078,7 @@ struct SelectedContextBar: View {
 struct ReviewDebugSheet: View {
     let details: AnalysisDetails
     let repo: GitRepository
+    @Environment(AppState.self) private var state
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: ReviewDebugTab = .ast
 
@@ -1151,6 +1152,8 @@ struct ReviewDebugSheet: View {
                         astBreakdown
                     case .mapping:
                         mappingBreakdown
+                    case .performance:
+                        performanceBreakdown
                     }
                 }
                 .padding(14)
@@ -1213,11 +1216,113 @@ struct ReviewDebugSheet: View {
             }
         }
     }
+
+    private var performanceBreakdown: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let metrics = state.coordinator.lastRunMetrics {
+                // Headline Metric
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("TOTAL ANALYSIS TIME")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .kerning(0.5)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(String(format: "%.3f", metrics.totalTime))
+                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                            .foregroundColor(.accentBlue)
+                        Text("seconds")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.windowBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+
+                // Phase Durations
+                DebugSection(title: "Analysis Pipeline Breakdown", meta: "duration of each stage") {
+                    VStack(spacing: 0) {
+                        PerformanceStepRow(
+                            label: "Git Gather Diff",
+                            duration: metrics.gitGatherDiffTime,
+                            meta: "Discovered changes from base Sha",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "Diff Parsing",
+                            duration: metrics.diffParsingTime,
+                            meta: "Parsed \(metrics.changedFilesCount) changed files",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "AST Parse Changed Symbols",
+                            duration: metrics.astParseTime,
+                            meta: "Extracted \(metrics.symbolsCount) symbols from changed files",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "AST Base/Head Comparison",
+                            duration: metrics.astCompareTime,
+                            meta: "Computed contract-deltas & behavioral updates",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "Call Graph Indexing",
+                            duration: metrics.astCallGraphTime,
+                            meta:
+                                "Indexed \(metrics.indexedFilesCount) / \(metrics.trackedFilesCount) matching tracked files",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "Rules Engine Execution",
+                            duration: metrics.rulesEngineTime,
+                            meta: "Evaluated deterministic rules & calculated risk score",
+                            total: metrics.totalTime
+                        )
+                        Divider()
+                        PerformanceStepRow(
+                            label: "Triage Engine Derivation",
+                            duration: metrics.triageEngineTime,
+                            meta: "Categorized change buckets & derived review targets",
+                            total: metrics.totalTime
+                        )
+                    }
+                    .background(Color(NSColor.controlColor).opacity(0.45))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 32))
+                        .foregroundColor(.textTertiary)
+                    Text("No Performance Data")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text("Trigger an analysis reload or select another commit to populate timings.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            }
+        }
+    }
 }
 
 private enum ReviewDebugTab: String, CaseIterable, Identifiable {
     case ast
     case mapping
+    case performance
 
     var id: String { rawValue }
 
@@ -1225,7 +1330,58 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
         switch self {
         case .ast: "Raw AST"
         case .mapping: "Profile Mapping"
+        case .performance: "Performance"
         }
+    }
+}
+
+private struct PerformanceStepRow: View {
+    let label: String
+    let duration: Double
+    let meta: String
+    let total: Double
+
+    var percentage: Double {
+        total > 0 ? (duration / total) : 0
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Text(String(format: "%.3fs", duration))
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.textSecondary)
+            }
+
+            HStack(spacing: 8) {
+                // Modern, beautiful progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.borderMuted.opacity(0.4))
+                            .frame(height: 4)
+                        Capsule()
+                            .fill(Color.accentBlue)
+                            .frame(width: geo.size.width * CGFloat(percentage), height: 4)
+                    }
+                }
+                .frame(height: 4)
+
+                Text(String(format: "%.0f%%", percentage * 100))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+                    .frame(width: 28, alignment: .trailing)
+            }
+
+            Text(meta)
+                .font(.system(size: 10))
+                .foregroundColor(.textTertiary)
+        }
+        .padding(10)
     }
 }
 

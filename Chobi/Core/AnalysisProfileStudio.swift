@@ -176,6 +176,7 @@ struct AnalysisProfileStudioView: View {
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundColor(.textTertiary)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
             }
 
             Spacer()

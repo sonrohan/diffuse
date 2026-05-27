@@ -48,8 +48,12 @@ extension Color {
     static let borderDefault = Color(NSColor.separatorColor)
     static let borderMuted = Color(NSColor.separatorColor).opacity(0.5)
 
-    // Accent
-    static let accentBlue = Color.accentColor
+    // Accent (Chobi Brand Green)
+    // light: #1E9E49 (readable green), dark: #30D158 (vibrant green)
+    static let accentBlue = Color.dynamic(
+        light: NSColor(red: 0.118, green: 0.620, blue: 0.286, alpha: 1.0),
+        dark: NSColor(red: 0.188, green: 0.820, blue: 0.345, alpha: 1.0)
+    )
     static let accentPurple = Color(red: 0.51, green: 0.31, blue: 0.87)
 
     // Status Colors (Dynamic)

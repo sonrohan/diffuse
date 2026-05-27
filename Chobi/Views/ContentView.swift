@@ -7,15 +7,19 @@ struct ContentView: View {
     @Environment(AppState.self) private var state
     @Environment(\.locale) private var locale
     @State private var showAnalyzeSheet = false
+    @State private var isNavigationRailCollapsed = false
 
     var body: some View {
         VStack(spacing: 0) {
-            DetailView()
+            DetailView(isNavigationRailCollapsed: $isNavigationRailCollapsed)
         }
         .frame(minWidth: 950, minHeight: 600)
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                AppHeaderView(showAnalyzeSheet: $showAnalyzeSheet)
+                AppHeaderView(
+                    showAnalyzeSheet: $showAnalyzeSheet,
+                    isNavigationRailCollapsed: $isNavigationRailCollapsed
+                )
             }
         }
         .sheet(isPresented: $showAnalyzeSheet) {
@@ -37,6 +41,7 @@ struct AppHeaderView: View {
     @Environment(AppState.self) private var state
     @Environment(\.locale) private var locale
     @Binding var showAnalyzeSheet: Bool
+    @Binding var isNavigationRailCollapsed: Bool
 
     @State private var showRenameAlert = false
     @State private var newName = ""
@@ -54,6 +59,39 @@ struct AppHeaderView: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            // Sidebar collapse button (visible when a workspace is active and analyzed)
+            if state.analysisDetails != nil {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isNavigationRailCollapsed.toggle()
+                    }
+                } label: {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(isNavigationRailCollapsed ? .accentBlue : .textPrimary)
+                        .frame(width: 20, height: 20)
+                        .background(
+                            isNavigationRailCollapsed
+                                ? Color.accentBlue.opacity(0.12)
+                                : Color.bgSidebarPanel
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(
+                                    isNavigationRailCollapsed
+                                        ? Color.accentBlue.opacity(0.35)
+                                        : Color.borderDefault.opacity(0.8),
+                                    lineWidth: 0.5
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(
+                    isNavigationRailCollapsed ? "Show review navigation" : "Hide review navigation"
+                )
+                .padding(.trailing, 16)
+            }
 
             // Workspace selector
             HeaderPickerButton(isPresented: $isWorkspacePickerPresented) {
@@ -1169,12 +1207,15 @@ extension String {
 
 struct DetailView: View {
     @Environment(AppState.self) private var state
+    @Binding var isNavigationRailCollapsed: Bool
 
     var body: some View {
         Group {
             if let details = state.analysisDetails {
-                AnalysisDetailView(details: details)
-                    .transition(.opacity)
+                AnalysisDetailView(
+                    details: details, isNavigationRailCollapsed: $isNavigationRailCollapsed
+                )
+                .transition(.opacity)
             } else if state.isLoadingAnalysis || state.isAnalyzing {
                 loadingView
             } else if state.pullRequests.isEmpty {
@@ -1265,6 +1306,7 @@ struct DetailView: View {
 struct AnalysisDetailView: View {
     @Environment(AppState.self) private var state
     let details: AnalysisDetails
+    @Binding var isNavigationRailCollapsed: Bool
     @State private var viewModel: AnalysisViewModel? = nil
 
     var body: some View {
@@ -1272,7 +1314,7 @@ struct AnalysisDetailView: View {
             if let viewModel {
                 HSplitView {
                     // Left pane: review navigation
-                    if !viewModel.isNavigationRailCollapsed {
+                    if !isNavigationRailCollapsed {
                         VStack(spacing: 0) {
                             ScrollView {
                                 VStack(spacing: 12) {

@@ -11,7 +11,6 @@ class AnalysisViewModel {
     var activeFileId: UUID? = nil
     var activeHunkIndex: Int? = nil
     var activeTargetId: UUID? = nil
-    var isNavigationRailCollapsed: Bool = false
 
     // Tracking active run to handle transitions cleanly
     private var lastRunId: UUID? = nil

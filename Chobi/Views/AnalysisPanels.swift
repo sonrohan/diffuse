@@ -1038,37 +1038,6 @@ struct SelectedContextBar: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    viewModel.isNavigationRailCollapsed.toggle()
-                }
-            } label: {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(
-                        viewModel.isNavigationRailCollapsed ? .accentBlue : .textSecondary
-                    )
-                    .frame(width: 26, height: 22)
-                    .background(
-                        viewModel.isNavigationRailCollapsed
-                            ? Color.accentBlue.opacity(0.10)
-                            : Color(NSColor.controlColor).opacity(0.45)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(
-                                viewModel.isNavigationRailCollapsed
-                                    ? Color.accentBlue.opacity(0.35) : Color.borderMuted,
-                                lineWidth: 0.5)
-                    )
-            }
-            .buttonStyle(.plain)
-            .help(
-                viewModel.isNavigationRailCollapsed
-                    ? "Show review navigation" : "Hide review navigation"
-            )
-            .padding(.trailing, 4)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("REVIEW SCOPE")

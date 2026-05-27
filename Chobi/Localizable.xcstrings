@@ -893,6 +893,9 @@
     "Group symbols like this" : {
 
     },
+    "Hide review navigation" : {
+
+    },
     "Icon" : {
 
     },
@@ -1047,6 +1050,9 @@
 
     },
     "No high-priority targets" : {
+
+    },
+    "No Performance Data" : {
 
     },
     "No PR selected" : {
@@ -1403,6 +1409,9 @@
     "Saving" : {
 
     },
+    "seconds" : {
+
+    },
     "Select a file to view its diff" : {
 
     },
@@ -1528,6 +1537,9 @@
       }
     },
     "Severity" : {
+
+    },
+    "Show review navigation" : {
 
     },
     "Split" : {
@@ -1666,6 +1678,9 @@
     "Title" : {
 
     },
+    "TOTAL ANALYSIS TIME" : {
+
+    },
     "Treat this file as config" : {
 
     },
@@ -1673,6 +1688,9 @@
 
     },
     "Treat this file as test code" : {
+
+    },
+    "Trigger an analysis reload or select another commit to populate timings." : {
 
     },
     "Turn Off Auto-Analyze" : {

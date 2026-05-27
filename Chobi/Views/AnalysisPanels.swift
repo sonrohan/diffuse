@@ -1111,57 +1111,96 @@ struct ReviewDebugSheet: View {
         .sorted { $0.path < $1.path }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "ladybug")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.brandAccent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Review Debug")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Text("\(repo.name) · \(profile.displayName) · \(profileSource)")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(16)
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("DEBUG")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .padding(.horizontal, 14)
+                .padding(.top, 18)
 
-            Divider()
-
-            Picker("Debug view", selection: $selectedTab) {
-                ForEach(ReviewDebugTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(12)
-
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    switch selectedTab {
-                    case .ast:
-                        astBreakdown
-                    case .mapping:
-                        mappingBreakdown
-                    case .performance:
-                        performanceBreakdown
+            ForEach(ReviewDebugTab.allCases) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: tab.icon)
+                            .frame(width: 16)
+                        Text(tab.title)
+                        Spacer()
                     }
+                    .font(
+                        .system(size: 12, weight: selectedTab == tab ? .semibold : .medium)
+                    )
+                    .foregroundColor(selectedTab == tab ? .textPrimary : .textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        selectedTab == tab ? Color.brandAccent.opacity(0.10) : Color.clear
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                .padding(14)
+                .buttonStyle(.plain)
             }
-            .background(Color.bgCanvas)
+
+            Spacer()
         }
-        .frame(minWidth: 820, idealWidth: 920, minHeight: 620, idealHeight: 720)
+        .frame(width: 170)
+        .background(Color.bgSidebar)
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "ladybug")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.brandAccent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Review Debug")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                Text("\(repo.name) · \(profile.displayName) · \(profileSource)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            Button("Done") {
+                dismiss()
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(18)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            sidebar
+            Divider()
+            VStack(spacing: 0) {
+                header
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        switch selectedTab {
+                        case .ast:
+                            astBreakdown
+                        case .mapping:
+                            mappingBreakdown
+                        case .performance:
+                            performanceBreakdown
+                        }
+                    }
+                    .padding(18)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(width: 760, height: 620)
+        .background(Color.bgCanvas)
     }
 
     private var astBreakdown: some View {
@@ -1332,6 +1371,14 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
         case .ast: "Raw AST"
         case .mapping: "Profile Mapping"
         case .performance: "Performance"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .ast: "point.3.connected.trianglepath.dotted"
+        case .mapping: "person.text.rectangle"
+        case .performance: "timer"
         }
     }
 }

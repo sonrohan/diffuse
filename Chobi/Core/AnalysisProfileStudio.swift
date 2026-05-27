@@ -103,7 +103,7 @@ struct AnalysisProfileStudioView: View {
 
             Spacer()
         }
-        .frame(width: 160)
+        .frame(width: 170)
         .background(Color.bgSidebar)
     }
 

@@ -62,7 +62,7 @@ struct SettingsSheet: View {
             // Right Details Panel
             detailsPane
         }
-        .frame(width: 760, height: 540)
+        .frame(width: 760, height: 620)
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             initializeWorkspaceSelection()
@@ -116,21 +116,13 @@ struct SettingsSheet: View {
     // MARK: - Sidebar Navigation Pane
 
     private var sidebarPane: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Sidebar Header / Brand
-            HStack(spacing: 6) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.brandAccent)
-                Text("Settings")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.textPrimary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 24)
-            .padding(.bottom, 20)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("SETTINGS")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .padding(.horizontal, 14)
+                .padding(.top, 18)
 
-            // Vertical list of menu items
             VStack(spacing: 4) {
                 ForEach(SettingsTab.allCases) { tab in
                     let isSelected = selectedTab == tab
@@ -148,19 +140,20 @@ struct SettingsSheet: View {
                                 .frame(width: 16, height: 16)
 
                             Text(LocalizedStringKey(tab.rawValue))
-                                .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                                 .foregroundColor(isSelected ? .textPrimary : .textSecondary)
 
                             Spacer()
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 8)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(
                                     isSelected
-                                        ? Color.brandAccent.opacity(0.12)
-                                        : (isHovered ? Color.bgSubtle : Color.clear))
+                                        ? Color.brandAccent.opacity(0.10)
+                                        : (isHovered
+                                            ? Color.textPrimary.opacity(0.04) : Color.clear))
                         )
                     }
                     .buttonStyle(.plain)
@@ -170,7 +163,7 @@ struct SettingsSheet: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 8)
 
             Spacer()
 
@@ -183,17 +176,49 @@ struct SettingsSheet: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.textTertiary)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 14)
             .padding(.bottom, 20)
         }
-        .frame(width: 190)
+        .frame(width: 170)
         .background(Color.bgSidebar)
     }
 
     // MARK: - Right Details Pane
 
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.brandAccent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Settings")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                Text(state.selectedRepo?.name ?? "Global Configuration")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            if let isPresented = isPresented {
+                Button("Done") {
+                    isPresented.wrappedValue = false
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(18)
+    }
+
     private var detailsPane: some View {
         VStack(spacing: 0) {
+            header
+            Divider()
+
             // Tab Content Frame
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -210,27 +235,9 @@ struct SettingsSheet: View {
                         appearanceView
                     }
                 }
-                .padding(.top, 24)
+                .padding(18)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if let isPresented = isPresented {
-                Divider()
-
-                // Footer Control View
-                HStack {
-                    Spacer()
-                    Button("Done") {
-                        isPresented.wrappedValue = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.brandAccent)
-                    .keyboardShortcut(.defaultAction)
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(Color.bgSidebarPanel)
-            }
         }
     }
 

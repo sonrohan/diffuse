@@ -747,7 +747,7 @@
     "Debug" : {
 
     },
-    "Debug view" : {
+    "DEBUG" : {
 
     },
     "Detected" : {
@@ -900,9 +900,6 @@
 
     },
     "Ideal for sharing configuration with the rest of the team." : {
-
-    },
-    "Inspect AST and profile mapping" : {
 
     },
     "L%lld-%lld" : {
@@ -1336,6 +1333,9 @@
     "Review Debug" : {
 
     },
+    "Review Debug…" : {
+
+    },
     "Review Map" : {
 
     },
@@ -1538,6 +1538,9 @@
           }
         }
       }
+    },
+    "SETTINGS" : {
+
     },
     "Severity" : {
 

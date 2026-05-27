@@ -38,6 +38,14 @@ struct ChobiApp: App {
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
+
+            CommandMenu("Debug") {
+                Button("Review Debug…") {
+                    NotificationCenter.default.post(name: .openDebugMenu, object: nil)
+                }
+                .keyboardShortcut("d", modifiers: [.command, .option])
+                .disabled(appState.selectedRepo == nil || appState.analysisDetails == nil)
+            }
         }
 
         Settings {
@@ -66,4 +74,5 @@ struct ChobiApp: App {
 
 extension Notification.Name {
     static let openAnalyzeRepo = Notification.Name("openAnalyzeRepo")
+    static let openDebugMenu = Notification.Name("openDebugMenu")
 }

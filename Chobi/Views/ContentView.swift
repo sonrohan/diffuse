@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(AppState.self) private var state
     @Environment(\.locale) private var locale
     @State private var showAnalyzeSheet = false
+    @State private var showDebugSheet = false
     @AppStorage("isNavigationRailCollapsed") private var isNavigationRailCollapsed = false
 
     var body: some View {
@@ -26,8 +27,19 @@ struct ContentView: View {
             AnalyzeRepoSheet(isPresented: $showAnalyzeSheet)
                 .environment(\.locale, locale)
         }
+        .sheet(isPresented: $showDebugSheet) {
+            if let details = state.analysisDetails, let repo = state.selectedRepo {
+                ReviewDebugSheet(details: details, repo: repo)
+                    .environment(\.locale, locale)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openAnalyzeRepo)) { _ in
             showAnalyzeSheet = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openDebugMenu)) { _ in
+            if state.analysisDetails != nil && state.selectedRepo != nil {
+                showDebugSheet = true
+            }
         }
         .task {
             await state.load()
@@ -51,8 +63,6 @@ struct AppHeaderView: View {
     @State private var isCommitPickerPresented = false
     @State private var commitVM: CommitScopeViewModel? = nil
 
-    @State private var isDebugMenuPresented = false
-    @State private var isDebugMenuHovered = false
     @State private var isProfileRulesPresented = false
     @State private var isProfileRulesHovered = false
     @State private var isReloadHovered = false
@@ -310,32 +320,6 @@ struct AppHeaderView: View {
 
                 if let repo = state.selectedRepo {
                     HStack(spacing: 0) {
-                        Button {
-                            isDebugMenuPresented = true
-                        } label: {
-                            Label("Debug", systemImage: "ladybug")
-                                .font(.system(size: 11))
-                                .foregroundColor(.textSecondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    isDebugMenuHovered
-                                        ? Color.textPrimary.opacity(0.08) : Color.clear
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { isDebugMenuHovered = $0 }
-                        .help("Inspect AST and profile mapping")
-                        .sheet(isPresented: $isDebugMenuPresented) {
-                            if let details = state.analysisDetails {
-                                ReviewDebugSheet(details: details, repo: repo)
-                            }
-                        }
-
-                        Rectangle()
-                            .fill(Color.borderMuted)
-                            .frame(width: 0.5, height: 14)
-
                         Button {
                             isProfileRulesPresented = true
                         } label: {

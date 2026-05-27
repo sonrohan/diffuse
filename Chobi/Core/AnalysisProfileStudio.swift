@@ -42,6 +42,8 @@ struct AnalysisProfileStudioView: View {
     @State private var errorMessage: String?
     @State private var savePhase: ProfileSavePhase = .idle
     @State private var lastSavedSignature: String?
+    @State private var saveLocation: ProfileSaveLocation = .repository
+    @State private var lastSavedLocation: ProfileSaveLocation = .repository
 
     private var profile: AnalysisProfile {
         document.resolvedProfile()
@@ -150,12 +152,35 @@ struct AnalysisProfileStudioView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Writes \(profileFileName)")
-                    .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textSecondary)
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text("Save to:")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.textSecondary)
 
+                    Picker("Save Location", selection: $saveLocation) {
+                        Text("Repository").tag(ProfileSaveLocation.repository)
+                        Text("Global Folder").tag(ProfileSaveLocation.global)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 170)
+                    .disabled(savePhase == .saving)
+                }
+
+                Text(
+                    saveLocation == .repository
+                        ? "Writes locally to .chobi.json (committed or git-ignored)"
+                        : "Writes globally to ~/.chobi/repos/..."
+                )
+                .font(.system(size: 9.5, design: .monospaced))
+                .foregroundColor(.textTertiary)
+                .lineLimit(1)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 10.5))
@@ -168,8 +193,6 @@ struct AnalysisProfileStudioView: View {
                         .lineLimit(1)
                 }
             }
-
-            Spacer()
 
             Button("Reload") {
                 loadDocument()
@@ -690,7 +713,12 @@ struct AnalysisProfileStudioView: View {
 
 extension AnalysisProfileStudioView {
     fileprivate var profileFileName: String {
-        AnalysisProfileStore.repoProfileURL(repoPath: repoPath).lastPathComponent
+        switch saveLocation {
+        case .repository:
+            return ".chobi.json"
+        case .global:
+            return "~/.chobi/repos/.../config.json"
+        }
     }
 
     fileprivate var currentSignature: String? {
@@ -698,7 +726,7 @@ extension AnalysisProfileStudioView {
     }
 
     fileprivate var hasUnsavedChanges: Bool {
-        currentSignature != lastSavedSignature
+        currentSignature != lastSavedSignature || saveLocation != lastSavedLocation
     }
 
     fileprivate var saveStatusText: String {
@@ -814,7 +842,10 @@ extension AnalysisProfileStudioView {
 
     fileprivate func loadDocument() {
         do {
-            document = try AnalysisProfileStore.loadEditableDocument(repoPath: repoPath)
+            let result = try AnalysisProfileStore.loadEditableDocument(repoPath: repoPath)
+            document = result.doc
+            saveLocation = result.location
+            lastSavedLocation = result.location
             errorMessage = nil
             savePhase = .idle
             lastSavedSignature = profileSignature(document)
@@ -827,8 +858,10 @@ extension AnalysisProfileStudioView {
         savePhase = .saving
         errorMessage = nil
         do {
-            try AnalysisProfileStore.writeEditableDocument(document, repoPath: repoPath)
+            try AnalysisProfileStore.writeEditableDocument(
+                document, repoPath: repoPath, location: saveLocation)
             lastSavedSignature = currentSignature
+            lastSavedLocation = saveLocation
             errorMessage = nil
             savePhase = .saved
             onSaved?()

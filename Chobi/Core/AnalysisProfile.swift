@@ -398,6 +398,11 @@ struct RiskScoringProfile: Codable {
     }
 }
 
+enum ProfileSaveLocation: String, Codable, CaseIterable {
+    case repository
+    case global
+}
+
 enum AnalysisProfileStore {
     nonisolated static let repoConfigPath = ".chobi.json"
     nonisolated static let builtInPresets: [AnalysisPresetDescriptor] = [
@@ -410,6 +415,22 @@ enum AnalysisProfileStore {
         AnalysisPresetDescriptor(id: "rust-crate", displayName: "Rust crate"),
         AnalysisPresetDescriptor(id: "python-service", displayName: "Python service"),
     ]
+
+    nonisolated static var globalConfigDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".chobi", isDirectory: true)
+    }
+
+    nonisolated static func globalProfileURL(for repoPath: String) -> URL {
+        let standardized = URL(fileURLWithPath: repoPath).standardized.path
+        let cleanPath =
+            standardized.hasPrefix("/") ? String(standardized.dropFirst()) : standardized
+        return
+            globalConfigDirectory
+            .appendingPathComponent("repos", isDirectory: true)
+            .appendingPathComponent(cleanPath, isDirectory: true)
+            .appendingPathComponent("config.json")
+    }
 
     nonisolated static func load(repoPath: String?) -> AnalysisProfile {
         if let repoPath, let profile = loadRepoProfile(repoPath: repoPath) {
@@ -430,6 +451,12 @@ enum AnalysisProfileStore {
                 return profile
             }
         }
+
+        let globalURL = globalProfileURL(for: repoPath)
+        if let profile = decodeProfile(at: globalURL) {
+            return profile
+        }
+
         return nil
     }
 
@@ -447,37 +474,96 @@ enum AnalysisProfileStore {
         if FileManager.default.fileExists(atPath: nested.path) {
             return nested
         }
+
+        let globalURL = globalProfileURL(for: repoPath)
+        if FileManager.default.fileExists(atPath: globalURL.path) {
+            return globalURL
+        }
+
         return primary
     }
 
-    static func loadEditableDocument(repoPath: String) throws -> EditableAnalysisProfileDocument {
-        let url = repoProfileURL(repoPath: repoPath)
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            return editableDocument(
-                from: loadBuiltIn(id: detectBuiltInProfileId(repoPath: repoPath)))
+    static func loadEditableDocument(repoPath: String) throws -> (
+        doc: EditableAnalysisProfileDocument, location: ProfileSaveLocation
+    ) {
+        let root = URL(fileURLWithPath: repoPath)
+        let candidates = [repoConfigPath, ".chobi/config.json"]
+        for candidate in candidates {
+            let url = root.appendingPathComponent(candidate)
+            if FileManager.default.fileExists(atPath: url.path) {
+                let data = try Data(contentsOf: url)
+                let document = try JSONDecoder().decode(
+                    EditableAnalysisProfileDocument.self, from: data)
+                let resolved =
+                    document.extends.isEmpty
+                    ? document.flattenedForEditing()
+                    : editableDocument(from: document.resolvedProfile())
+                return (resolved, .repository)
+            }
         }
-        let data = try Data(contentsOf: url)
-        let document = try JSONDecoder().decode(EditableAnalysisProfileDocument.self, from: data)
-        guard !document.extends.isEmpty else { return document.flattenedForEditing() }
-        return editableDocument(from: document.resolvedProfile())
+
+        let globalURL = globalProfileURL(for: repoPath)
+        if FileManager.default.fileExists(atPath: globalURL.path) {
+            let data = try Data(contentsOf: globalURL)
+            let document = try JSONDecoder().decode(
+                EditableAnalysisProfileDocument.self, from: data)
+            let resolved =
+                document.extends.isEmpty
+                ? document.flattenedForEditing()
+                : editableDocument(from: document.resolvedProfile())
+            return (resolved, .global)
+        }
+
+        let builtIn = loadBuiltIn(id: detectBuiltInProfileId(repoPath: repoPath))
+        let document = editableDocument(from: builtIn)
+        return (document, .repository)
     }
 
-    static func writeEditableDocument(_ document: EditableAnalysisProfileDocument, repoPath: String)
-        throws
-    {
-        let url = repoProfileURL(repoPath: repoPath)
-        let parent = url.deletingLastPathComponent()
+    static func writeEditableDocument(
+        _ document: EditableAnalysisProfileDocument,
+        repoPath: String,
+        location: ProfileSaveLocation
+    ) throws {
+        let targetURL: URL
+        let alternativeURLs: [URL]
+
+        let localURL1 = URL(fileURLWithPath: repoPath).appendingPathComponent(repoConfigPath)
+        let localURL2 = URL(fileURLWithPath: repoPath).appendingPathComponent(".chobi/config.json")
+        let globalURL = globalProfileURL(for: repoPath)
+
+        switch location {
+        case .repository:
+            if FileManager.default.fileExists(atPath: localURL2.path) {
+                targetURL = localURL2
+            } else {
+                targetURL = localURL1
+            }
+            alternativeURLs = [globalURL]
+        case .global:
+            targetURL = globalURL
+            alternativeURLs = [localURL1, localURL2]
+        }
+
+        let parent = targetURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         let data = try encoder.encode(document.normalized())
-        try data.write(to: url, options: .atomic)
+        try data.write(to: targetURL, options: .atomic)
+
+        for altURL in alternativeURLs {
+            if FileManager.default.fileExists(atPath: altURL.path) {
+                try? FileManager.default.removeItem(at: altURL)
+            }
+        }
     }
 
     static func teachFileClassification(
         repoPath: String, path: String, classification: ChangedFile.FileClassification
     ) throws {
-        var document = try loadEditableDocument(repoPath: repoPath)
+        let (doc, location) = try loadEditableDocument(repoPath: repoPath)
+        var document = doc
         var rules = document.fileClassifications ?? []
         if let index = rules.firstIndex(where: { $0.classification == classification.rawValue }) {
             if !rules[index].paths.contains(path) {
@@ -489,11 +575,12 @@ enum AnalysisProfileStore {
                 FileClassificationRule(classification: classification.rawValue, paths: [path]))
         }
         document.fileClassifications = rules
-        try writeEditableDocument(document, repoPath: repoPath)
+        try writeEditableDocument(document, repoPath: repoPath, location: location)
     }
 
     static func teachRiskPath(repoPath: String, path: String, kind: EditableRiskPathKind) throws {
-        var document = try loadEditableDocument(repoPath: repoPath)
+        let (doc, location) = try loadEditableDocument(repoPath: repoPath)
+        var document = doc
         if document.riskScoring == nil {
             document.riskScoring = RiskScoringProfile()
         }
@@ -513,7 +600,7 @@ enum AnalysisProfileStore {
             }
             document.riskScoring?.sensitivePaths = paths
         }
-        try writeEditableDocument(document, repoPath: repoPath)
+        try writeEditableDocument(document, repoPath: repoPath, location: location)
     }
 
     nonisolated static func writeDefaultProfile(repoPath: String) throws {

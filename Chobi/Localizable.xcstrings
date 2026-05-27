@@ -887,6 +887,9 @@
     "Generated from a preset, then edited as one file" : {
 
     },
+    "Global Folder" : {
+
+    },
     "Group symbols like this" : {
 
     },
@@ -1386,6 +1389,12 @@
       }
     },
     "Save Changes" : {
+
+    },
+    "Save Location" : {
+
+    },
+    "Save to:" : {
 
     },
     "Saved" : {
@@ -1906,7 +1915,10 @@
         }
       }
     },
-    "Writes %@" : {
+    "Writes globally to ~/.chobi/repos/..." : {
+
+    },
+    "Writes locally to .chobi.json (committed or git-ignored)" : {
 
     }
   },

@@ -19,19 +19,59 @@ struct ChobiApp: App {
     @State private var appState = AppState()
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
+    @AppStorage("uiZoomScale") private var zoomScale = 1.0
+
+    private let zoomLevels: [Double] = [
+        0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0,
+    ]
+
+    private func zoomIn() {
+        if let next = zoomLevels.first(where: { $0 > zoomScale + 0.01 }) {
+            zoomScale = next
+        }
+    }
+
+    private func zoomOut() {
+        if let prev = zoomLevels.last(where: { $0 < zoomScale - 0.01 }) {
+            zoomScale = prev
+        }
+    }
+
+    private func resetZoom() {
+        zoomScale = 1.0
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(appState)
-                .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
-                .environment(\.locale, currentLocale)
-                .frame(minWidth: 1100, minHeight: 700)
+            ZoomContainer {
+                ContentView()
+                    .environment(appState)
+                    .preferredColorScheme(AppTheme(rawValue: appTheme)?.colorScheme)
+                    .environment(\.locale, currentLocale)
+            }
+            .frame(minWidth: 1100, minHeight: 700)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1400, height: 900)
         .commands {
+            CommandGroup(after: .sidebar) {
+                Button("Zoom In") {
+                    zoomIn()
+                }
+                .keyboardShortcut("+", modifiers: .command)
+
+                Button("Zoom Out") {
+                    zoomOut()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+
+                Button("Actual Size") {
+                    resetZoom()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
+
             CommandGroup(after: .newItem) {
                 Button("Analyze Local Repo…") {
                     NotificationCenter.default.post(name: .openAnalyzeRepo, object: nil)

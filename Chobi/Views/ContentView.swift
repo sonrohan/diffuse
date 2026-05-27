@@ -9,12 +9,13 @@ struct ContentView: View {
     @State private var showAnalyzeSheet = false
     @State private var showDebugSheet = false
     @AppStorage("isNavigationRailCollapsed") private var isNavigationRailCollapsed = false
+    @AppStorage("uiZoomScale") private var zoomScale = 1.0
 
     var body: some View {
         VStack(spacing: 0) {
             DetailView(isNavigationRailCollapsed: $isNavigationRailCollapsed)
         }
-        .frame(minWidth: 950, minHeight: 600)
+        .frame(minWidth: 950 / CGFloat(zoomScale), minHeight: 600 / CGFloat(zoomScale))
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 AppHeaderView(

@@ -258,3 +258,26 @@ extension Font {
         .system(size: size, weight: weight, design: .monospaced)
     }
 }
+
+// MARK: - UI Zoom Scaling
+
+public struct ZoomContainer<Content: View>: View {
+    @AppStorage("uiZoomScale") private var zoomScale: Double = 1.0
+    let content: Content
+
+    public init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    public var body: some View {
+        GeometryReader { geometry in
+            let scale = max(0.5, min(2.0, zoomScale))
+            content
+                .frame(
+                    width: geometry.size.width / CGFloat(scale),
+                    height: geometry.size.height / CGFloat(scale)
+                )
+                .scaleEffect(CGFloat(scale), anchor: .topLeading)
+        }
+    }
+}

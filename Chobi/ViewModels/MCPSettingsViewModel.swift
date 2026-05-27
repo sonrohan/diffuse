@@ -49,7 +49,7 @@ class MCPSettingsViewModel {
     var selectedConfiguration: MCPConfigurationTab = .codex
     var copiedState: String?
 
-    private let appExecutablePath = "/Applications/Diffuse.app/Contents/MacOS/diffuse"
+    private let appExecutablePath = "/Applications/Chobi.app/Contents/MacOS/Chobi"
 
     init(state _: AppState) {}
 
@@ -57,17 +57,17 @@ class MCPSettingsViewModel {
         switch selectedConfiguration {
         case .claudeCode:
             """
-            claude mcp add diffuse --transport stdio -- "\(appExecutablePath)" "--mcp-server"
+            claude mcp add chobi --transport stdio -- "\(appExecutablePath)" "--mcp-server"
             """
         case .codex:
             """
-            codex mcp add diffuse -- "\(appExecutablePath)" "--mcp-server"
+            codex mcp add chobi -- "\(appExecutablePath)" "--mcp-server"
             """
         case .manual:
             """
             {
               "mcpServers": {
-                "diffuse": {
+                "chobi": {
                   "command": "\(appExecutablePath)",
                   "args": ["--mcp-server"],
                   "env": {}
@@ -81,16 +81,16 @@ class MCPSettingsViewModel {
     var configurationHelpText: String {
         switch selectedConfiguration {
         case .claudeCode:
-            "Run this command in Terminal to add Diffuse MCP to Claude Code."
+            "Run this command in Terminal to add Chobi MCP to Claude Code."
         case .codex:
-            "Run this command in Terminal to add Diffuse MCP to Codex."
+            "Run this command in Terminal to add Chobi MCP to Codex."
         case .manual:
             "Add this JSON to your AI tool's MCP configuration file."
         }
     }
 
     var aboutText: String {
-        "MCP lets AI coding tools query Diffuse's local review context through a stdio process. Agents can list workspaces, inspect review plans, explain files and symbols, search analyzed context, and read bounded file ranges."
+        "MCP lets AI coding tools query Chobi's local review context through a stdio process. Agents can list workspaces, inspect review plans, explain files and symbols, search analyzed context, and read bounded file ranges."
     }
 
     func copyConfiguration() {

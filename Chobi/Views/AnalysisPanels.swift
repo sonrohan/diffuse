@@ -1089,7 +1089,7 @@ struct ReviewDebugSheet: View {
 
     private var profileSource: String {
         AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
-            ? "Repo-defined .diffuse.json"
+            ? "Repo-defined .chobi.json"
             : "Built-in \(AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))"
     }
 

@@ -78,7 +78,7 @@ struct SettingsSheet: View {
                 let repo = state.repositories.first(where: { $0.id == repoId })
             {
                 AnalysisProfileWizard(repoName: repo.name, repoPath: repo.path) { presetId in
-                    profileStatusMessage = "Created .diffuse.json using \(presetId)"
+                    profileStatusMessage = "Created .chobi.json using \(presetId)"
                 }
             }
         }
@@ -109,7 +109,7 @@ struct SettingsSheet: View {
         let detectedPreset = AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path)
         profileStatusMessage =
             AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
-            ? "Using repo-defined .diffuse.json"
+            ? "Using repo-defined .chobi.json"
             : "Using detected \(detectedPreset) preset"
     }
 
@@ -176,7 +176,10 @@ struct SettingsSheet: View {
 
             // Helpful note at bottom of sidebar
             VStack(alignment: .leading, spacing: 4) {
-                Text("diffuse v1.0.0")
+                let version =
+                    Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+                let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+                Text("Version \(version) (\(build))")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.textTertiary)
             }
@@ -591,7 +594,7 @@ struct SettingsSheet: View {
             isPresented: $showDeleteWorkspaceConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Remove from diffuse", role: .destructive) {
+            Button("Remove from Chobi", role: .destructive) {
                 if let repoId = selectedRepoId {
                     Task {
                         await state.coordinator.deleteRepository(id: repoId)
@@ -603,7 +606,7 @@ struct SettingsSheet: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "This will remove the workspace from diffuse. Your local Git repository and files will remain intact."
+                "This will remove the workspace from Chobi. Your local Git repository and files will remain intact."
             )
         }
     }
@@ -616,7 +619,7 @@ struct SettingsSheet: View {
                 Text("Theme Selection")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.textPrimary)
-                Text("Choose your preferred aesthetic style for diffuse.")
+                Text("Choose your preferred aesthetic style for Chobi.")
                     .font(.system(size: 11))
                     .foregroundColor(.textSecondary)
             }

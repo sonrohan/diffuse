@@ -589,6 +589,9 @@
     "Changed Files" : {
 
     },
+    "Chobi exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
+
+    },
     "Chobi will copy %@ into a flat .chobi.json." : {
 
     },
@@ -630,7 +633,7 @@
         }
       }
     },
-    "Choose your preferred aesthetic style for diffuse." : {
+    "Choose your preferred aesthetic style for Chobi." : {
 
     },
     "Choosing a preset copies its rules into .chobi.json at creation time. After that, the profile is explicit and self-contained." : {
@@ -729,7 +732,7 @@
     "Configuring workspace..." : {
 
     },
-    "Connect AI tools to Diffuse through a local stdio Model Context Protocol process." : {
+    "Connect AI tools to Chobi through a local stdio Model Context Protocol process." : {
 
     },
     "Copy" : {
@@ -748,12 +751,6 @@
 
     },
     "Detected" : {
-
-    },
-    "Diffuse exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
-
-    },
-    "diffuse v1.0.0" : {
 
     },
     "Done" : {
@@ -1206,7 +1203,7 @@
         }
       }
     },
-    "Remove from diffuse" : {
+    "Remove from Chobi" : {
 
     },
     "Remove Workspace" : {
@@ -1580,7 +1577,7 @@
     "Teach" : {
 
     },
-    "Teach diffuse how to classify this path" : {
+    "Teach Chobi how to classify this path" : {
 
     },
     "Theme Selection" : {
@@ -1678,7 +1675,7 @@
         }
       }
     },
-    "This will remove the workspace from diffuse. Your local Git repository and files will remain intact." : {
+    "This will remove the workspace from Chobi. Your local Git repository and files will remain intact." : {
 
     },
     "Title" : {
@@ -1779,6 +1776,16 @@
     },
     "Use the Folder selector in the top header menu to register a Git repository." : {
 
+    },
+    "Version %@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %1$@ (%2$@)"
+          }
+        }
+      }
     },
     "via %@" : {
 

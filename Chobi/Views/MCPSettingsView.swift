@@ -23,7 +23,7 @@ struct MCPSettingsView: View {
                 .foregroundColor(.textPrimary)
 
             Text(
-                "Connect AI tools to Diffuse through a local stdio Model Context Protocol process."
+                "Connect AI tools to Chobi through a local stdio Model Context Protocol process."
             )
             .font(.system(size: 11.5))
             .foregroundColor(.textSecondary)
@@ -153,7 +153,7 @@ struct MCPSettingsView: View {
                 .foregroundColor(.textPrimary)
 
             Text(
-                "Diffuse exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered."
+                "Chobi exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered."
             )
             .font(.system(size: 11))
             .foregroundColor(.textSecondary)

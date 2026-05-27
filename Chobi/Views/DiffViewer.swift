@@ -900,7 +900,7 @@ struct DiffContent: View {
                                 .font(.system(size: 11, weight: .semibold))
                         }
                         .menuStyle(.borderlessButton)
-                        .help("Teach diffuse how to classify this path")
+                        .help("Teach Chobi how to classify this path")
                         Text("+\(file.additions)")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.success)

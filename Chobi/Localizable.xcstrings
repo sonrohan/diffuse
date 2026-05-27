@@ -4,12 +4,6 @@
     "" : {
 
     },
-    "(.chobi.json)" : {
-
-    },
-    "(~/.chobi/repos/...)" : {
-
-    },
     "@@ -%lld,%lld +%lld,%lld @@" : {
       "localizations" : {
         "en" : {
@@ -905,6 +899,12 @@
     "id" : {
 
     },
+    "Ideal for personal configurations that shouldn't be committed." : {
+
+    },
+    "Ideal for sharing configuration with the rest of the team." : {
+
+    },
     "Inspect AST and profile mapping" : {
 
     },
@@ -1403,13 +1403,16 @@
     "Save Location" : {
 
     },
-    "Save to:" : {
-
-    },
     "Saved" : {
 
     },
     "Saving" : {
+
+    },
+    "Saving globally to ~/.chobi/repos/..." : {
+
+    },
+    "Saving to repository root (.chobi.json)" : {
 
     },
     "seconds" : {

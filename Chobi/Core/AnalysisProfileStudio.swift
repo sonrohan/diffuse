@@ -149,66 +149,42 @@ struct AnalysisProfileStudioView: View {
 
     private var footer: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Text("Save to:")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-
-                Picker("Save Location", selection: $saveLocation) {
-                    Text("Repository").tag(ProfileSaveLocation.repository)
-                    Text("Global Folder").tag(ProfileSaveLocation.global)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 170)
-                .disabled(savePhase == .saving)
-
-                Text(
-                    saveLocation == .repository
-                        ? "(.chobi.json)"
-                        : "(~/.chobi/repos/...)"
-                )
-                .font(.system(size: 9.5, design: .monospaced))
-                .foregroundColor(.textTertiary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 11))
                         .foregroundColor(.danger)
                         .lineLimit(1)
                 } else {
                     Label(saveStatusText, systemImage: saveStatusIcon)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 11))
                         .foregroundColor(saveStatusColor)
                         .lineLimit(1)
                 }
             }
 
-            Button("Reload") {
-                loadDocument()
-            }
-            .buttonStyle(.bordered)
-            .disabled(savePhase == .saving)
+            Spacer()
 
-            Button {
-                saveDocument()
-            } label: {
-                saveButtonLabel
+            HStack(spacing: 8) {
+                Button("Reload") {
+                    loadDocument()
+                }
+                .buttonStyle(.bordered)
+                .disabled(savePhase == .saving)
+
+                Button {
+                    saveDocument()
+                } label: {
+                    saveButtonLabel
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.brandAccent)
+                .disabled(!hasUnsavedChanges || savePhase == .saving)
+                .keyboardShortcut("s", modifiers: [.command])
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.brandAccent)
-            .disabled(!hasUnsavedChanges || savePhase == .saving)
-            .keyboardShortcut("s", modifiers: [.command])
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .background(Color.bgSidebarPanel)
     }
 
@@ -261,6 +237,44 @@ struct AnalysisProfileStudioView: View {
                     title: "Review signals",
                     value: "\(profile.semanticHighlights.count + profile.fileHighlights.count)",
                     icon: "exclamationmark.shield")
+            }
+
+            StudioSectionHeader(
+                title: "Storage Settings",
+                subtitle:
+                    "Choose where this profile's configuration is saved. Repository-level profiles are committed to source control."
+            )
+
+            StudioRuleCard {
+                HStack(alignment: .center, spacing: 12) {
+                    Picker("Save Location", selection: $saveLocation) {
+                        Text("Repository").tag(ProfileSaveLocation.repository)
+                        Text("Global Folder").tag(ProfileSaveLocation.global)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 200)
+                    .disabled(savePhase == .saving)
+
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(
+                            saveLocation == .repository
+                                ? "Saving to repository root (.chobi.json)"
+                                : "Saving globally to ~/.chobi/repos/..."
+                        )
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.textSecondary)
+
+                        Text(
+                            saveLocation == .repository
+                                ? "Ideal for sharing configuration with the rest of the team."
+                                : "Ideal for personal configurations that shouldn't be committed."
+                        )
+                        .font(.system(size: 9.5))
+                        .foregroundColor(.textTertiary)
+                    }
+                }
             }
 
             if let details = state.analysisDetails {

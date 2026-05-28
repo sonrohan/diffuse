@@ -170,9 +170,8 @@ struct SettingsSheet: View {
 
             // Helpful note at bottom of sidebar
             VStack(alignment: .leading, spacing: 4) {
-                let version =
-                    Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-                let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+                let version = Bundle.main.appVersion
+                let build = Bundle.main.appBuildNumber
                 Text("Version \(version) (\(build))")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.textTertiary)

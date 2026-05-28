@@ -80,8 +80,7 @@ enum MCPStdioServerService {
             let result: Any
             switch method {
             case "initialize":
-                let appVersion =
-                    Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let appVersion = Bundle.main.appVersion
                 result = [
                     "protocolVersion": "2025-06-18",
                     "serverInfo": ["name": "chobi", "version": appVersion],

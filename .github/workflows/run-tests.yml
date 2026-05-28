@@ -1,0 +1,25 @@
+name: Chobi CI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Chobi Stress & Unit Tests
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Swift Toolchain
+        run: |
+          swift --version
+
+      - name: Run CI Test Suite
+        run: |
+          chmod +x scripts/run-tests.sh
+          ./scripts/run-tests.sh

@@ -1,38 +1,36 @@
 import Foundation
 import XCTest
 
-@testable import Chobi
-
 final class LargeChangeProcessingTests: XCTestCase {
 
-    /// Tests that the TriageEngine can process a large pull request containing 1000 files
-    /// and hundreds of symbols quickly and correctly without blocking or crashing.
-    func testProcessingOneThousandFilesPerformanceAndCorrectness() {
+    /// Tests that the TriageEngine can process a massive pull request containing 10,000 files
+    /// and thousands of symbols quickly and correctly without blocking or crashing.
+    func testProcessingTenThousandFilesPerformanceAndCorrectness() {
         let runId = UUID()
 
-        // 1. Generate 1000 changed files of various types:
-        // - 800 source files (e.g., source.swift)
-        // - 100 test files (e.g., tests.swift)
-        // - 50 configuration files (e.g., config.json)
-        // - 50 documentation files (e.g., readme.md)
+        // 1. Generate 10000 changed files of various types:
+        // - 8000 source files (e.g., source.swift)
+        // - 1000 test files (e.g., tests.swift)
+        // - 500 configuration files (e.g., config.json)
+        // - 500 documentation files (e.g., readme.md)
         var files: [ChangedFile] = []
-        for i in 1...1000 {
+        for i in 1...10000 {
             let classification: ChangedFile.FileClassification
             let path: String
             let status: ChangedFile.FileStatus = (i % 10 == 0) ? .added : .modified
 
-            if i <= 800 {
+            if i <= 8000 {
                 classification = .source
                 path = "Sources/ModuleA/File_\(i).swift"
-            } else if i <= 900 {
+            } else if i <= 9000 {
                 classification = .test
-                path = "Tests/ModuleATests/File_\(i - 800)Tests.swift"
-            } else if i <= 950 {
+                path = "Tests/ModuleATests/File_\(i - 8000)Tests.swift"
+            } else if i <= 9500 {
                 classification = .config
-                path = "Configs/setting_\(i - 900).json"
+                path = "Configs/setting_\(i - 9000).json"
             } else {
                 classification = .documentation
-                path = "Docs/guide_\(i - 950).md"
+                path = "Docs/guide_\(i - 9500).md"
             }
 
             files.append(
@@ -54,10 +52,10 @@ final class LargeChangeProcessingTests: XCTestCase {
             )
         }
 
-        // 2. Generate 500 changed symbols distributed across the source files
+        // 2. Generate 5000 changed symbols distributed across the source files
         var symbols: [ChangedSymbol] = []
-        for i in 1...500 {
-            let fileIdx = i % 800
+        for i in 1...5000 {
+            let fileIdx = i % 8000
             let matchedFile = files[fileIdx]
 
             symbols.append(
@@ -82,7 +80,7 @@ final class LargeChangeProcessingTests: XCTestCase {
 
         // 3. Create simulated rule findings
         var findings: [Finding] = []
-        for i in 1...50 {
+        for i in 1...500 {
             let fileIdx = i * 15  // Spread across files
             let matchedFile = files[fileIdx]
             findings.append(
@@ -115,22 +113,22 @@ final class LargeChangeProcessingTests: XCTestCase {
         let duration = Date().timeIntervalSince(start)
 
         // 5. Assertions on Performance
-        // Triage should be lightning fast, typically < 100ms even for 1000 files
+        // Triage of 10000 files should be fast, typically < 1s under optimization
         XCTAssertLessThan(
-            duration, 0.5, "Triage of 1000 files took too long: \(duration) seconds")
+            duration, 3.0, "Triage of 10000 files took too long: \(duration) seconds")
 
         // 6. Assertions on Triage correctness
         XCTAssertFalse(result.changeBuckets.isEmpty, "Change buckets should be created")
         XCTAssertFalse(result.reviewTargets.isEmpty, "Review targets should be identified")
         XCTAssertEqual(
-            result.skimTargets.count, 100,
-            "All 100 config and documentation files should be skim targets")
+            result.skimTargets.count, 1000,
+            "All 1000 config and documentation files should be skim targets")
 
         // Verify that we have categorized file types correctly
         let skimConfigs = result.skimTargets.filter { $0.classification == .config }
         let skimDocs = result.skimTargets.filter { $0.classification == .documentation }
-        XCTAssertEqual(skimConfigs.count, 50)
-        XCTAssertEqual(skimDocs.count, 50)
+        XCTAssertEqual(skimConfigs.count, 500)
+        XCTAssertEqual(skimDocs.count, 500)
 
         // Verify risk highlights and priority ordering
         XCTAssertGreaterThanOrEqual(

@@ -6,7 +6,6 @@ struct SettingsSheet: View {
     @Environment(AppState.self) private var state
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
-    @AppStorage("uiZoomScale") private var zoomScale = 1.0
 
     @State private var selectedTab: SettingsTab
     @State private var hoveredTab: SettingsTab? = nil
@@ -640,76 +639,6 @@ struct SettingsSheet: View {
             }
             .padding(.horizontal, 24)
 
-            Divider()
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("UI Scaling")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.textPrimary)
-                Text("Adjust the size of text, icons, and layout inside the application.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-
-                HStack(spacing: 14) {
-                    // Zoom Out Button
-                    Button {
-                        zoomOut()
-                    } label: {
-                        Image(systemName: "magnifyingglass.zoom.out")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(zoomScale > 0.51 ? .textPrimary : .textTertiary)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(zoomScale <= 0.51)
-                    .help("Zoom Out")
-
-                    // Slider
-                    Slider(
-                        value: Binding(
-                            get: { zoomScale },
-                            set: { newValue in
-                                zoomScale = snapToClosestZoomLevel(newValue)
-                            }
-                        ),
-                        in: 0.5...2.0
-                    )
-                    .frame(width: 200)
-
-                    // Zoom In Button
-                    Button {
-                        zoomIn()
-                    } label: {
-                        Image(systemName: "magnifyingglass.zoom.in")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(zoomScale < 1.99 ? .textPrimary : .textTertiary)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(zoomScale >= 1.99)
-                    .help("Zoom In")
-
-                    // Percentage Text
-                    Text("\(Int(round(zoomScale * 100)))%")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundColor(.textPrimary)
-                        .frame(width: 50, alignment: .trailing)
-
-                    // Reset Button
-                    if zoomScale != 1.0 {
-                        Button("Reset") {
-                            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                                zoomScale = 1.0
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .padding(.top, 4)
-            }
-            .padding(.horizontal, 24)
-
             Spacer()
         }
     }
@@ -844,26 +773,6 @@ struct SettingsSheet: View {
                     .frame(width: 12, height: 12)
             }
         }
-    }
-
-    private let zoomLevels: [Double] = [
-        0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0,
-    ]
-
-    private func zoomIn() {
-        if let next = zoomLevels.first(where: { $0 > zoomScale + 0.01 }) {
-            zoomScale = next
-        }
-    }
-
-    private func zoomOut() {
-        if let prev = zoomLevels.last(where: { $0 < zoomScale - 0.01 }) {
-            zoomScale = prev
-        }
-    }
-
-    private func snapToClosestZoomLevel(_ target: Double) -> Double {
-        zoomLevels.min(by: { abs($0 - target) < abs($1 - target) }) ?? target
     }
 }
 

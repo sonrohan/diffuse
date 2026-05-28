@@ -102,9 +102,6 @@
         }
       }
     },
-    "%lld%%" : {
-
-    },
     "• %@" : {
 
     },
@@ -205,9 +202,6 @@
         }
       }
     },
-    "Actual Size" : {
-
-    },
     "Add" : {
 
     },
@@ -236,9 +230,6 @@
           }
         }
       }
-    },
-    "Adjust the size of text, icons, and layout inside the application." : {
-
     },
     "All" : {
       "extractionState" : "manual",
@@ -1781,9 +1772,6 @@
     "Type" : {
 
     },
-    "UI Scaling" : {
-
-    },
     "Unfiltered" : {
 
     },
@@ -1984,12 +1972,6 @@
           }
         }
       }
-    },
-    "Zoom In" : {
-
-    },
-    "Zoom Out" : {
-
     }
   },
   "version" : "1.0"

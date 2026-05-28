@@ -286,6 +286,9 @@
         }
       }
     },
+    "All Levels" : {
+
+    },
     "Analysis Profile" : {
 
     },
@@ -697,6 +700,9 @@
         }
       }
     },
+    "Clear console logs" : {
+
+    },
     "Clear Database?" : {
 
     },
@@ -745,6 +751,12 @@
 
     },
     "Copy" : {
+
+    },
+    "Copy filtered logs" : {
+
+    },
+    "Copy logs to clipboard" : {
 
     },
     "Create" : {
@@ -838,6 +850,9 @@
     "Filter files..." : {
 
     },
+    "Filter message..." : {
+
+    },
     "First" : {
 
     },
@@ -925,6 +940,9 @@
 
     },
     "Latest" : {
+
+    },
+    "Level" : {
 
     },
     "Live" : {
@@ -1047,6 +1065,9 @@
       }
     },
     "No change buckets available." : {
+
+    },
+    "No console logs match filters" : {
 
     },
     "No diff hunks available" : {
@@ -1584,6 +1605,9 @@
       }
     },
     "Symbol matches" : {
+
+    },
+    "Tag" : {
 
     },
     "Teach" : {

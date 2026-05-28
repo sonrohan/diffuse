@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     name: Build & Package Release App
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: write # Required to create/update GitHub Releases and upload assets
     
@@ -21,15 +21,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Xcode (Tahoe SDK compatible)
         run: |
-          # Dynamically locate and select the Xcode 16 toolchain
-          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | head -n 1)
+          # Dynamically locate and select Xcode 17 or Xcode 16 toolchain
+          XCODE_PATH=$(find /Applications -maxdepth 1 \( -name "Xcode_17*.app" -o -name "Xcode_16*.app" \) | head -n 1)
           if [ -d "$XCODE_PATH" ]; then
             echo "Selecting Xcode from: $XCODE_PATH"
             sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           else
-            echo "Xcode 16 specific path not found. Proceeding with default xcodebuild..."
+            echo "Xcode specific path not found. Proceeding with default xcodebuild..."
           fi
 
       - name: Generate Version Info

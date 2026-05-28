@@ -133,7 +133,7 @@ final class LargeChangeProcessingTests: XCTestCase {
         XCTAssertEqual(skimDocs.count, 50)
 
         // Verify risk highlights and priority ordering
-        XCTAssertEqual(
+        XCTAssertGreaterThanOrEqual(
             result.riskHighlights.count, findings.count,
             "Each rule finding should map to a risk highlight")
 

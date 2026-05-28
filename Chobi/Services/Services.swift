@@ -30,12 +30,12 @@ actor GitService {
 
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = Pipe()  // suppress stderr
+        process.standardError = FileHandle.nullDevice
 
         try? process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let result =
             String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? ""
@@ -55,12 +55,12 @@ actor GitService {
 
         let pipe = Pipe()
         process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
 
         try? process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let result =
             String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? ""
@@ -389,11 +389,13 @@ actor ASTAnalysisService {
         process.standardOutput = stdout
         process.standardError = stderr
 
+        var errData = Data()
         do {
             try process.run()
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            errData = stderr.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
-            let data = stdout.fileHandleForReading.readDataToEndOfFile()
             guard !data.isEmpty else {
                 AppLogger.shared.log(
                     "No symbols returned by diffuse-core for \(filePath)", level: .warning,
@@ -431,9 +433,7 @@ actor ASTAnalysisService {
                 )
             }
         } catch {
-            let errOutput =
-                String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-                ?? ""
+            let errOutput = String(data: errData, encoding: .utf8) ?? ""
             AppLogger.shared.log(
                 "Error parsing symbols for \(fileURL.lastPathComponent): \(error) — sidecar: \(errOutput)",
                 level: .error,
@@ -484,11 +484,13 @@ actor ASTAnalysisService {
         process.standardOutput = stdout
         process.standardError = stderr
 
+        var errData = Data()
         do {
             try process.run()
+            let data = stdout.fileHandleForReading.readDataToEndOfFile()
+            errData = stderr.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
 
-            let data = stdout.fileHandleForReading.readDataToEndOfFile()
             guard !data.isEmpty else { return }
 
             let contractSymbols = try JSONDecoder().decode([SidecarSymbol].self, from: data)
@@ -514,9 +516,7 @@ actor ASTAnalysisService {
                 }
             }
         } catch {
-            let errOutput =
-                String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-                ?? ""
+            let errOutput = String(data: errData, encoding: .utf8) ?? ""
             AppLogger.shared.log(
                 "Compare error for \(headURL.lastPathComponent): \(error) — sidecar: \(errOutput)",
                 level: .error,
@@ -657,12 +657,12 @@ actor ASTAnalysisService {
 
             let stdout = Pipe()
             process.standardOutput = stdout
-            process.standardError = Pipe()
+            process.standardError = FileHandle.nullDevice
 
             do {
                 try process.run()
-                process.waitUntilExit()
                 let data = stdout.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
                 indexedCount += 1
                 guard !data.isEmpty else {
                     if let temporaryIndexedURL {

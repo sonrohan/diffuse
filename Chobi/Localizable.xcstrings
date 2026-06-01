@@ -30,16 +30,6 @@
         }
       }
     },
-    "%@ across %lld %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ across %2$lld %3$@"
-          }
-        }
-      }
-    },
     "%@ at %@" : {
       "localizations" : {
         "en" : {
@@ -92,9 +82,6 @@
           }
         }
       }
-    },
-    "%lld files" : {
-
     },
     "%lld lines" : {
 
@@ -155,9 +142,6 @@
 
     },
     "✓ Unified" : {
-
-    },
-    "1 file" : {
 
     },
     "A deterministic PR review triage tool.\nAnalyze any local git repo to get started." : {
@@ -750,12 +734,6 @@
     "Commit filter" : {
 
     },
-    "Confidence: %@" : {
-
-    },
-    "Configuration, documentation, generated, or boilerplate files that are usually safe to skim." : {
-
-    },
     "Configuring workspace..." : {
 
     },
@@ -854,9 +832,6 @@
     "File filters" : {
 
     },
-    "Files with concrete analyzer targets: %@." : {
-
-    },
     "Filter changed files" : {
 
     },
@@ -928,9 +903,6 @@
 
     },
     "Graph Focus" : {
-
-    },
-    "Hide review navigation" : {
 
     },
     "Impact detail" : {
@@ -1010,9 +982,6 @@
         }
       }
     },
-    "Low-Signal / Skim" : {
-
-    },
     "Lower-Signal Changes" : {
 
     },
@@ -1046,9 +1015,6 @@
 
     },
     "Most affected: %@" : {
-
-    },
-    "Needs Attention" : {
 
     },
     "Next" : {
@@ -1400,7 +1366,7 @@
     "Review Next" : {
 
     },
-    "REVIEW SCOPE" : {
+    "REVIEW OVERVIEW" : {
 
     },
     "Review the full branch diff" : {
@@ -1454,12 +1420,6 @@
           }
         }
       }
-    },
-    "Search queue" : {
-
-    },
-    "Search review targets" : {
-
     },
     "seconds" : {
 
@@ -1586,9 +1546,6 @@
       }
     },
     "SETTINGS" : {
-
-    },
-    "Show review navigation" : {
 
     },
     "Split" : {
@@ -1770,7 +1727,7 @@
         }
       }
     },
-    "Unfiltered" : {
+    "Unfiltered branch and working tree changes." : {
 
     },
     "Unified" : {
@@ -1798,9 +1755,6 @@
           }
         }
       }
-    },
-    "Use Review Next below for analyzer targets while symbol-level impact is unavailable." : {
-
     },
     "Use the Folder selector in the top header menu to register a Git repository." : {
 

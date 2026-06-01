@@ -306,7 +306,7 @@ final class ArchitectureTests: XCTestCase {
 
     // MARK: - AnalysisViewModel Tests
 
-    func testAnalysisViewModelTriageAndBucketSelection() async {
+    func testAnalysisViewModelInitialization() async {
         let appState = AppState()
 
         // Mock analysis run & details
@@ -350,22 +350,7 @@ final class ArchitectureTests: XCTestCase {
 
         let viewModel = AnalysisViewModel(state: appState)
 
-        // Unfiltered All Changes
-        viewModel.selectAllChanges()
-        XCTAssertFalse(viewModel.isLowerSignalViewSelected)
-        XCTAssertFalse(viewModel.isNeedsAttentionViewSelected)
+        // Default state shows all changes
         XCTAssertEqual(viewModel.bucketFiles.count, 3)  // Every changed file
-
-        // Select Needs Attention
-        viewModel.selectNeedsAttentionChanges()
-        XCTAssertTrue(viewModel.isNeedsAttentionViewSelected)
-        XCTAssertEqual(viewModel.bucketFiles.count, 1)  // Only App.swift which has the target
-        XCTAssertEqual(viewModel.bucketFiles.first?.path, "App.swift")
-
-        // Select low-signal skim scope
-        viewModel.selectLowerSignalChanges()
-        XCTAssertTrue(viewModel.isLowerSignalViewSelected)
-        XCTAssertEqual(viewModel.bucketFiles.count, 1)
-        XCTAssertEqual(viewModel.bucketFiles.first?.path, "README.md")
     }
 }

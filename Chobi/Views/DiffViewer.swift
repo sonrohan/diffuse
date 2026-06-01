@@ -195,7 +195,7 @@ struct DiffViewerPanel: View {
                     files: filteredFiles,
                     activeFile: activeFile,
                     compactTree: compactFileTree,
-                    impactIndicators: impactViewModel.fileImpactIndicators
+                    impactViewModel: impactViewModel
                 )
                 .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
 
@@ -589,9 +589,10 @@ struct FileListSidebar: View {
     let files: [ChangedFile]
     let activeFile: ChangedFile?
     let compactTree: Bool
-    let impactIndicators: [UUID: FileImpactIndicator]
+    let impactViewModel: ImpactGraphViewModel
     var width: CGFloat = 220
     @State private var collapsedFolders: Set<String> = []
+    @State private var expandedFileIds: Set<UUID> = []
 
     var roots: [FileTreeNode] {
         FileTreeNode.build(files: files)
@@ -606,8 +607,9 @@ struct FileListSidebar: View {
                         depth: 0,
                         activeFile: activeFile,
                         collapsedFolders: $collapsedFolders,
+                        expandedFileIds: $expandedFileIds,
                         compactTree: compactTree,
-                        impactIndicators: impactIndicators
+                        impactViewModel: impactViewModel
                     ) { file in
                         viewModel.jumpToFile(file.id)
                     }
@@ -640,6 +642,56 @@ struct FileTreeNode: Identifiable, Hashable {
 
     var isSingleChildDirectoryChain: Bool {
         files.isEmpty && children.count == 1
+    }
+
+    func aggregateImpact(impactIndicators: [UUID: FileImpactIndicator]) -> FileImpactIndicator? {
+        var totalCount = 0
+        var totalHighCount = 0
+        var totalMediumCount = 0
+        var totalCallerCount = 0
+        var totalChangedHighImpactCount = 0
+        var totalWeakTestCount = 0
+
+        for file in files {
+            if let ind = impactIndicators[file.id] {
+                totalCount += ind.count
+                totalHighCount += ind.highCount
+                totalMediumCount += ind.mediumCount
+                totalCallerCount += ind.callerCount
+                totalChangedHighImpactCount += ind.changedHighImpactCount
+                totalWeakTestCount += ind.weakTestCount
+            }
+        }
+
+        for child in children {
+            if let ind = child.aggregateImpact(impactIndicators: impactIndicators) {
+                totalCount += ind.count
+                totalHighCount += ind.highCount
+                totalMediumCount += ind.mediumCount
+                totalCallerCount += ind.callerCount
+                totalChangedHighImpactCount += ind.changedHighImpactCount
+                totalWeakTestCount += ind.weakTestCount
+            }
+        }
+
+        guard totalCount > 0 else { return nil }
+        return FileImpactIndicator(
+            count: totalCount,
+            highCount: totalHighCount,
+            mediumCount: totalMediumCount,
+            callerCount: totalCallerCount,
+            changedHighImpactCount: totalChangedHighImpactCount,
+            weakTestCount: totalWeakTestCount
+        )
+    }
+
+    func folderHeatmapColor(impactIndicators: [UUID: FileImpactIndicator]) -> Color {
+        guard let agg = aggregateImpact(impactIndicators: impactIndicators) else {
+            return .clear
+        }
+        if agg.highCount > 0 { return .danger }
+        if agg.mediumCount > 0 { return .warning }
+        return .clear
     }
 
     static func build(files: [ChangedFile]) -> [FileTreeNode] {
@@ -697,9 +749,14 @@ struct FileTreeNodeView: View {
     let depth: Int
     let activeFile: ChangedFile?
     @Binding var collapsedFolders: Set<String>
+    @Binding var expandedFileIds: Set<UUID>
     let compactTree: Bool
-    let impactIndicators: [UUID: FileImpactIndicator]
+    let impactViewModel: ImpactGraphViewModel
     let onSelectFile: (ChangedFile) -> Void
+
+    var impactIndicators: [UUID: FileImpactIndicator] {
+        impactViewModel.fileImpactIndicators
+    }
 
     var displayedNode: FileTreeNode {
         guard compactTree else { return node }
@@ -748,14 +805,33 @@ struct FileTreeNodeView: View {
 
                     Spacer(minLength: 4)
 
-                    Text("\(node.fileCount)")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(.textTertiary)
+                    if isCollapsed,
+                        let aggImpact = node.aggregateImpact(impactIndicators: impactIndicators)
+                    {
+                        Text("\(aggImpact.count)")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundColor(aggImpact.color)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(aggImpact.color.opacity(0.10))
+                            .clipShape(Capsule())
+                            .help(aggImpact.helpText)
+                    } else {
+                        Text("\(node.fileCount)")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                    }
                 }
                 .padding(.leading, CGFloat(min(depth, 4)) * 12 + 8)
                 .padding(.trailing, 8)
                 .padding(.vertical, 5)
                 .contentShape(Rectangle())
+                .overlay(alignment: .leading) {
+                    let color = node.folderHeatmapColor(impactIndicators: impactIndicators)
+                    Rectangle()
+                        .fill(color)
+                        .frame(width: 3)
+                }
             }
             .buttonStyle(.plain)
             .help(node.path)
@@ -766,11 +842,10 @@ struct FileTreeNodeView: View {
                         file: file,
                         isActive: activeFile?.id == file.id,
                         depth: depth + 1,
-                        impactIndicator: impactIndicators[file.id]
+                        impactViewModel: impactViewModel,
+                        expandedFileIds: $expandedFileIds,
+                        onSelectFile: onSelectFile
                     )
-                    .onTapGesture {
-                        onSelectFile(file)
-                    }
                 }
 
                 ForEach(node.children) { child in
@@ -779,8 +854,9 @@ struct FileTreeNodeView: View {
                         depth: depth + 1,
                         activeFile: activeFile,
                         collapsedFolders: $collapsedFolders,
+                        expandedFileIds: $expandedFileIds,
                         compactTree: compactTree,
-                        impactIndicators: impactIndicators,
+                        impactViewModel: impactViewModel,
                         onSelectFile: onSelectFile
                     )
                 }
@@ -794,7 +870,9 @@ struct FileListItem: View {
     let file: ChangedFile
     let isActive: Bool
     var depth: Int = 0
-    let impactIndicator: FileImpactIndicator?
+    let impactViewModel: ImpactGraphViewModel
+    @Binding var expandedFileIds: Set<UUID>
+    let onSelectFile: (ChangedFile) -> Void
 
     var fileTargets: [ReviewTarget] {
         viewModel.bucketTargets.filter { $0.filePath == file.path }
@@ -802,6 +880,17 @@ struct FileListItem: View {
 
     var topTargetSeverity: Severity? {
         fileTargets.map(\.severity).max()
+    }
+
+    var fileImpacts: [SymbolImpact] {
+        impactViewModel.visibleImpacts(for: file)
+    }
+
+    var heatmapColor: Color {
+        guard let ind = impactViewModel.fileImpactIndicators[file.id] else { return .clear }
+        if ind.highCount > 0 { return .danger }
+        if ind.mediumCount > 0 { return .warning }
+        return .clear
     }
 
     var statusColor: Color {
@@ -823,39 +912,84 @@ struct FileListItem: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(statusBadge)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundColor(statusColor)
-                .frame(width: 16)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                // Expanded Chevron
+                if !fileImpacts.isEmpty {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            if expandedFileIds.contains(file.id) {
+                                expandedFileIds.remove(file.id)
+                            } else {
+                                expandedFileIds.insert(file.id)
+                            }
+                        }
+                    } label: {
+                        Image(
+                            systemName: expandedFileIds.contains(file.id)
+                                ? "chevron.down" : "chevron.right"
+                        )
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .frame(width: 12, height: 12)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Spacer().frame(width: 12)
+                }
 
-            Image(systemName: "doc.text")
-                .font(.system(size: 11))
-                .foregroundColor(isActive ? .brandAccent : .textTertiary)
+                Text(statusBadge)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(statusColor)
+                    .frame(width: 16)
 
-            Text(file.filename)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(isActive ? .textPrimary : .textPrimary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+                Image(systemName: "doc.text")
+                    .font(.system(size: 11))
+                    .foregroundColor(isActive ? .brandAccent : .textTertiary)
 
-            Spacer()
+                Text(file.filename)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(isActive ? .textPrimary : .textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
 
-            if let impactIndicator {
-                impactBadge(impactIndicator)
+                Spacer()
+
+                if let impactIndicator = impactViewModel.fileImpactIndicators[file.id] {
+                    impactBadge(impactIndicator)
+                }
+            }
+            .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
+            .padding(.trailing, 8)
+            .padding(.vertical, 5)
+            .background(isActive ? Color.brandAccent.opacity(0.08) : Color.clear)
+            .overlay(alignment: .leading) {
+                let barColor = isActive && heatmapColor == .clear ? Color.brandAccent : heatmapColor
+                Rectangle()
+                    .fill(barColor)
+                    .frame(width: 3)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onSelectFile(file)
+            }
+            .help(fileHelpText)
+
+            if expandedFileIds.contains(file.id) {
+                ForEach(fileImpacts) { impact in
+                    SymbolListItemRow(
+                        impact: impact,
+                        depth: depth + 1,
+                        onTap: {
+                            impactViewModel.select(impact)
+                            viewModel.isImpactInspectorVisible = true
+                            viewModel.jumpToImpactRoot(impact)
+                        }
+                    )
+                }
             }
         }
-        .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
-        .padding(.trailing, 8)
-        .padding(.vertical, 5)
-        .background(isActive ? Color.brandAccent.opacity(0.08) : Color.clear)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(isActive ? Color.brandAccent : Color.clear)
-                .frame(width: 2)
-        }
-        .contentShape(Rectangle())
-        .help(fileHelpText)
     }
 
     func impactBadge(_ indicator: FileImpactIndicator) -> some View {
@@ -888,7 +1022,75 @@ struct FileListItem: View {
         }
         return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title)"
     }
+}
 
+struct SymbolListItemRow: View {
+    let impact: SymbolImpact
+    let depth: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Spacer().frame(width: 12)  // Alignment with chevron
+
+            Image(systemName: iconName)
+                .font(.system(size: 10))
+                .foregroundColor(iconColor)
+
+            Text(impact.symbol.name)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.textSecondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer()
+
+            Text(impact.summary.impactLevel.displayName)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(levelColor(impact.summary.impactLevel))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 0.5)
+                .background(levelColor(impact.summary.impactLevel).opacity(0.10))
+                .clipShape(Capsule())
+        }
+        .padding(.leading, CGFloat(min(depth, 5)) * 12 + 10)
+        .padding(.trailing, 8)
+        .padding(.vertical, 3.5)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+
+    private var iconName: String {
+        switch impact.symbol.kind {
+        case .function, .method:
+            return "f.circle.fill"
+        case .class:
+            return "c.circle.fill"
+        case .struct, .enum, .type, .protocol:
+            return "s.circle.fill"
+        default:
+            return "square.stack.3d.down.right.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch impact.symbol.kind {
+        case .function, .method:
+            return .brandAccent
+        case .class, .struct, .type, .protocol, .enum:
+            return .warning
+        default:
+            return .textTertiary
+        }
+    }
+
+    private func levelColor(_ level: ImpactLevel) -> Color {
+        switch level {
+        case .high: return .danger
+        case .medium: return .warning
+        case .low: return .success
+        }
+    }
 }
 
 // MARK: - Diff Content

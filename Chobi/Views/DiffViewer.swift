@@ -8,7 +8,6 @@ struct DiffViewerPanel: View {
     let details: AnalysisDetails
     @Bindable var impactViewModel: ImpactGraphViewModel
 
-    @State private var hideBoilerplate = false
     @State private var compactFileTree = true
     @State private var fileSidebarWidth: CGFloat = 220
     @State private var fileSearchText = ""
@@ -31,10 +30,6 @@ struct DiffViewerPanel: View {
 
     var filteredFiles: [ChangedFile] {
         orderedFiles.filter { file in
-            if hideBoilerplate && !(file.classification == .source || file.classification == .test)
-            {
-                return false
-            }
             if showUnviewedOnly && viewedFileIds.contains(file.id) { return false }
             if excludedExtensions.contains(file.filterExtension) { return false }
             if excludedStatuses.contains(file.status) { return false }
@@ -67,210 +62,170 @@ struct DiffViewerPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Toolbar
-            HStack(spacing: 8) {
-                Text("Changed Files")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Text("\(filteredFiles.count)/\(orderedFiles.count)")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-
-                FileSearchField(text: $fileSearchText)
-                    .frame(maxWidth: 340)
-
-                Menu {
-                    Button {
-                        minImpactFilter = "all"
-                    } label: {
-                        HStack {
-                            Text("All Files")
-                            if minImpactFilter == "all" { Image(systemName: "checkmark") }
-                        }
-                    }
-                    Button {
-                        minImpactFilter = "medium"
-                    } label: {
-                        HStack {
-                            Text("Medium & High Impact")
-                            if minImpactFilter == "medium" { Image(systemName: "checkmark") }
-                        }
-                    }
-                    Button {
-                        minImpactFilter = "high"
-                    } label: {
-                        HStack {
-                            Text("High Impact Only")
-                            if minImpactFilter == "high" { Image(systemName: "checkmark") }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.shield")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text(
-                            minImpactFilter == "all"
-                                ? "All" : (minImpactFilter == "medium" ? "Med+" : "High")
-                        )
-                        .font(.system(size: 11, weight: .medium))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(.textTertiary)
-                    }
-                    .foregroundColor(minImpactFilter != "all" ? .brandAccent : .textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        minImpactFilter != "all"
-                            ? Color.brandAccent.opacity(0.10)
-                            : Color(NSColor.controlColor).opacity(0.45)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(
-                                minImpactFilter != "all"
-                                    ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
-                                lineWidth: 0.5)
-                    )
-                }
-                .menuStyle(.borderlessButton)
-                .help("Filter files by AST impact level")
-
-                Button {
-                    isFilterPopoverPresented.toggle()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 12, weight: .semibold))
-                        if activeFilterCount > 0 {
-                            Text("\(activeFilterCount)")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.brandAccent)
-                        }
-                    }
-                    .foregroundColor(activeFilterCount > 0 ? .brandAccent : .textSecondary)
-                    .frame(minWidth: 28, minHeight: 22)
-                    .padding(.horizontal, activeFilterCount > 0 ? 5 : 0)
-                    .background(
-                        activeFilterCount > 0
-                            ? Color.brandAccent.opacity(0.10)
-                            : Color(NSColor.controlColor).opacity(0.45)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(
-                                activeFilterCount > 0
-                                    ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
-                                lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .help("Filter changed files")
-                .popover(isPresented: $isFilterPopoverPresented, arrowEdge: .bottom) {
-                    FileFilterPopover(
-                        files: orderedFiles,
-                        excludedExtensions: $excludedExtensions,
-                        excludedStatuses: $excludedStatuses,
-                        excludedClassifications: $excludedClassifications,
-                        showUnviewedOnly: $showUnviewedOnly,
-                        viewedFileCount: orderedFiles.filter { viewedFileIds.contains($0.id) }.count
-                    ) {
-                        resetFileFilters()
-                    }
-                }
-
-                Spacer()
-
-                // Diff Layout Selector
-                Menu {
-                    Button {
-                        state.diffLayout = .unified
-                    } label: {
-                        if state.diffLayout == .unified {
-                            Text("✓ Unified")
-                        } else {
-                            Text("Unified")
-                        }
-                    }
-                    Button {
-                        state.diffLayout = .split
-                    } label: {
-                        if state.diffLayout == .split {
-                            Text("✓ Split")
-                        } else {
-                            Text("Split")
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(
-                            systemName: state.diffLayout == .unified
-                                ? "doc.text" : "square.split.2x1"
-                        )
-                        .font(.system(size: 11, weight: .semibold))
-                        Text(state.diffLayout == .unified ? "Unified" : "Split")
-                            .font(.system(size: 11, weight: .medium))
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundColor(.textTertiary)
-                    }
-                    .foregroundColor(.textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color(NSColor.controlColor).opacity(0.45))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.borderMuted, lineWidth: 0.5)
-                    )
-                }
-                .menuStyle(.borderlessButton)
-                .help("Change diff layout")
-
-                DiffToolbarButton(
-                    systemImage: "sidebar.right",
-                    isActive: viewModel.isImpactInspectorVisible,
-                    help: viewModel.isImpactInspectorVisible
-                        ? "Hide impact explorer" : "Show impact explorer"
-                ) {
-                    viewModel.isImpactInspectorVisible.toggle()
-                }
-
-                DiffToolbarButton(
-                    systemImage: hideBoilerplate ? "eye.slash.fill" : "eye",
-                    isActive: hideBoilerplate,
-                    help: hideBoilerplate ? "Show boilerplate files" : "Hide boilerplate files"
-                ) {
-                    hideBoilerplate.toggle()
-                }
-
-                DiffToolbarButton(
-                    systemImage: compactFileTree
-                        ? "rectangle.compress.vertical" : "list.bullet.indent",
-                    isActive: compactFileTree,
-                    help: compactFileTree
-                        ? "Show every folder level" : "Fold single-child folder chains"
-                ) {
-                    compactFileTree.toggle()
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Color.bgSubtle)
-
-            Divider()
-
             HSplitView {
-                // File list sidebar
-                FileListSidebar(
-                    files: filteredFiles,
-                    activeFile: activeFile,
-                    compactTree: compactFileTree,
-                    impactViewModel: impactViewModel
-                )
-                .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
+                // File list sidebar column
+                VStack(spacing: 0) {
+                    // Left Header Row 1: Title and Actions
+                    HStack(spacing: 6) {
+                        Text("Changed Files")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.textPrimary)
+                        Text("\(filteredFiles.count)/\(orderedFiles.count)")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+
+                        Spacer()
+
+                        // 1. AST Impact Filter (Menu)
+                        Menu {
+                            Button {
+                                minImpactFilter = "all"
+                            } label: {
+                                HStack {
+                                    Text("All Files")
+                                    if minImpactFilter == "all" { Image(systemName: "checkmark") }
+                                }
+                            }
+                            Button {
+                                minImpactFilter = "medium"
+                            } label: {
+                                HStack {
+                                    Text("Medium & High Impact")
+                                    if minImpactFilter == "medium" {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                            Button {
+                                minImpactFilter = "high"
+                            } label: {
+                                HStack {
+                                    Text("High Impact Only")
+                                    if minImpactFilter == "high" { Image(systemName: "checkmark") }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "exclamationmark.shield")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(
+                                    minImpactFilter != "all" ? .brandAccent : .textSecondary
+                                )
+                                .frame(width: 22, height: 20)
+                                .background(
+                                    minImpactFilter != "all"
+                                        ? Color.brandAccent.opacity(0.10)
+                                        : Color(NSColor.controlColor).opacity(0.45)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(
+                                            minImpactFilter != "all"
+                                                ? Color.brandAccent.opacity(0.35)
+                                                : Color.borderMuted,
+                                            lineWidth: 0.5)
+                                )
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .help("Filter files by AST impact level")
+                        .frame(width: 24, height: 22)
+
+                        // 2. Filter Popover Toggle
+                        Button {
+                            isFilterPopoverPresented.toggle()
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .font(.system(size: 11, weight: .semibold))
+                                if activeFilterCount > 0 {
+                                    Text("\(activeFilterCount)")
+                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                }
+                            }
+                            .foregroundColor(activeFilterCount > 0 ? .brandAccent : .textSecondary)
+                            .frame(width: activeFilterCount > 0 ? 32 : 22, height: 20)
+                            .background(
+                                activeFilterCount > 0
+                                    ? Color.brandAccent.opacity(0.10)
+                                    : Color(NSColor.controlColor).opacity(0.45)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(
+                                        activeFilterCount > 0
+                                            ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
+                                        lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help("Filter changed files")
+                        .popover(isPresented: $isFilterPopoverPresented, arrowEdge: .bottom) {
+                            FileFilterPopover(
+                                files: orderedFiles,
+                                excludedExtensions: $excludedExtensions,
+                                excludedStatuses: $excludedStatuses,
+                                excludedClassifications: $excludedClassifications,
+                                showUnviewedOnly: $showUnviewedOnly,
+                                viewedFileCount: orderedFiles.filter {
+                                    viewedFileIds.contains($0.id)
+                                }.count
+                            ) {
+                                resetFileFilters()
+                            }
+                        }
+
+                        // 3. Compact Tree Toggle
+                        Button {
+                            compactFileTree.toggle()
+                        } label: {
+                            Image(
+                                systemName: compactFileTree
+                                    ? "rectangle.compress.vertical" : "list.bullet.indent"
+                            )
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(compactFileTree ? .brandAccent : .textSecondary)
+                            .frame(width: 22, height: 20)
+                            .background(
+                                compactFileTree
+                                    ? Color.brandAccent.opacity(0.10)
+                                    : Color(NSColor.controlColor).opacity(0.45)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(
+                                        compactFileTree
+                                            ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
+                                        lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .help(
+                            compactFileTree
+                                ? "Show every folder level" : "Fold single-child folder chains")
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
+                    // Left Header Row 2: Search Field
+                    FileSearchField(text: $fileSearchText)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+
+                    Divider()
+
+                    FileListSidebar(
+                        files: filteredFiles,
+                        activeFile: activeFile,
+                        compactTree: compactFileTree,
+                        impactViewModel: impactViewModel,
+                        details: details
+                    )
+                }
+                .frame(minWidth: 200, idealWidth: 260, maxWidth: 480)
 
                 // Diff content
                 if let file = activeFile {
@@ -284,22 +239,6 @@ struct DiffViewerPanel: View {
                     ) { impact in
                         impactViewModel.select(impact)
                         viewModel.jumpToImpactRoot(impact)
-                    }
-
-                    if viewModel.isImpactInspectorVisible {
-                        ImpactExplorerSidebar(
-                            impactViewModel: impactViewModel,
-                            details: details,
-                            onClose: { viewModel.isImpactInspectorVisible = false },
-                            onOpenImpact: { impact in
-                                impactViewModel.select(impact)
-                                viewModel.jumpToImpactRoot(impact)
-                            },
-                            onOpenNode: { node in
-                                jumpToGraphNode(node, details: details)
-                            }
-                        )
-                        .frame(minWidth: 320, idealWidth: 380, maxWidth: 520)
                     }
                 } else {
                     VStack {
@@ -323,6 +262,23 @@ struct DiffViewerPanel: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.bgCanvas)
+                }
+
+                // Right-side Impact Explorer inspector
+                if viewModel.isImpactInspectorVisible {
+                    ImpactExplorerSidebar(
+                        impactViewModel: impactViewModel,
+                        details: details,
+                        onClose: { viewModel.isImpactInspectorVisible = false },
+                        onOpenImpact: { impact in
+                            impactViewModel.select(impact)
+                            viewModel.jumpToImpactRoot(impact)
+                        },
+                        onOpenNode: { node in
+                            jumpToGraphNode(node, details: details)
+                        }
+                    )
+                    .frame(minWidth: 260, idealWidth: 320, maxWidth: 450)
                 }
             }
         }
@@ -664,6 +620,7 @@ struct FileListSidebar: View {
     let activeFile: ChangedFile?
     let compactTree: Bool
     let impactViewModel: ImpactGraphViewModel
+    let details: AnalysisDetails
     var width: CGFloat = 220
     @State private var collapsedFolders: Set<String> = []
     @State private var expandedFileIds: Set<UUID> = []
@@ -698,7 +655,7 @@ struct FileListSidebar: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.bgSubtle)
     }
 }
@@ -1171,6 +1128,7 @@ struct SymbolListItemRow: View {
 
 struct DiffContent: View {
     @Environment(AppState.self) private var state
+    @Environment(AnalysisViewModel.self) private var viewModel
     let file: ChangedFile
     let details: AnalysisDetails
     let impactViewModel: ImpactGraphViewModel
@@ -1178,8 +1136,18 @@ struct DiffContent: View {
     let activeTarget: ReviewTarget?
     let onOpenImpact: (SymbolImpact) -> Void
 
+    @AppStorage("minImpactFilter") private var minImpactFilter = "all"
+
     var fileImpacts: [SymbolImpact] {
-        impactViewModel.visibleImpacts(for: file)
+        let all = impactViewModel.visibleImpacts(for: file)
+        if minImpactFilter == "high" {
+            return all.filter { $0.summary.impactLevel == .high }
+        } else if minImpactFilter == "medium" {
+            return all.filter {
+                $0.summary.impactLevel == .high || $0.summary.impactLevel == .medium
+            }
+        }
+        return all
     }
 
     var activeImpactRange: ClosedRange<Int>? {
@@ -1190,25 +1158,112 @@ struct DiffContent: View {
         return context.startLine...max(context.startLine, context.endLine)
     }
 
+    private func hunkImpacts(_ hunk: DiffHunk) -> [SymbolImpact] {
+        let all = impactViewModel.impacts(for: hunk, fileId: file.id)
+        if minImpactFilter == "high" {
+            return all.filter { $0.summary.impactLevel == .high }
+        } else if minImpactFilter == "medium" {
+            return all.filter {
+                $0.summary.impactLevel == .high || $0.summary.impactLevel == .medium
+            }
+        }
+        return all
+    }
+
+    private func hunkMarkers(_ hunk: DiffHunk, index: Int) -> [InlineImpactMarker] {
+        let all = impactViewModel.inlineMarkers(for: hunk, file: file, hunkIndex: index)
+        if minImpactFilter == "high" {
+            return all.filter { $0.metrics.impactLevel == .high }
+        } else if minImpactFilter == "medium" {
+            return all.filter {
+                $0.metrics.impactLevel == .high || $0.metrics.impactLevel == .medium
+            }
+        }
+        return all
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
                     // File path bar
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "doc.text")
                             .font(.system(size: 11))
                             .foregroundColor(.textSecondary)
                         Text(file.path)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
                         Spacer()
+
                         Text("+\(file.additions)")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.success)
                         Text("−\(file.deletions)")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.danger)
+
+                        Divider()
+                            .frame(height: 12)
+                            .padding(.horizontal, 4)
+
+                        // Diff Layout Selector
+                        Menu {
+                            Button {
+                                state.diffLayout = .unified
+                            } label: {
+                                if state.diffLayout == .unified {
+                                    Text("✓ Unified")
+                                } else {
+                                    Text("Unified")
+                                }
+                            }
+                            Button {
+                                state.diffLayout = .split
+                            } label: {
+                                if state.diffLayout == .split {
+                                    Text("✓ Split")
+                                } else {
+                                    Text("Split")
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(
+                                    systemName: state.diffLayout == .unified
+                                        ? "doc.text" : "square.split.2x1"
+                                )
+                                .font(.system(size: 11, weight: .semibold))
+                                Text(state.diffLayout == .unified ? "Unified" : "Split")
+                                    .font(.system(size: 11, weight: .medium))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundColor(.textTertiary)
+                            }
+                            .foregroundColor(.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color(NSColor.controlColor).opacity(0.45))
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .stroke(Color.borderMuted, lineWidth: 0.5)
+                            )
+                        }
+                        .menuStyle(.borderlessButton)
+                        .help("Change diff layout")
+
+                        DiffToolbarButton(
+                            systemImage: "point.3.connected.trianglepath.dotted",
+                            isActive: viewModel.isImpactInspectorVisible,
+                            help: viewModel.isImpactInspectorVisible
+                                ? "Hide Impact Explorer" : "Show Impact Explorer"
+                        ) {
+                            viewModel.isImpactInspectorVisible.toggle()
+                        }
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -1230,9 +1285,8 @@ struct DiffContent: View {
                             hunk: hunk,
                             hunkIndex: idx,
                             file: file,
-                            impacts: impactViewModel.impacts(for: hunk, fileId: file.id),
-                            markers: impactViewModel.inlineMarkers(
-                                for: hunk, file: file, hunkIndex: idx),
+                            impacts: hunkImpacts(hunk),
+                            markers: hunkMarkers(hunk, index: idx),
                             impactViewModel: impactViewModel,
                             isHighlighted: activeHunkIndex == idx,
                             activeTarget: activeTarget,
@@ -1379,31 +1433,88 @@ struct ImpactExplorerSidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.brandAccent)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Impact Explorer")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                    Text(
+                        impactViewModel.focusedNode?.title ?? impactViewModel.originImpact?.symbol
+                            .name ?? "Impact Explorer"
+                    )
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
                     Text(headerSubtitle)
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                         .foregroundColor(.textTertiary)
                         .lineLimit(1)
                 }
+
                 Spacer()
+
+                // Navigation history buttons
+                HStack(spacing: 3) {
+                    Button(action: { impactViewModel.focusBack() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .disabled(!impactViewModel.canGoBack)
+                    .buttonStyle(.plain)
+                    .foregroundColor(
+                        impactViewModel.canGoBack ? .textSecondary : .textTertiary.opacity(0.4)
+                    )
+                    .frame(width: 18, height: 18)
+                    .background(Color.bgSidebarPanel.opacity(impactViewModel.canGoBack ? 1.0 : 0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3).stroke(Color.borderMuted, lineWidth: 0.5)
+                    )
+                    .help("Go back in history")
+
+                    Button(action: { impactViewModel.focusForward() }) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .disabled(!impactViewModel.canGoForward)
+                    .buttonStyle(.plain)
+                    .foregroundColor(
+                        impactViewModel.canGoForward ? .textSecondary : .textTertiary.opacity(0.4)
+                    )
+                    .frame(width: 18, height: 18)
+                    .background(
+                        Color.bgSidebarPanel.opacity(impactViewModel.canGoForward ? 1.0 : 0.5)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3).stroke(Color.borderMuted, lineWidth: 0.5)
+                    )
+                    .help("Go forward in history")
+
+                    Button(action: { impactViewModel.focusOrigin() }) {
+                        Image(systemName: "house")
+                            .font(.system(size: 8.5, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.textSecondary)
+                    .frame(width: 18, height: 18)
+                    .background(Color.bgSidebarPanel)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3).stroke(Color.borderMuted, lineWidth: 0.5)
+                    )
+                    .help("Reset to Origin")
+                }
+                .padding(.trailing, 4)
+
                 Button {
                     onClose()
                 } label: {
-                    Image(systemName: "sidebar.right")
-                        .font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.textSecondary)
-                .help("Collapse impact explorer")
+                .help("Collapse Impact Explorer")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(Color.bgSubtle)
 
             Divider()
@@ -1443,8 +1554,14 @@ struct ImpactExplorerSidebar: View {
     }
 
     private var headerSubtitle: String {
-        let count = impactViewModel.reviewQueue.count
-        return "\(count) impacted changed symbol\(count == 1 ? "" : "s")"
+        guard let node = impactViewModel.focusedNode else {
+            let count = impactViewModel.reviewQueue.count
+            return "\(count) impacted changed symbol\(count == 1 ? "" : "s")"
+        }
+        let filename = (node.filePath as NSString).lastPathComponent
+        let callersCount = impactViewModel.visibleGraphNodes.filter { $0.role == .caller }.count
+        let calleesCount = impactViewModel.visibleGraphNodes.filter { $0.role == .callee }.count
+        return "\(filename) • \(callersCount) callers, \(calleesCount) callees"
     }
 }
 
@@ -1526,24 +1643,6 @@ struct ImpactExplorerRootCard: View {
 
                 // Actions toolbar
                 HStack(spacing: 6) {
-                    Button(action: {
-                        viewModel.selectPreviousImpact()
-                        onOpenRoot()
-                    }) {
-                        Label("Previous", systemImage: "arrow.left")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button(action: {
-                        viewModel.selectNextImpact()
-                        onOpenRoot()
-                    }) {
-                        Label("Next", systemImage: "arrow.right")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
                     Button(action: onOpenRoot) {
                         Label("Open Root", systemImage: "target")
                     }
@@ -1593,99 +1692,59 @@ struct ImpactGraphMap: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Graph Explorer", systemImage: "point.3.connected.trianglepath.dotted")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.textTertiary)
-                    .textCase(.uppercase)
-                Spacer()
+        VStack(spacing: 6) {
+            ImpactGraphColumn(
+                title: "Callers",
+                emptyText: "No callers detected",
+                nodes: callers,
+                viewModel: viewModel,
+                onOpenNode: onOpenNode
+            )
 
-                // Navigation history buttons
-                HStack(spacing: 4) {
-                    Button(action: { viewModel.focusBack() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .disabled(!viewModel.canGoBack)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Go back in history")
-
-                    Button(action: { viewModel.focusForward() }) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .disabled(!viewModel.canGoForward)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Go forward in history")
-
-                    Button(action: { viewModel.focusOrigin() }) {
-                        Image(systemName: "house")
-                            .font(.system(size: 9.5, weight: .semibold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Reset to PR Origin symbol")
+            if let origin {
+                HStack {
+                    Spacer()
+                    Image(systemName: "chevron.compact.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textTertiary.opacity(0.6))
+                    Spacer()
                 }
-            }
-            .padding(.horizontal, 2)
+                .padding(.vertical, 2)
 
-            VStack(spacing: 6) {
-                ImpactGraphColumn(
-                    title: "Callers",
-                    emptyText: "No callers detected",
-                    nodes: callers,
-                    viewModel: viewModel,
-                    onOpenNode: onOpenNode
-                )
-
-                if let origin {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "chevron.compact.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.textTertiary.opacity(0.6))
-                        Spacer()
-                    }
-                    .padding(.vertical, 2)
-
-                    ImpactExplorerNodeCard(
-                        node: origin,
-                        isFocused: origin.id == viewModel.currentFocusedNodeId,
-                        isSelected: origin.id == viewModel.selectedGraphNode?.id,
-                        viewModel: viewModel,
-                        onOpenNode: onOpenNode
-                    )
-                }
-
-                if !callees.isEmpty {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "chevron.compact.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.textTertiary.opacity(0.6))
-                        Spacer()
-                    }
-                    .padding(.vertical, 2)
-                }
-
-                ImpactGraphColumn(
-                    title: "Callees",
-                    emptyText: "No callees detected",
-                    nodes: callees,
+                ImpactExplorerNodeCard(
+                    node: origin,
+                    isFocused: origin.id == viewModel.currentFocusedNodeId,
+                    isSelected: origin.id == viewModel.selectedGraphNode?.id,
                     viewModel: viewModel,
                     onOpenNode: onOpenNode
                 )
             }
-            .padding(8)
-            .background(Color.bgSidebarPanel.opacity(0.2))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5)
+
+            if !callees.isEmpty {
+                HStack {
+                    Spacer()
+                    Image(systemName: "chevron.compact.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.textTertiary.opacity(0.6))
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+            }
+
+            ImpactGraphColumn(
+                title: "Callees",
+                emptyText: "No callees detected",
+                nodes: callees,
+                viewModel: viewModel,
+                onOpenNode: onOpenNode
             )
         }
+        .padding(8)
+        .background(Color.bgSidebarPanel.opacity(0.2))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5)
+        )
     }
 }
 
@@ -1736,6 +1795,8 @@ struct ImpactExplorerNodeCard: View {
     var body: some View {
         Button {
             viewModel.selectGraphNode(node)
+            viewModel.focusSelectedGraphNode()
+            onOpenNode(node)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: iconName)
@@ -1777,37 +1838,6 @@ struct ImpactExplorerNodeCard: View {
                 }
 
                 Spacer()
-
-                if isSelected {
-                    HStack(spacing: 4) {
-                        if node.id != viewModel.currentFocusedNodeId {
-                            Button {
-                                viewModel.selectGraphNode(node)
-                                viewModel.focusSelectedGraphNode()
-                            } label: {
-                                Image(systemName: "scope")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(isFocused ? .white : .brandAccent)
-                            .help("Focus Graph on this node")
-                        }
-
-                        if node.isChangedInPR {
-                            Button {
-                                viewModel.selectGraphNode(node)
-                                onOpenNode(node)
-                            } label: {
-                                Image(systemName: "arrow.turn.down.right")
-                                    .font(.system(size: 10, weight: .semibold))
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(isFocused ? .white : .textSecondary)
-                            .help("Open in diff viewer")
-                        }
-                    }
-                    .transition(.opacity)
-                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)

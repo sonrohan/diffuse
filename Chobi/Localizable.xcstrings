@@ -20,16 +20,6 @@
     "#%lld" : {
 
     },
-    "%@:L%lld-L%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@:L%2$lld-L%3$lld"
-          }
-        }
-      }
-    },
     "%@%@" : {
       "localizations" : {
         "en" : {
@@ -547,9 +537,6 @@
     "C%lld" : {
 
     },
-    "Call Site Context" : {
-
-    },
     "Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -704,7 +691,7 @@
     "Cleared!" : {
 
     },
-    "Collapse impact explorer" : {
+    "Collapse Impact Explorer" : {
 
     },
     "Commit filter" : {
@@ -714,9 +701,6 @@
 
     },
     "Connect AI tools to Chobi through a local stdio Model Context Protocol process." : {
-
-    },
-    "Connection: call site around L%lld" : {
 
     },
     "Copy" : {
@@ -813,7 +797,7 @@
     "First" : {
 
     },
-    "Focus Graph on this node" : {
+    "Fold single-child folder chains" : {
 
     },
     "Folder Path" : {
@@ -838,9 +822,6 @@
           }
         }
       }
-    },
-    "Fullscreen" : {
-
     },
     "General" : {
       "extractionState" : "manual",
@@ -871,19 +852,10 @@
     "Go forward in history" : {
 
     },
-    "Graph Explorer" : {
-
-    },
-    "High" : {
-
-    },
     "High Impact Only" : {
 
     },
     "High Only" : {
-
-    },
-    "Impact Explorer" : {
 
     },
     "Impact Summary" : {
@@ -951,9 +923,6 @@
         }
       }
     },
-    "Local file not readable" : {
-
-    },
     "Lower-Signal Changes" : {
 
     },
@@ -986,9 +955,6 @@
     "MCP" : {
 
     },
-    "Med+" : {
-
-    },
     "Medium & High" : {
 
     },
@@ -996,9 +962,6 @@
 
     },
     "Most affected: %@" : {
-
-    },
-    "Next" : {
 
     },
     "Next Commit" : {
@@ -1077,9 +1040,6 @@
     "No workspaces registered" : {
 
     },
-    "Open in diff viewer" : {
-
-    },
     "Open in Finder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1104,9 +1064,6 @@
       }
     },
     "Open Root" : {
-
-    },
-    "Open selected symbol in diff" : {
 
     },
     "optional" : {
@@ -1138,9 +1095,6 @@
     "PR" : {
 
     },
-    "Previous" : {
-
-    },
     "Previous Commit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1168,9 +1122,6 @@
 
     },
     "Read-only local context" : {
-
-    },
-    "Reading workspace file..." : {
 
     },
     "Reload" : {
@@ -1326,7 +1277,7 @@
     "Reset" : {
 
     },
-    "Reset to PR Origin symbol" : {
+    "Reset to Origin" : {
 
     },
     "Review Debug" : {
@@ -1517,19 +1468,10 @@
     "SETTINGS" : {
 
     },
-    "Show All" : {
-
-    },
     "Show All Files" : {
 
     },
-    "Show Context" : {
-
-    },
-    "Source File Preview" : {
-
-    },
-    "Source Preview" : {
+    "Show every folder level" : {
 
     },
     "Split" : {

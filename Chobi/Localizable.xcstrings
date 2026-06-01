@@ -47,6 +47,16 @@
         }
       }
     },
+    "%@ at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ at %2$@"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
@@ -56,6 +66,26 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld area%2$@"
+          }
+        }
+      }
+    },
+    "%lld callers · %lld callees · %lld files · %lld tests" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld callers · %2$lld callees · %3$lld files · %4$lld tests"
+          }
+        }
+      }
+    },
+    "%lld changed symbol%@ in %@, led by %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld changed symbol%2$@ in %3$@, led by %4$@."
           }
         }
       }
@@ -91,6 +121,16 @@
     },
     "%lld total" : {
 
+    },
+    "%lld. %@ - %lld callers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld. %2$@ - %3$lld callers"
+          }
+        }
+      }
     },
     "%lld/%lld" : {
       "localizations" : {
@@ -592,6 +632,9 @@
     "Changed Files" : {
 
     },
+    "Changed root" : {
+
+    },
     "Chobi exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
 
     },
@@ -732,6 +775,9 @@
     "Commit filter" : {
 
     },
+    "Confidence: %@" : {
+
+    },
     "Configuration, documentation, generated, or boilerplate files that are usually safe to skim." : {
 
     },
@@ -740,6 +786,16 @@
     },
     "Connect AI tools to Chobi through a local stdio Model Context Protocol process." : {
 
+    },
+    "Connection: %@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connection: %1$@ %2$@"
+          }
+        }
+      }
     },
     "Copy" : {
 
@@ -917,6 +973,15 @@
     "Ideal for sharing configuration with the rest of the team." : {
 
     },
+    "Impact detail" : {
+
+    },
+    "Impact Detail" : {
+
+    },
+    "Impact Summary" : {
+
+    },
     "L%lld-%lld" : {
       "localizations" : {
         "en" : {
@@ -1029,6 +1094,9 @@
     "Minimum added source lines: %lld" : {
 
     },
+    "Most affected: %@" : {
+
+    },
     "Needs Attention" : {
 
     },
@@ -1105,7 +1173,13 @@
     "No source files in this view." : {
 
     },
+    "No symbol-level impact data is available for this review." : {
+
+    },
     "No workspaces registered" : {
+
+    },
+    "None detected" : {
 
     },
     "Open in Finder" : {
@@ -1360,6 +1434,9 @@
     "Review Map" : {
 
     },
+    "Review Next" : {
+
+    },
     "REVIEW SCOPE" : {
 
     },
@@ -1431,6 +1508,9 @@
 
     },
     "Saving to repository root (.chobi.json)" : {
+
+    },
+    "Search review targets" : {
 
     },
     "seconds" : {
@@ -1801,6 +1881,9 @@
         }
       }
     },
+    "Use Review Next below for analyzer targets while symbol-level impact is unavailable." : {
+
+    },
     "Use the Folder selector in the top header menu to register a Git repository." : {
 
     },
@@ -1818,6 +1901,9 @@
 
     },
     "View diff" : {
+
+    },
+    "View graph" : {
 
     },
     "Warn when source changes do not include matching tests" : {

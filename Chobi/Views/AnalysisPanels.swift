@@ -5,10 +5,7 @@ import SwiftUI
 struct AnalysisNavigationRail: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
-
-    var visibleTargets: [ReviewTarget] {
-        Array(viewModel.bucketTargets.prefix(8))
-    }
+    @State private var impactViewModel = ImpactGraphViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -73,28 +70,243 @@ struct AnalysisNavigationRail: View {
             }
 
             RailSectionHeader(
-                title: "In This View",
-                count: viewModel.bucketTargets.count,
+                title: "Review Next",
+                count: impactViewModel.filteredImpacts.count + viewModel.bucketTargets.count,
                 help:
-                    "Concrete review entry points inside the selected scope, ordered by severity and analyzer confidence."
+                    "Prioritized review entry points. Impact metrics explain why changed symbols are worth reviewing next."
             )
 
-            if viewModel.bucketTargets.isEmpty {
-                RailEmptyRow(icon: "checkmark.seal", text: "No targets in this view")
+            ReviewNextRailSection(
+                viewModel: impactViewModel, reviewTargets: viewModel.bucketTargets)
+        }
+        .onAppear {
+            impactViewModel.load(details: details)
+        }
+        .onChange(of: details.run.id) { _, _ in
+            impactViewModel.load(details: details)
+        }
+    }
+}
+
+struct ReviewNextRailSection: View {
+    @Bindable var viewModel: ImpactGraphViewModel
+    let reviewTargets: [ReviewTarget]
+
+    private var visibleImpacts: [SymbolImpact] {
+        Array(viewModel.filteredImpacts.prefix(5))
+    }
+
+    private var visibleTargets: [ReviewTarget] {
+        Array(reviewTargets.prefix(max(3, 8 - visibleImpacts.count)))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+                TextField("Search review targets", text: $viewModel.searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color(NSColor.controlColor).opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+
+            if viewModel.filteredImpacts.isEmpty {
+                ImpactEmptyState(
+                    text: viewModel.emptyStateText, reviewTargetCount: reviewTargets.count)
             } else {
                 VStack(spacing: 2) {
-                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
-                        TargetNavRow(target: target, index: index)
+                    if let selected = viewModel.selectedImpact {
+                        ImpactSummaryCard(impact: selected)
                     }
-                    if viewModel.bucketTargets.count > visibleTargets.count {
+                    ForEach(Array(visibleImpacts.enumerated()), id: \.element.id) { index, impact in
+                        ImpactSymbolRow(
+                            impact: impact,
+                            index: index,
+                            isSelected: viewModel.selectedSymbolId == impact.id
+                        ) {
+                            viewModel.select(impact)
+                        }
+                    }
+                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
+                        TargetNavRow(target: target, index: visibleImpacts.count + index)
+                    }
+                    if viewModel.filteredImpacts.count > visibleImpacts.count {
                         RailMoreRow(
                             text:
-                                "\(viewModel.bucketTargets.count - visibleTargets.count) more targets in this view"
+                                "\(viewModel.filteredImpacts.count - visibleImpacts.count) more symbols match"
                         )
                     }
                 }
             }
+
+            if viewModel.filteredImpacts.isEmpty && !visibleTargets.isEmpty {
+                VStack(spacing: 2) {
+                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
+                        TargetNavRow(target: target, index: index)
+                    }
+                }
+            }
         }
+    }
+}
+
+struct ImpactEmptyState: View {
+    let text: String
+    let reviewTargetCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .top, spacing: 7) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .frame(width: 14)
+                Text(text)
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if reviewTargetCount > 0 {
+                Text(
+                    "Use Review Next below for analyzer targets while symbol-level impact is unavailable."
+                )
+                .font(.system(size: 10))
+                .foregroundColor(.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 21)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+    }
+}
+
+struct ImpactSummaryCard: View {
+    let impact: SymbolImpact
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                BadgeView(
+                    text: "\(impact.summary.impactLevel.displayName) impact",
+                    variant: impact.summary.impactLevel.badgeVariant)
+                Spacer()
+                Text("Confidence: \(impact.summary.confidence.displayName)")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+            }
+
+            Text(summaryText)
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+                .lineLimit(3)
+
+            HStack(spacing: 8) {
+                ImpactStat(text: "\(impact.summary.directCallerCount) callers")
+                ImpactStat(text: "\(impact.summary.directCalleeCount) callees")
+                ImpactStat(text: "\(impact.summary.fileCount) files")
+                if impact.summary.testReferenceCount > 0 {
+                    ImpactStat(text: "\(impact.summary.testReferenceCount) tests")
+                }
+            }
+        }
+        .padding(9)
+        .background(Color.brandAccent.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 7).stroke(
+                Color.brandAccent.opacity(0.24), lineWidth: 0.5))
+    }
+
+    private var summaryText: String {
+        let callerPart =
+            impact.summary.directCallerCount == 1
+            ? "1 direct caller"
+            : "\(impact.summary.directCallerCount) direct callers"
+        let calleePart =
+            impact.summary.directCalleeCount == 1
+            ? "1 direct callee"
+            : "\(impact.summary.directCalleeCount) direct callees"
+        return
+            "\(impact.symbol.name) has \(callerPart), \(calleePart), and touches \(impact.summary.fileCount) file\(impact.summary.fileCount == 1 ? "" : "s")."
+    }
+}
+
+struct ImpactSymbolRow: View {
+    @Environment(AnalysisViewModel.self) private var analysisViewModel
+    let impact: SymbolImpact
+    let index: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            action()
+            analysisViewModel.jumpToImpactRoot(impact)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("#\(index + 1)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                    Text(impact.symbol.name)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                    Spacer()
+                    BadgeView(
+                        text: impact.summary.impactLevel.displayName,
+                        variant: impact.summary.impactLevel.badgeVariant)
+                }
+
+                Text(impact.location)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                HStack(spacing: 8) {
+                    ImpactStat(text: "\(impact.summary.directCallerCount) callers")
+                    ImpactStat(text: "\(impact.summary.directCalleeCount) callees")
+                    ImpactStat(text: "\(impact.summary.fileCount) files")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.brandAccent.opacity(0.55) : Color.clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+
+    private var rowBackground: Color {
+        if isSelected { return Color.brandAccent.opacity(0.10) }
+        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
+        return Color.clear
+    }
+}
+
+struct ImpactStat: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundColor(.textTertiary)
     }
 }
 

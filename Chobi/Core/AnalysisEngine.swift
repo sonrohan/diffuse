@@ -935,7 +935,7 @@ struct TriageEngine {
     ///
     /// Replaces the old text-sniffing approach. Every classification now comes from
     /// structured `semantic_area`, `semantic_type`, and `is_test` tags produced by
-    /// the diffuse-core Tree-Sitter sidecar — no substring scanning on raw diff lines.
+    /// the chobi-core Tree-Sitter sidecar — no substring scanning on raw diff lines.
     private static func deriveSemanticHighlights(
         symbols: [ChangedSymbol],
         files: [ChangedFile],

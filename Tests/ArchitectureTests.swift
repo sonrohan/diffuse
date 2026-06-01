@@ -6,6 +6,77 @@ import XCTest
 @MainActor
 final class ArchitectureTests: XCTestCase {
 
+    // MARK: - ImpactGraphViewModel Tests
+
+    func testImpactGraphViewModelRanksAndSearchesChangedSymbols() async {
+        let run = AnalysisRun(pullRequestId: UUID(), baseSha: "base", headSha: "head")
+        let pr = PullRequest(
+            prNumber: 8, title: "Impact graph", baseSha: "base", headSha: "head",
+            author: "Rohan", repository: "test")
+        let serviceFile = ChangedFile(
+            analysisRunId: run.id, path: "Chobi/Services/AppState.swift",
+            status: .modified, additions: 12, deletions: 3, classification: .source, hunks: [])
+        let helperFile = ChangedFile(
+            analysisRunId: run.id, path: "Chobi/Core/Helpers.swift",
+            status: .modified, additions: 4, deletions: 1, classification: .source, hunks: [])
+        let centralSymbol = ChangedSymbol(
+            analysisRunId: run.id,
+            changedFileId: serviceFile.id,
+            name: "runAnalysis",
+            kind: .method,
+            startLine: 42,
+            endLine: 96,
+            callers: [
+                "Chobi/Views/ContentView.swift:ContentView.start",
+                "Tests/AppStateTests.swift:testRunAnalysis",
+                "Chobi/Services/MCPRequestRouter.swift:callTool",
+            ],
+            callees: ["extractChangedSymbols", "triage"],
+            metadata: ["qualified_name": "AppState.runAnalysis", "caller_resolution": "indexed"]
+        )
+        let helperSymbol = ChangedSymbol(
+            analysisRunId: run.id,
+            changedFileId: helperFile.id,
+            name: "formatLabel",
+            kind: .function,
+            startLine: 8,
+            endLine: 12,
+            callers: [],
+            callees: []
+        )
+        let details = AnalysisDetails(
+            run: run,
+            pr: pr,
+            files: [serviceFile, helperFile],
+            symbols: [helperSymbol, centralSymbol],
+            findings: [],
+            reviewTargets: [],
+            changeBuckets: [],
+            riskHighlights: [],
+            skimTargets: [],
+            riskFactors: [],
+            symbolReviewGroups: []
+        )
+
+        let viewModel = ImpactGraphViewModel()
+        viewModel.load(details: details)
+
+        XCTAssertEqual(viewModel.filteredImpacts.first?.symbol.name, "runAnalysis")
+        XCTAssertEqual(viewModel.selectedImpact?.symbol.name, "runAnalysis")
+        XCTAssertEqual(viewModel.selectedImpact?.summary.directCallerCount, 3)
+        XCTAssertEqual(viewModel.selectedImpact?.summary.directCalleeCount, 2)
+        XCTAssertEqual(viewModel.selectedImpact?.summary.testReferenceCount, 1)
+        XCTAssertEqual(viewModel.selectedImpact?.summary.impactLevel, .medium)
+        XCTAssertEqual(viewModel.highImpactCount, 0)
+        XCTAssertEqual(viewModel.totalImpactedReferenceCount, 5)
+        XCTAssertEqual(viewModel.impactedFileCount, 2)
+        XCTAssertEqual(viewModel.symbolsWithoutTestsCount, 0)
+        XCTAssertEqual(viewModel.impacts(for: serviceFile).map(\.symbol.name), ["runAnalysis"])
+
+        viewModel.searchText = "helper"
+        XCTAssertEqual(viewModel.filteredImpacts.map(\.symbol.name), ["formatLabel"])
+    }
+
     // MARK: - WorkspacePickerViewModel Tests
 
     func testWorkspacePickerViewModelFiltering() async {

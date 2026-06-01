@@ -755,7 +755,33 @@ fn callee_name(node: Node, source: &[u8]) -> Option<String> {
             _ => {}
         }
     }
-    None
+    let identifiers = identifier_descendants(node, source);
+    identifiers.last().cloned()
+}
+
+fn identifier_descendants(node: Node, source: &[u8]) -> Vec<String> {
+    let mut identifiers = Vec::new();
+    collect_identifier_descendants(node, source, &mut identifiers);
+    identifiers
+}
+
+fn collect_identifier_descendants(node: Node, source: &[u8], out: &mut Vec<String>) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "identifier"
+            | "type_identifier"
+            | "property_identifier"
+            | "simple_identifier"
+            | "field_identifier" => {
+                if let Ok(text) = child.utf8_text(source) {
+                    out.push(text.to_string());
+                }
+            }
+            "value_arguments" | "call_suffix" | "lambda_literal" => {}
+            _ => collect_identifier_descendants(child, source, out),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -962,6 +988,37 @@ class AuthService {
             s.metadata.get("is_critical").map(|v| v == "true").unwrap_or(false)
         });
         assert!(critical, "Expected a critical symbol from login/auth");
+    }
+
+    #[test]
+    fn test_kotlin_function_extraction() {
+        let src = r#"
+package app.ummi.myapplication.ui.viewmodels
+
+class HabitViewModel {
+    fun addHabit(
+        name: String,
+        description: String,
+        weeklyTarget: Int = 5,
+    ) {
+        if (name.isBlank()) return
+        val newHabit = Habit(name = name.trim(), weeklyTarget = weeklyTarget.coerceIn(1, 7))
+        _habits.value = _habits.value + newHabit
+    }
+}
+"#;
+        let f = write_tmp(src, "kt");
+        let results = analyze(f.path(), &[5, 6, 7, 8, 9, 10, 11, 12]);
+        assert!(!results.is_empty(), "Expected Kotlin changed symbols");
+        let add_habit = results.iter().find(|s| s.name == "addHabit").expect("addHabit symbol");
+        assert_eq!(add_habit.semantic_type, "function_definition");
+        assert_eq!(
+            add_habit.metadata.get("qualified_name").map(|s| s.as_str()),
+            Some("HabitViewModel.addHabit")
+        );
+        let callees = add_habit.metadata.get("callees").cloned().unwrap_or_default();
+        assert!(callees.contains("isBlank"), "Expected Kotlin callees to include isBlank");
+        assert!(callees.contains("trim"), "Expected Kotlin callees to include trim");
     }
 
     #[test]

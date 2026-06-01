@@ -17,6 +17,7 @@ struct DiffViewerPanel: View {
     @State private var showUnviewedOnly = false
     @State private var viewedFileIds: Set<UUID> = []
     @State private var isFilterPopoverPresented = false
+    @State private var impactViewModel = ImpactGraphViewModel()
 
     var activeFile: ChangedFile? {
         guard let id = viewModel.activeFileId else { return filteredFiles.first }
@@ -190,6 +191,8 @@ struct DiffViewerPanel: View {
                 if let file = activeFile {
                     DiffContent(
                         file: file,
+                        details: details,
+                        impactViewModel: impactViewModel,
                         activeHunkIndex: viewModel.activeHunkIndex,
                         activeTarget: viewModel.activeTarget?.filePath == file.path
                             ? viewModel.activeTarget : nil
@@ -221,9 +224,13 @@ struct DiffViewerPanel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
+            impactViewModel.load(details: details)
             if let id = activeFile?.id {
                 viewedFileIds.insert(id)
             }
+        }
+        .onChange(of: details.run.id) { _, _ in
+            impactViewModel.load(details: details)
         }
         .onChange(of: activeFile?.id) { _, id in
             if let id { viewedFileIds.insert(id) }
@@ -856,9 +863,15 @@ struct FileListItem: View {
 struct DiffContent: View {
     @Environment(AppState.self) private var state
     let file: ChangedFile
+    let details: AnalysisDetails
+    let impactViewModel: ImpactGraphViewModel
     let activeHunkIndex: Int?
     let activeTarget: ReviewTarget?
     @State private var teachMessage: String?
+
+    var fileImpacts: [SymbolImpact] {
+        impactViewModel.impacts(for: file)
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -915,12 +928,25 @@ struct DiffContent: View {
 
                     Divider()
 
+                    ReviewImpactSummary(impactViewModel: impactViewModel)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.bgCanvas)
+
+                    if !fileImpacts.isEmpty {
+                        FileImpactSummary(file: file, impacts: fileImpacts)
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 10)
+                            .background(Color.bgCanvas)
+                    }
+
                     // Hunks
                     ForEach(Array(file.hunks.enumerated()), id: \.offset) { idx, hunk in
                         HunkView(
                             hunk: hunk,
                             hunkIndex: idx,
                             fileId: file.id,
+                            impacts: impactViewModel.impacts(for: hunk, fileId: file.id),
                             isHighlighted: activeHunkIndex == idx,
                             activeTarget: activeTarget
                         )
@@ -980,6 +1006,404 @@ struct DiffContent: View {
     }
 }
 
+struct ReviewImpactSummary: View {
+    let impactViewModel: ImpactGraphViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "target")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.brandAccent)
+                Text("Review Next")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Text(summaryLine)
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+            }
+
+            if impactViewModel.impacts.isEmpty {
+                Text("No symbol-level impact data is available for this review.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.textSecondary)
+            } else {
+                HStack(spacing: 10) {
+                    ImpactStat(text: "\(impactViewModel.highImpactCount) high impact")
+                    ImpactStat(text: "\(impactViewModel.totalImpactedReferenceCount) references")
+                    ImpactStat(text: "\(impactViewModel.impactedFileCount) files")
+                    ImpactStat(text: "\(impactViewModel.symbolsWithoutTestsCount) without tests")
+                    Spacer()
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(impactViewModel.topImpacts.enumerated()), id: \.element.id) {
+                        index, impact in
+                        Text(
+                            "\(index + 1). \(impact.symbol.name) - \(impact.summary.directCallerCount) callers"
+                        )
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color(NSColor.controlColor).opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+
+    private var summaryLine: String {
+        let count = impactViewModel.impacts.count
+        return "\(count) changed symbol\(count == 1 ? "" : "s")"
+    }
+}
+
+struct FileImpactSummary: View {
+    let file: ChangedFile
+    let impacts: [SymbolImpact]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("Impact Summary")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .textCase(.uppercase)
+            Text(
+                "\(impacts.count) changed symbol\(impacts.count == 1 ? "" : "s") in \(file.filename), led by \(topNames)."
+            )
+            .font(.system(size: 12))
+            .foregroundColor(.textSecondary)
+            .lineLimit(2)
+            Spacer()
+        }
+    }
+
+    private var topNames: String {
+        impacts.prefix(3).map(\.symbol.name).joined(separator: ", ")
+    }
+}
+
+struct InlineImpactSummaryCard: View {
+    @Environment(AnalysisViewModel.self) private var viewModel
+    let impact: SymbolImpact
+    @State private var isShowingDetail = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Rectangle()
+                .fill(impact.summary.impactLevel.tintColor)
+                .frame(width: 3)
+                .clipShape(Capsule())
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    BadgeView(
+                        text: "\(impact.summary.impactLevel.displayName) impact",
+                        variant: impact.summary.impactLevel.badgeVariant)
+                    Text(impact.symbol.name)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    Button("View graph") {
+                        viewModel.jumpToImpactRoot(impact)
+                        isShowingDetail.toggle()
+                    }
+                    .font(.system(size: 11, weight: .semibold))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.brandAccent)
+                    .popover(isPresented: $isShowingDetail, arrowEdge: .trailing) {
+                        ImpactDetailPopover(impact: impact)
+                    }
+                }
+
+                Text(
+                    "\(impact.summary.directCallerCount) callers · \(impact.summary.directCalleeCount) callees · \(impact.summary.fileCount) files · \(impact.summary.testReferenceCount) tests"
+                )
+                .font(.system(size: 11))
+                .foregroundColor(.textSecondary)
+
+                if !mostAffected.isEmpty {
+                    Text("Most affected: \(mostAffected)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(9)
+        .background(Color(NSColor.controlColor).opacity(0.30))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+
+    private var mostAffected: String {
+        impact.symbol.callers.prefix(3).map { caller in
+            caller.components(separatedBy: ":").last ?? caller
+        }
+        .joined(separator: ", ")
+    }
+}
+
+struct ImpactDetailPopover: View {
+    let impact: SymbolImpact
+    @State private var activeTab: ImpactDetailTab = .overview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Impact Detail")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Text("Changed root")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
+                Text("\(impact.symbol.name) at \(impact.location)")
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundColor(.brandAccent)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Picker("Impact detail", selection: $activeTab) {
+                ForEach(ImpactDetailTab.allCases) { tab in
+                    Text(tab.title).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Group {
+                switch activeTab {
+                case .overview:
+                    ImpactOverviewTab(impact: impact)
+                case .callers:
+                    ImpactListTab(
+                        title: "Callers",
+                        emptyText: "No direct callers found for this changed root.",
+                        rows: impact.symbol.callers,
+                        connectionSuffix: "calls \(impact.symbol.name)")
+                case .callees:
+                    ImpactListTab(
+                        title: "Callees",
+                        emptyText: "No direct callees found for this changed root.",
+                        rows: impact.symbol.callees,
+                        connectionSuffix: "is called by \(impact.symbol.name)")
+                case .graph:
+                    ImpactMiniGraph(impact: impact)
+                case .tests:
+                    ImpactTestsTab(impact: impact)
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: 420, alignment: .leading)
+        .background(Color.bgCanvas)
+    }
+}
+
+enum ImpactDetailTab: String, CaseIterable, Identifiable {
+    case overview
+    case callers
+    case callees
+    case graph
+    case tests
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .overview: "Overview"
+        case .callers: "Callers"
+        case .callees: "Callees"
+        case .graph: "Graph"
+        case .tests: "Tests"
+        }
+    }
+}
+
+struct ImpactOverviewTab: View {
+    let impact: SymbolImpact
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ImpactDetailLine(label: "Summary", value: summary)
+            ImpactDetailLine(label: "Why this matters", value: whyThisMatters)
+            if !mostImpacted.isEmpty {
+                ImpactDetailLine(label: "Most impacted", value: mostImpacted)
+            }
+        }
+    }
+
+    private var summary: String {
+        "\(impact.summary.impactLevel.displayName) impact because this changed root has \(impact.summary.directCallerCount) callers across \(impact.summary.fileCount) files."
+    }
+
+    private var whyThisMatters: String {
+        if impact.summary.testReferenceCount == 0 && impact.summary.directCallerCount > 0 {
+            return "Callers exist, but no direct test references were detected for this path."
+        }
+        return "Impact evidence is based on caller, callee, file, and test reference signals."
+    }
+
+    private var mostImpacted: String {
+        impact.symbol.callers.prefix(3).map { caller in
+            caller.components(separatedBy: ":").last ?? caller
+        }
+        .joined(separator: ", ")
+    }
+}
+
+struct ImpactListTab: View {
+    let title: String
+    let emptyText: String
+    let rows: [String]
+    let connectionSuffix: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            if rows.isEmpty {
+                Text(emptyText)
+                    .font(.system(size: 12))
+                    .foregroundColor(.textSecondary)
+            } else {
+                ForEach(Array(rows.prefix(8).enumerated()), id: \.offset) { _, row in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(displayName(row))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                        Text("Connection: \(displayName(row)) \(connectionSuffix)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textTertiary)
+                            .lineLimit(2)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(NSColor.controlColor).opacity(0.30))
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                }
+            }
+        }
+    }
+
+    private func displayName(_ row: String) -> String {
+        row.components(separatedBy: ":").last ?? row
+    }
+}
+
+struct ImpactMiniGraph: View {
+    let impact: SymbolImpact
+
+    var body: some View {
+        VStack(spacing: 8) {
+            graphGroup(title: "Callers", rows: Array(impact.symbol.callers.prefix(3)))
+            Image(systemName: "arrow.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textTertiary)
+            Text(impact.symbol.name)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(.textPrimary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.brandAccent.opacity(0.12))
+                .clipShape(Capsule())
+            Image(systemName: "arrow.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textTertiary)
+            graphGroup(title: "Callees", rows: Array(impact.symbol.callees.prefix(3)))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func graphGroup(title: String, rows: [String]) -> some View {
+        VStack(spacing: 5) {
+            Text(title)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .textCase(.uppercase)
+            if rows.isEmpty {
+                Text("None detected")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+            } else {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    Text(row.components(separatedBy: ":").last ?? row)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+struct ImpactTestsTab: View {
+    let impact: SymbolImpact
+
+    var testReferences: [String] {
+        impact.symbol.callers.filter { caller in
+            caller.localizedCaseInsensitiveContains("test")
+                || caller.localizedCaseInsensitiveContains("spec")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if testReferences.isEmpty {
+                ImpactDetailLine(
+                    label: "Coverage signal",
+                    value: "Weak. No direct test references were detected for this changed root.")
+            } else {
+                ImpactDetailLine(
+                    label: "Coverage signal",
+                    value:
+                        "Partial. \(testReferences.count) direct test reference\(testReferences.count == 1 ? "" : "s") detected."
+                )
+                ForEach(Array(testReferences.prefix(6).enumerated()), id: \.offset) { _, test in
+                    Text(test)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        }
+    }
+}
+
+struct ImpactDetailLine: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .textCase(.uppercase)
+            Text(value)
+                .font(.system(size: 12))
+                .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+extension ImpactLevel {
+    var tintColor: Color {
+        switch self {
+        case .low: .success
+        case .medium: .warning
+        case .high: .danger
+        }
+    }
+}
+
 // MARK: - Hunk View
 
 struct AlignedDiffLine: Identifiable {
@@ -994,6 +1418,7 @@ struct HunkView: View {
     let hunk: DiffHunk
     let hunkIndex: Int
     let fileId: UUID
+    let impacts: [SymbolImpact]
     let isHighlighted: Bool
     let activeTarget: ReviewTarget?
     @State private var isCollapsed = false
@@ -1320,6 +1745,17 @@ struct HunkView: View {
             }
 
             Divider()
+
+            if !impacts.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(impacts.prefix(3)) { impact in
+                        InlineImpactSummaryCard(impact: impact)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.bgCanvas)
+            }
 
             // Hunk lines
             if !isCollapsed {

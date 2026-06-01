@@ -171,6 +171,16 @@ class AnalysisViewModel {
         }
     }
 
+    func jumpToImpactRoot(_ impact: SymbolImpact) {
+        selectedBucketId = nil
+        isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
+        activeFileId = impact.symbol.changedFileId
+        activeHunkIndex = hunkIndexForLine(
+            fileId: impact.symbol.changedFileId, lineStart: impact.symbol.startLine)
+        activeTargetId = nil
+    }
+
     func jumpToHighlight(_ highlight: RiskHighlight) {
         guard let details = state.analysisDetails else { return }
         if let bucket = details.changeBuckets.first(where: { $0.id == highlight.bucketId }) {
@@ -219,6 +229,13 @@ class AnalysisViewModel {
         return file.hunks.firstIndex { h in
             line >= h.newStart && line <= h.newStart + h.newLines - 1
         }
+    }
+
+    private func hunkIndexForLine(fileId: UUID, lineStart: Int?) -> Int? {
+        guard let details = state.analysisDetails,
+            let file = details.files.first(where: { $0.id == fileId })
+        else { return nil }
+        return hunkIndexForLine(file: file, lineStart: lineStart)
     }
 
     func expandHunk(fileId: UUID, hunkIndex: Int, direction: ExpandDirection) async {

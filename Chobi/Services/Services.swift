@@ -320,12 +320,12 @@ actor GitService {
 }
 
 // MARK: - AST Analysis Service
-// Spawns the bundled diffuse-core sidecar to extract semantic AST symbols.
+// Spawns the bundled chobi-core sidecar to extract semantic AST symbols.
 
 actor ASTAnalysisService {
 
     // swift-format-ignore: AlwaysUseLowerCamelCase
-    /// Raw JSON model matching diffuse-core's AstSymbol output.
+    /// Raw JSON model matching chobi-core's AstSymbol output.
     private struct SidecarSymbol: Codable {
         let line: Int
         let end_line: Int
@@ -340,23 +340,26 @@ actor ASTAnalysisService {
     /// Xcode release build.
     private func sidecarURL() -> URL? {
         // 1. App bundle (production)
-        if let url = Bundle.main.url(forAuxiliaryExecutable: "diffuse-core") {
-            return url
+        for executableName in ["chobi-core", "diffuse-core"] {
+            if let url = Bundle.main.url(forAuxiliaryExecutable: executableName) {
+                return url
+            }
         }
         // 2. Dev fallback — sibling directory next to the .xcodeproj
         if let bundlePath = Bundle.main.bundlePath
             .components(separatedBy: "/diffuse.app").first
         {
-            let devBinary = URL(fileURLWithPath: bundlePath)
-                .appendingPathComponent("diffuse-core/target/debug/diffuse-core")
-            if FileManager.default.isExecutableFile(atPath: devBinary.path) {
-                return devBinary
-            }
-            // Also try release build
-            let releaseBinary = URL(fileURLWithPath: bundlePath)
-                .appendingPathComponent("diffuse-core/target/release/diffuse-core")
-            if FileManager.default.isExecutableFile(atPath: releaseBinary.path) {
-                return releaseBinary
+            let candidates = [
+                "chobi-core/target/debug/chobi-core",
+                "chobi-core/target/release/chobi-core",
+                "diffuse-core/target/debug/diffuse-core",
+                "diffuse-core/target/release/diffuse-core",
+            ]
+            for candidate in candidates {
+                let binary = URL(fileURLWithPath: bundlePath).appendingPathComponent(candidate)
+                if FileManager.default.isExecutableFile(atPath: binary.path) {
+                    return binary
+                }
             }
         }
         return nil
@@ -373,7 +376,7 @@ actor ASTAnalysisService {
         guard !changedLines.isEmpty else { return [] }
         guard let helperURL = sidecarURL() else {
             AppLogger.shared.log(
-                "diffuse-core binary not found for symbol parsing", level: .error, tag: "AST")
+                "chobi-core binary not found for symbol parsing", level: .error, tag: "AST")
             return []
         }
 
@@ -381,7 +384,7 @@ actor ASTAnalysisService {
         process.executableURL = helperURL
         let linesArg = changedLines.map(String.init).joined(separator: ",")
         AppLogger.shared.log(
-            "Running diffuse-core analyze on \(filePath) (lines: \(linesArg))", tag: "AST")
+            "Running chobi-core analyze on \(filePath) (lines: \(linesArg))", tag: "AST")
         process.arguments = ["analyze", "--file", fileURL.path, "--lines", linesArg]
 
         let stdout = Pipe()
@@ -398,7 +401,7 @@ actor ASTAnalysisService {
 
             guard !data.isEmpty else {
                 AppLogger.shared.log(
-                    "No symbols returned by diffuse-core for \(filePath)", level: .warning,
+                    "No symbols returned by chobi-core for \(filePath)", level: .warning,
                     tag: "AST")
                 return []
             }
@@ -461,7 +464,7 @@ actor ASTAnalysisService {
     }
 
     /// Parse symbols for contract-level comparison between the base and head versions of a file.
-    /// Runs `diffuse-core compare --base <base> --head <head> --lines <csv>` and merges
+    /// Runs `chobi-core compare --base <base> --head <head> --lines <csv>` and merges
     /// the returned contract-delta metadata into the existing `ChangedSymbol` array.
     func compareSymbols(
         baseURL: URL,
@@ -650,7 +653,7 @@ actor ASTAnalysisService {
                 guard FileManager.default.isReadableFile(atPath: fileURL.path) else { continue }
             }
 
-            AppLogger.shared.log("Running diffuse-core index on \(relativePath)", tag: "CallGraph")
+            AppLogger.shared.log("Running chobi-core index on \(relativePath)", tag: "CallGraph")
             let process = Process()
             process.executableURL = helperURL
             process.arguments = ["index", "--file", fileURL.path]

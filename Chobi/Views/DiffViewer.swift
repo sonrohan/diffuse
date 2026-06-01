@@ -1154,401 +1154,270 @@ struct InlineImpactSummaryCard: View {
     }
 }
 
-struct ImpactDetailPopover: View {
-    let impact: SymbolImpact
-    let impactViewModel: ImpactGraphViewModel?
-    @State private var activeTab: ImpactDetailTab = .overview
+struct SymbolSourceContextPreview: View {
+    let context: SymbolSourceContext
+    @Bindable var impactViewModel: ImpactGraphViewModel
+    @State private var isShowingFullFileSheet = false
+    @State private var isCollapsed = false
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Impact Detail")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Text("Changed root")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.textTertiary)
-                    .textCase(.uppercase)
-                Text("\(impact.symbol.name) at \(impact.location)")
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundColor(.brandAccent)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            Picker("Impact detail", selection: $activeTab) {
-                ForEach(ImpactDetailTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
-            Group {
-                switch activeTab {
-                case .overview:
-                    ImpactOverviewTab(impact: impact)
-                case .callers:
-                    ImpactListTab(
-                        title: "Callers",
-                        emptyText: "No direct callers found for this changed root.",
-                        rows: impact.symbol.callers,
-                        connectionSuffix: "calls \(impact.symbol.name)")
-                case .callees:
-                    ImpactListTab(
-                        title: "Callees",
-                        emptyText: "No direct callees found for this changed root.",
-                        rows: impact.symbol.callees,
-                        connectionSuffix: "is called by \(impact.symbol.name)")
-                case .graph:
-                    if let impactViewModel {
-                        ImpactGraphExplorer(impact: impact, viewModel: impactViewModel)
-                    } else {
-                        ImpactMiniGraph(impact: impact)
-                    }
-                case .tests:
-                    ImpactTestsTab(impact: impact)
-                }
-            }
-        }
-        .padding(14)
-        .frame(width: 420, alignment: .leading)
-        .background(Color.bgCanvas)
+    var filename: String {
+        (context.filePath as NSString).lastPathComponent
     }
-}
-
-enum ImpactDetailTab: String, CaseIterable, Identifiable {
-    case overview
-    case callers
-    case callees
-    case graph
-    case tests
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .overview: "Overview"
-        case .callers: "Callers"
-        case .callees: "Callees"
-        case .graph: "Graph"
-        case .tests: "Tests"
-        }
-    }
-}
-
-struct ImpactOverviewTab: View {
-    let impact: SymbolImpact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ImpactDetailLine(label: "Summary", value: summary)
-            ImpactDetailLine(label: "Why this matters", value: whyThisMatters)
-            if !mostImpacted.isEmpty {
-                ImpactDetailLine(label: "Most impacted", value: mostImpacted)
-            }
-        }
-    }
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isCollapsed.toggle()
+                }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isCollapsed ? -90 : 0))
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.textTertiary)
 
-    private var summary: String {
-        "\(impact.summary.impactLevel.displayName) impact because this changed root has \(impact.summary.directCallerCount) callers across \(impact.summary.fileCount) files."
-    }
+                    Text("Source Preview")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .textCase(.uppercase)
 
-    private var whyThisMatters: String {
-        if impact.summary.testReferenceCount == 0 && impact.summary.directCallerCount > 0 {
-            return "Callers exist, but no direct test references were detected for this path."
-        }
-        return "Impact evidence is based on caller, callee, file, and test reference signals."
-    }
+                    Spacer()
 
-    private var mostImpacted: String {
-        impact.symbol.callers.prefix(3).map { caller in
-            caller.components(separatedBy: ":").last ?? caller
-        }
-        .joined(separator: ", ")
-    }
-}
-
-struct ImpactListTab: View {
-    let title: String
-    let emptyText: String
-    let rows: [String]
-    let connectionSuffix: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            if rows.isEmpty {
-                Text(emptyText)
-                    .font(.system(size: 12))
-                    .foregroundColor(.textSecondary)
-            } else {
-                ForEach(Array(rows.prefix(8).enumerated()), id: \.offset) { _, row in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(displayName(row))
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.textPrimary)
+                    if !isCollapsed {
+                        BadgeView(
+                            text: context.isChangedInCurrentPR ? "Diff mode" : "Outside this PR",
+                            variant: context.isChangedInCurrentPR ? .success : .neutral)
+                    } else {
+                        Text(context.symbolName)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.brandAccent)
                             .lineLimit(1)
-                        Text("Connection: \(displayName(row)) \(connectionSuffix)")
-                            .font(.system(size: 11))
-                            .foregroundColor(.textTertiary)
-                            .lineLimit(2)
+                            .truncationMode(.middle)
                     }
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(NSColor.controlColor).opacity(0.30))
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
                 }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if !isCollapsed {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(context.symbolName)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(2)
+
+                    HStack(spacing: 8) {
+                        Text("\(filename):L\(context.startLine)-L\(context.endLine)")
+                            .font(.system(size: 10.5, design: .monospaced))
+                            .foregroundColor(.brandAccent)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Spacer()
+
+                        Button {
+                            isShowingFullFileSheet = true
+                        } label: {
+                            Label("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 9.5, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.brandAccent)
+                    }
+
+                    if let callSiteLine = context.callSiteLine {
+                        Text("Connection: call site around L\(callSiteLine)")
+                            .font(.system(size: 11))
+                            .foregroundColor(.textSecondary)
+                    }
+
+                    // Interactive Code block
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text(
+                                impactViewModel.showFullFile
+                                    ? "Source File Preview" : "Call Site Context"
+                            )
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.textSecondary)
+
+                            Spacer()
+
+                            Button(action: {
+                                withAnimation {
+                                    impactViewModel.showFullFile.toggle()
+                                    impactViewModel.loadSourceCodeForSelectedNode()
+                                }
+                            }) {
+                                Text(impactViewModel.showFullFile ? "Show Context" : "Show All")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(.brandAccent)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.bgSubtle)
+
+                        Divider()
+
+                        if impactViewModel.isLoadingSourceCode {
+                            VStack(spacing: 8) {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Reading workspace file...")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.textTertiary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                            .background(Color.bgSidebarPanel.opacity(0.25))
+                        } else if let error = impactViewModel.sourceCodeError {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.warning)
+                                    Text("Local file not readable")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.textPrimary)
+                                }
+                                Text(error)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.textSecondary)
+
+                                Divider().padding(.vertical, 4)
+
+                                // Fallback excerpt
+                                Text(context.excerpt)
+                                    .font(.system(size: 10.5, design: .monospaced))
+                                    .foregroundColor(.textTertiary)
+                            }
+                            .padding(10)
+                            .background(Color.warning.opacity(0.08))
+                        } else {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    ForEach(impactViewModel.selectedSourceLines) { line in
+                                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                            Text("\(line.lineNumber)")
+                                                .font(.system(size: 10.5, design: .monospaced))
+                                                .foregroundColor(
+                                                    line.isHighlighted
+                                                        ? .brandAccent : .textTertiary
+                                                )
+                                                .frame(width: 30, alignment: .trailing)
+                                                .padding(.trailing, 2)
+
+                                            Text(line.text.isEmpty ? " " : line.text)
+                                                .font(.system(size: 10.5, design: .monospaced))
+                                                .foregroundColor(.textPrimary)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .padding(.vertical, 0.5)
+                                        .padding(.horizontal, 6)
+                                        .background(
+                                            line.isHighlighted
+                                                ? Color.brandAccent.opacity(0.12) : Color.clear)
+                                    }
+                                }
+                                .padding(.vertical, 6)
+                            }
+                            .frame(maxHeight: 200)
+                            .background(Color.bgSidebarPanel.opacity(0.2))
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-    }
-
-    private func displayName(_ row: String) -> String {
-        row.components(separatedBy: ":").last ?? row
+        .sheet(isPresented: $isShowingFullFileSheet) {
+            FullFileCodeSheet(
+                title: context.symbolName,
+                filePath: context.filePath,
+                lines: impactViewModel.selectedSourceLines,
+                onDismiss: { isShowingFullFileSheet = false }
+            )
+        }
     }
 }
 
-struct ImpactGraphExplorer: View {
-    let impact: SymbolImpact
-    @Bindable var viewModel: ImpactGraphViewModel
+struct FullFileCodeSheet: View {
+    let title: String
+    let filePath: String
+    let lines: [SourceCodeLine]
+    let onDismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Graph Focus")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.textTertiary)
-                    .textCase(.uppercase)
-                Text("Current: \(viewModel.focusedNode?.title ?? impact.symbol.name)")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                Text("Origin: \(impact.symbol.name) changed in this PR")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(1)
-                Text("Path: \(viewModel.graphPathText)")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-                    .lineLimit(1)
-            }
-
-            HStack(spacing: 6) {
-                Button("Back") { viewModel.focusBack() }
-                    .disabled(!viewModel.canGoBack)
-                Button("Forward") { viewModel.focusForward() }
-                    .disabled(!viewModel.canGoForward)
-                Button("Origin") { viewModel.focusOrigin() }
-                Button("Focus Selected") { viewModel.focusSelectedGraphNode() }
-                    .disabled(viewModel.selectedGraphNode == nil)
-                Picker("Direction", selection: $viewModel.graphDirection) {
-                    ForEach(ImpactGraphDirection.allCases) { direction in
-                        Text(direction.title).tag(direction)
-                    }
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.textPrimary)
+                    Text(filePath)
+                        .font(.system(size: 11))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
                 }
-                .labelsHidden()
-                .frame(width: 92)
+                Spacer()
+                Button("Done") {
+                    onDismiss()
+                }
+                .keyboardShortcut(.defaultAction)
             }
-            .font(.system(size: 11))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.bgSubtle)
 
-            ScrollView(.horizontal, showsIndicators: true) {
-                HStack(alignment: .center, spacing: 8) {
-                    ForEach(viewModel.visibleGraphNodes) { node in
-                        ImpactGraphNodeButton(
-                            node: node,
-                            isFocused: node.id == viewModel.currentFocusedNodeId,
-                            isSelected: node.id == viewModel.selectedGraphNode?.id
-                        ) {
-                            viewModel.selectGraphNode(node)
+            Divider()
+
+            // Large scrollable code view
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 1) {
+                        ForEach(lines) { line in
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Text("\(line.lineNumber)")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(
+                                        line.isHighlighted ? .brandAccent : .textTertiary
+                                    )
+                                    .frame(width: 38, alignment: .trailing)
+                                    .padding(.trailing, 4)
+
+                                Text(line.text.isEmpty ? " " : line.text)
+                                    .font(.system(size: 11.5, design: .monospaced))
+                                    .foregroundColor(.textPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.vertical, 1)
+                            .padding(.horizontal, 8)
+                            .background(
+                                line.isHighlighted ? Color.brandAccent.opacity(0.12) : Color.clear
+                            )
+                            .id(line.lineNumber)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .background(Color.bgCanvas)
+                .onAppear {
+                    // Scroll to the highlighted line!
+                    if let highlighted = lines.first(where: \.isHighlighted) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation {
+                                proxy.scrollTo(highlighted.lineNumber, anchor: .center)
+                            }
                         }
                     }
                 }
-                .padding(.vertical, 4)
-            }
-
-            if let context = viewModel.selectedSourceContext {
-                SymbolSourceContextPreview(context: context)
             }
         }
-        .onAppear {
-            viewModel.select(impact)
-        }
-    }
-}
-
-struct ImpactGraphNodeButton: View {
-    let node: ImpactGraphNode
-    let isFocused: Bool
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 5) {
-                    if node.role == .caller {
-                        Image(systemName: "arrow.down.left")
-                    } else if node.role == .callee {
-                        Image(systemName: "arrow.down.right")
-                    }
-                    Text(node.title)
-                        .lineLimit(1)
-                }
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-
-                Text(node.isChangedInPR ? "Changed in PR" : "Outside PR")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-            }
-            .foregroundColor(isFocused ? .white : .textPrimary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .frame(width: 150, alignment: .leading)
-            .background(isFocused ? Color.brandAccent : Color(NSColor.controlColor).opacity(0.35))
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.brandAccent.opacity(0.8) : Color.borderMuted,
-                    lineWidth: isSelected ? 1.2 : 0.5))
-        }
-        .buttonStyle(.plain)
-        .help("\(node.filePath)\(node.line.map { ":L\($0)" } ?? "")")
-    }
-}
-
-struct SymbolSourceContextPreview: View {
-    let context: SymbolSourceContext
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack {
-                Text("Selected Symbol")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.textTertiary)
-                    .textCase(.uppercase)
-                Spacer()
-                BadgeView(
-                    text: context.isChangedInCurrentPR ? "Diff mode" : "Outside this PR",
-                    variant: context.isChangedInCurrentPR ? .success : .neutral)
-            }
-            Text(context.symbolName)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundColor(.textPrimary)
-            Text("\(context.filePath):L\(context.startLine)-L\(context.endLine)")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.brandAccent)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            if let callSiteLine = context.callSiteLine {
-                Text("Connection to PR change: call site around L\(callSiteLine)")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-            }
-            Text(context.excerpt)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.textSecondary)
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(NSColor.controlColor).opacity(0.30))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-    }
-}
-
-struct ImpactMiniGraph: View {
-    let impact: SymbolImpact
-
-    var body: some View {
-        VStack(spacing: 8) {
-            graphGroup(title: "Callers", rows: Array(impact.symbol.callers.prefix(3)))
-            Image(systemName: "arrow.down")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.textTertiary)
-            Text(impact.symbol.name)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundColor(.textPrimary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.brandAccent.opacity(0.12))
-                .clipShape(Capsule())
-            Image(systemName: "arrow.down")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.textTertiary)
-            graphGroup(title: "Callees", rows: Array(impact.symbol.callees.prefix(3)))
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func graphGroup(title: String, rows: [String]) -> some View {
-        VStack(spacing: 5) {
-            Text(title)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.textTertiary)
-                .textCase(.uppercase)
-            if rows.isEmpty {
-                Text("None detected")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-            } else {
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                    Text(row.components(separatedBy: ":").last ?? row)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                }
-            }
-        }
-    }
-}
-
-struct ImpactTestsTab: View {
-    let impact: SymbolImpact
-
-    var testReferences: [String] {
-        impact.symbol.callers.filter { caller in
-            caller.localizedCaseInsensitiveContains("test")
-                || caller.localizedCaseInsensitiveContains("spec")
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if testReferences.isEmpty {
-                ImpactDetailLine(
-                    label: "Coverage signal",
-                    value: "Weak. No direct test references were detected for this changed root.")
-            } else {
-                ImpactDetailLine(
-                    label: "Coverage signal",
-                    value:
-                        "Partial. \(testReferences.count) direct test reference\(testReferences.count == 1 ? "" : "s") detected."
-                )
-                ForEach(Array(testReferences.prefix(6).enumerated()), id: \.offset) { _, test in
-                    Text(test)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-        }
-    }
-}
-
-struct ImpactDetailLine: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.textTertiary)
-                .textCase(.uppercase)
-            Text(value)
-                .font(.system(size: 12))
-                .foregroundColor(.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        .frame(minWidth: 600, minHeight: 450)
     }
 }
 
@@ -1611,16 +1480,9 @@ struct ImpactExplorerSidebar: View {
                             onOpenNode: onOpenNode
                         )
 
-                        if let impact = impactViewModel.originImpact {
-                            ImpactRelationshipSection(
-                                impact: impact,
-                                viewModel: impactViewModel,
-                                onOpenNode: onOpenNode
-                            )
-                        }
-
                         if let context = impactViewModel.selectedSourceContext {
-                            SymbolSourceContextPreview(context: context)
+                            SymbolSourceContextPreview(
+                                context: context, impactViewModel: impactViewModel)
                             Button {
                                 if let node = impactViewModel.selectedGraphNode {
                                     onOpenNode(node)
@@ -1681,54 +1543,105 @@ struct ImpactExplorerRootCard: View {
     let onOpenRoot: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 7) {
-                BadgeView(
-                    text: "\(impact.summary.impactLevel.displayName) impact",
-                    variant: impact.summary.impactLevel.badgeVariant)
-                Text(impact.symbol.name)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                Spacer()
-            }
+        HStack(spacing: 0) {
+            // Visual accent bar
+            Rectangle()
+                .fill(impact.summary.impactLevel.tintColor)
+                .frame(width: 4)
+                .clipShape(Capsule())
+                .padding(.vertical, 8)
+                .padding(.leading, 1)
 
-            Text(impact.reason ?? "Review caller and callee relationships for this changed symbol.")
-                .font(.system(size: 12))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 7) {
+                    BadgeView(
+                        text: "\(impact.summary.impactLevel.displayName) impact",
+                        variant: impact.summary.impactLevel.badgeVariant)
+                    Text(impact.symbol.name)
+                        .font(.system(size: 12.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                }
+                .padding(.top, 2)
+
+                Text(
+                    impact.reason
+                        ?? "Review caller and callee relationships for this changed symbol."
+                )
+                .font(.system(size: 11.5, weight: .medium))
                 .foregroundColor(.textSecondary)
+                .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 8) {
-                ImpactStat(text: "\(impact.summary.directCallerCount) callers")
-                ImpactStat(text: "\(impact.summary.directCalleeCount) callees")
-                ImpactStat(text: "\(impact.summary.fileCount) files")
-            }
+                // Stats strip
+                HStack(spacing: 12) {
+                    Label(
+                        "\(impact.summary.directCallerCount) callers",
+                        systemImage: "arrow.down.left")
+                    Label(
+                        "\(impact.summary.directCalleeCount) callees",
+                        systemImage: "arrow.down.right")
+                    Label("\(impact.summary.fileCount) files", systemImage: "doc.on.doc")
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.textTertiary)
+                .imageScale(.small)
+                .padding(.vertical, 2)
 
-            HStack(spacing: 6) {
-                Button("Previous") {
-                    viewModel.selectPreviousImpact()
-                    onOpenRoot()
-                }
-                Button("Next") {
-                    viewModel.selectNextImpact()
-                    onOpenRoot()
-                }
-                Button("Open Root") { onOpenRoot() }
-                Spacer()
-                Picker("Direction", selection: $viewModel.graphDirection) {
-                    ForEach(ImpactGraphDirection.allCases) { direction in
-                        Text(direction.title).tag(direction)
+                Divider()
+                    .opacity(0.6)
+
+                // Actions toolbar
+                HStack(spacing: 6) {
+                    Button(action: {
+                        viewModel.selectPreviousImpact()
+                        onOpenRoot()
+                    }) {
+                        Label("Previous", systemImage: "arrow.left")
                     }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button(action: {
+                        viewModel.selectNextImpact()
+                        onOpenRoot()
+                    }) {
+                        Label("Next", systemImage: "arrow.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button(action: onOpenRoot) {
+                        Label("Open Root", systemImage: "target")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Spacer()
+
+                    Picker("Direction", selection: $viewModel.graphDirection) {
+                        ForEach(ImpactGraphDirection.allCases) { direction in
+                            Text(direction.title).tag(direction)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 90)
+                    .controlSize(.small)
                 }
-                .labelsHidden()
-                .frame(width: 98)
             }
-            .font(.system(size: 11))
+            .padding(.leading, 10)
+            .padding(.trailing, 4)
         }
-        .padding(10)
-        .background(Color(NSColor.controlColor).opacity(0.30))
+        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .background(Color.bgSidebarPanel.opacity(0.4))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.borderMuted, lineWidth: 0.5)
+        )
     }
 }
 
@@ -1751,20 +1664,44 @@ struct ImpactGraphMap: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Graph")
+                Label("Graph Explorer", systemImage: "point.3.connected.trianglepath.dotted")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.textTertiary)
                     .textCase(.uppercase)
                 Spacer()
-                Button("Back") { viewModel.focusBack() }
-                    .disabled(!viewModel.canGoBack)
-                Button("Forward") { viewModel.focusForward() }
-                    .disabled(!viewModel.canGoForward)
-                Button("Origin") { viewModel.focusOrigin() }
-            }
-            .font(.system(size: 11))
 
-            VStack(spacing: 8) {
+                // Navigation history buttons
+                HStack(spacing: 4) {
+                    Button(action: { viewModel.focusBack() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .disabled(!viewModel.canGoBack)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Go back in history")
+
+                    Button(action: { viewModel.focusForward() }) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .disabled(!viewModel.canGoForward)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Go forward in history")
+
+                    Button(action: { viewModel.focusOrigin() }) {
+                        Image(systemName: "house")
+                            .font(.system(size: 9.5, weight: .semibold))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Reset to PR Origin symbol")
+                }
+            }
+            .padding(.horizontal, 2)
+
+            VStack(spacing: 6) {
                 ImpactGraphColumn(
                     title: "Callers",
                     emptyText: "No callers detected",
@@ -1774,9 +1711,15 @@ struct ImpactGraphMap: View {
                 )
 
                 if let origin {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.textTertiary)
+                    HStack {
+                        Spacer()
+                        Image(systemName: "chevron.compact.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textTertiary.opacity(0.6))
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+
                     ImpactExplorerNodeCard(
                         node: origin,
                         isFocused: origin.id == viewModel.currentFocusedNodeId,
@@ -1787,9 +1730,14 @@ struct ImpactGraphMap: View {
                 }
 
                 if !callees.isEmpty {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.textTertiary)
+                    HStack {
+                        Spacer()
+                        Image(systemName: "chevron.compact.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.textTertiary.opacity(0.6))
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
                 }
 
                 ImpactGraphColumn(
@@ -1800,9 +1748,12 @@ struct ImpactGraphMap: View {
                     onOpenNode: onOpenNode
                 )
             }
-            .padding(10)
-            .background(Color(NSColor.controlColor).opacity(0.22))
+            .padding(8)
+            .background(Color.bgSidebarPanel.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5)
+            )
         }
     }
 }
@@ -1847,162 +1798,107 @@ struct ImpactExplorerNodeCard: View {
     @Bindable var viewModel: ImpactGraphViewModel
     let onOpenNode: (ImpactGraphNode) -> Void
 
+    var filename: String {
+        (node.filePath as NSString).lastPathComponent
+    }
+
     var body: some View {
         Button {
             viewModel.selectGraphNode(node)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: iconName)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(isFocused ? .white : .brandAccent)
-                    .frame(width: 16)
+                    .frame(width: 14)
+
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(node.title)
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundColor(isFocused ? .white : .textPrimary)
+                    HStack(spacing: 5) {
+                        Text(node.title)
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundColor(isFocused ? .white : .textPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        if node.isChangedInPR {
+                            Text("PR")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(isFocused ? .white : .success)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 0.5)
+                                .background(
+                                    isFocused
+                                        ? Color.white.opacity(0.2) : Color.success.opacity(0.12)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        } else if node.isTest {
+                            Image(systemName: "flask")
+                                .font(.system(size: 9))
+                                .foregroundColor(isFocused ? .white : .textTertiary)
+                        }
+                    }
+
+                    Text("\(filename)\(node.line.map { ":L\($0)" } ?? "")")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(isFocused ? .white.opacity(0.8) : .textSecondary)
                         .lineLimit(1)
-                    Text(
-                        "\(node.isChangedInPR ? "Changed in PR" : "Outside PR") · \(node.filePath)"
-                    )
-                    .font(.system(size: 10))
-                    .foregroundColor(isFocused ? .white.opacity(0.8) : .textTertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                        .truncationMode(.middle)
                 }
+
                 Spacer()
-                Button("Focus") {
-                    viewModel.selectGraphNode(node)
-                    viewModel.focusSelectedGraphNode()
+
+                if isSelected {
+                    HStack(spacing: 4) {
+                        if node.id != viewModel.currentFocusedNodeId {
+                            Button {
+                                viewModel.selectGraphNode(node)
+                                viewModel.focusSelectedGraphNode()
+                            } label: {
+                                Image(systemName: "scope")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(isFocused ? .white : .brandAccent)
+                            .help("Focus Graph on this node")
+                        }
+
+                        if node.isChangedInPR {
+                            Button {
+                                viewModel.selectGraphNode(node)
+                                onOpenNode(node)
+                            } label: {
+                                Image(systemName: "arrow.turn.down.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundColor(isFocused ? .white : .textSecondary)
+                            .help("Open in diff viewer")
+                        }
+                    }
+                    .transition(.opacity)
                 }
-                .font(.system(size: 10, weight: .semibold))
-                .buttonStyle(.plain)
-                .foregroundColor(isFocused ? .white : .brandAccent)
-                Button {
-                    viewModel.selectGraphNode(node)
-                    onOpenNode(node)
-                } label: {
-                    Image(systemName: "arrow.turn.down.right")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(isFocused ? .white : .textSecondary)
-                .disabled(!node.isChangedInPR)
             }
-            .padding(8)
-            .background(isFocused ? Color.brandAccent : Color.bgCanvas)
-            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(isFocused ? Color.brandAccent : Color.bgSidebarPanel.opacity(0.4))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
-                RoundedRectangle(cornerRadius: 7).stroke(
+                RoundedRectangle(cornerRadius: 6).stroke(
                     isSelected ? Color.brandAccent.opacity(0.85) : Color.borderMuted,
-                    lineWidth: isSelected ? 1.2 : 0.5))
+                    lineWidth: isSelected ? 1.0 : 0.5))
         }
         .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .help("\(node.filePath)\(node.line.map { ":L\($0)" } ?? "")")
     }
 
     private var iconName: String {
-        switch node.role {
+        if node.isTest { return "flask.fill" }
+        return switch node.role {
         case .origin: "dot.circle.fill"
         case .caller: "arrow.down.left"
         case .callee: "arrow.down.right"
         }
-    }
-}
-
-struct ImpactRelationshipSection: View {
-    let impact: SymbolImpact
-    @Bindable var viewModel: ImpactGraphViewModel
-    let onOpenNode: (ImpactGraphNode) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Impacted Code")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.textTertiary)
-                .textCase(.uppercase)
-
-            ImpactRelationshipList(
-                title: "Callers",
-                rows: impact.symbol.callers,
-                role: .caller,
-                viewModel: viewModel,
-                onOpenNode: onOpenNode
-            )
-            ImpactRelationshipList(
-                title: "Callees",
-                rows: impact.symbol.callees,
-                role: .callee,
-                viewModel: viewModel,
-                onOpenNode: onOpenNode
-            )
-        }
-    }
-}
-
-struct ImpactRelationshipList: View {
-    let title: String
-    let rows: [String]
-    let role: ImpactGraphNode.Role
-    @Bindable var viewModel: ImpactGraphViewModel
-    let onOpenNode: (ImpactGraphNode) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.textPrimary)
-            if rows.isEmpty {
-                Text("None detected")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-                    .padding(.vertical, 4)
-            } else {
-                ForEach(Array(rows.prefix(8).enumerated()), id: \.offset) { _, row in
-                    let node = nodeFromRow(row)
-                    Button {
-                        viewModel.selectGraphNode(node)
-                        onOpenNode(node)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(node.title)
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                .foregroundColor(.textPrimary)
-                                .lineLimit(1)
-                            Text(node.filePath)
-                                .font(.system(size: 10))
-                                .foregroundColor(.textTertiary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        .padding(7)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(NSColor.controlColor).opacity(0.24))
-                        .clipShape(RoundedRectangle(cornerRadius: 7))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private func nodeFromRow(_ row: String) -> ImpactGraphNode {
-        let parts = row.components(separatedBy: ":")
-        let filePath = parts.first ?? row
-        let title = parts.last ?? row
-        let line = parts.compactMap(Int.init).first
-        if let existing = viewModel.visibleGraphNodes.first(where: {
-            $0.filePath == filePath && $0.title == title && $0.role == role
-        }) {
-            return existing
-        }
-        return ImpactGraphNode(
-            id: "\(filePath)#\(title)",
-            title: title,
-            filePath: filePath,
-            line: line,
-            role: role,
-            isChangedInPR: false,
-            isTest: row.localizedCaseInsensitiveContains("test")
-                || row.localizedCaseInsensitiveContains("spec"))
     }
 }
 

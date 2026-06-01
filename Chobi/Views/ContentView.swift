@@ -1251,13 +1251,13 @@ struct AnalysisDetailView: View {
         }
         .background(Color.bgCanvas)
         .onAppear {
-            impactViewModel.load(details: details)
+            impactViewModel.load(details: details, repoPath: state.selectedRepo?.path)
         }
         .onChange(of: state.analysisDetails?.run.id) { _, _ in
             viewModel?.refreshIfNecessary()
         }
         .onChange(of: details.run.id) { _, _ in
-            impactViewModel.load(details: details)
+            impactViewModel.load(details: details, repoPath: state.selectedRepo?.path)
         }
     }
 }

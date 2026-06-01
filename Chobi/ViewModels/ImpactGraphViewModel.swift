@@ -17,6 +17,12 @@ class ImpactGraphViewModel {
     private(set) var focusForwardStack: [String] = []
     private(set) var selectedSourceContext: SymbolSourceContext? = nil
 
+    var repoPath: String? = nil
+    var selectedSourceLines: [SourceCodeLine] = []
+    var isLoadingSourceCode: Bool = false
+    var sourceCodeError: String? = nil
+    var showFullFile: Bool = false
+
     private(set) var impacts: [SymbolImpact] = []
     private(set) var visibleImpactsByFileId: [UUID: [SymbolImpact]] = [:]
     private(set) var sourceSymbolCount: Int = 0
@@ -193,7 +199,8 @@ class ImpactGraphViewModel {
         return "No caller or callee data found for changed symbols."
     }
 
-    func load(details: AnalysisDetails) {
+    func load(details: AnalysisDetails, repoPath: String? = nil) {
+        self.repoPath = repoPath
         sourceSymbolCount = details.symbols.count
         let filesById = Dictionary(uniqueKeysWithValues: details.files.map { ($0.id, $0.path) })
         impacts =
@@ -378,6 +385,7 @@ class ImpactGraphViewModel {
     private func updateSelectedSourceContext() {
         guard let node = selectedGraphNode else {
             selectedSourceContext = nil
+            loadSourceCodeForSelectedNode()
             return
         }
         let start = node.line ?? 1
@@ -392,6 +400,98 @@ class ImpactGraphViewModel {
             isChangedInCurrentPR: node.isChangedInPR,
             changedLineNumbers: node.isChangedInPR ? Set(start...max(start, end)) : [],
             callSiteLine: node.role == .origin ? nil : node.line)
+        loadSourceCodeForSelectedNode()
+    }
+
+    func loadSourceCodeForSelectedNode() {
+        guard let node = selectedGraphNode else {
+            self.selectedSourceLines = []
+            self.isLoadingSourceCode = false
+            self.sourceCodeError = nil
+            return
+        }
+
+        guard let repoPath = self.repoPath, !repoPath.isEmpty else {
+            self.selectedSourceLines = []
+            self.isLoadingSourceCode = false
+            self.sourceCodeError = "Workspace repository path is not available."
+            return
+        }
+
+        let filePath = node.filePath
+        let highlightLine = node.line
+        let isOrigin = node.role == .origin
+
+        self.isLoadingSourceCode = true
+        self.sourceCodeError = nil
+
+        Task {
+            do {
+                let fileURL = URL(
+                    fileURLWithPath: filePath, relativeTo: URL(fileURLWithPath: repoPath)
+                ).standardized
+                var fileContent = ""
+
+                // Read from local workspace file if possible
+                if FileManager.default.fileExists(atPath: fileURL.path),
+                    let content = try? String(contentsOf: fileURL, encoding: .utf8)
+                {
+                    fileContent = content
+                } else {
+                    // Try to fall back to HEAD via git show
+                    let fallback = GitService.fileContent(at: "HEAD", path: filePath, cwd: repoPath)
+                    if !fallback.isEmpty {
+                        fileContent = fallback
+                    } else {
+                        throw NSError(
+                            domain: "ImpactExplorer", code: 404,
+                            userInfo: [NSLocalizedDescriptionKey: "File not found: \(filePath)"])
+                    }
+                }
+
+                let allLines = fileContent.components(separatedBy: .newlines)
+
+                var finalLines: [SourceCodeLine] = []
+
+                if showFullFile {
+                    // Load all lines
+                    finalLines = allLines.enumerated().map { index, lineText in
+                        let lineNum = index + 1
+                        let isHighlighted = highlightLine == lineNum
+                        return SourceCodeLine(
+                            lineNumber: lineNum, text: lineText, isHighlighted: isHighlighted)
+                    }
+                } else {
+                    // Context mode: show 8 lines before and 16 lines after
+                    let centerLine = highlightLine ?? (originImpact?.symbol.startLine ?? 1)
+                    let startLine = max(1, centerLine - 8)
+                    let endLine = min(allLines.count, centerLine + 16)
+
+                    if startLine <= endLine && !allLines.isEmpty {
+                        finalLines = (startLine...endLine).map { lineNum in
+                            let lineText = allLines[lineNum - 1]
+                            let isHighlighted: Bool
+                            if isOrigin, let origin = originImpact {
+                                isHighlighted =
+                                    lineNum >= origin.symbol.startLine
+                                    && lineNum <= origin.symbol.endLine
+                            } else {
+                                isHighlighted = highlightLine == lineNum
+                            }
+                            return SourceCodeLine(
+                                lineNumber: lineNum, text: lineText, isHighlighted: isHighlighted)
+                        }
+                    }
+                }
+
+                self.selectedSourceLines = finalLines
+                self.isLoadingSourceCode = false
+            } catch {
+                self.selectedSourceLines = []
+                self.sourceCodeError = error.localizedDescription
+                self.isLoadingSourceCode = false
+            }
+        }
     }
 
     private func makeExcerpt(for node: ImpactGraphNode) -> String {
@@ -629,4 +729,11 @@ extension String {
     fileprivate var isTestPath: Bool {
         localizedCaseInsensitiveContains("test") || localizedCaseInsensitiveContains("spec")
     }
+}
+
+struct SourceCodeLine: Identifiable, Hashable {
+    let id = UUID()
+    let lineNumber: Int
+    let text: String
+    let isHighlighted: Bool
 }

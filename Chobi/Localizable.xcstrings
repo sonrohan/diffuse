@@ -20,26 +20,6 @@
     "#%lld" : {
 
     },
-    "%@ · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "%@ at %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ at %2$@"
-          }
-        }
-      }
-    },
     "%@:L%lld-L%lld" : {
       "localizations" : {
         "en" : {
@@ -63,6 +43,12 @@
     "%lld" : {
 
     },
+    "%lld callees" : {
+
+    },
+    "%lld callers" : {
+
+    },
     "%lld changed symbol%@ in %@, led by %@." : {
       "localizations" : {
         "en" : {
@@ -82,6 +68,9 @@
           }
         }
       }
+    },
+    "%lld files" : {
+
     },
     "%lld lines" : {
 
@@ -504,9 +493,6 @@
         }
       }
     },
-    "Back" : {
-
-    },
     "Base Ref" : {
 
     },
@@ -568,6 +554,9 @@
     "C%lld" : {
 
     },
+    "Call Site Context" : {
+
+    },
     "Cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -595,12 +584,6 @@
 
     },
     "Changed Files" : {
-
-    },
-    "Changed in PR" : {
-
-    },
-    "Changed root" : {
 
     },
     "Changed symbols were found, but no caller or callee relationships were detected." : {
@@ -740,18 +723,8 @@
     "Connect AI tools to Chobi through a local stdio Model Context Protocol process." : {
 
     },
-    "Connection to PR change: call site around L%lld" : {
+    "Connection: call site around L%lld" : {
 
-    },
-    "Connection: %@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Connection: %1$@ %2$@"
-          }
-        }
-      }
     },
     "Copy" : {
 
@@ -760,9 +733,6 @@
 
     },
     "Copy logs to clipboard" : {
-
-    },
-    "Current: %@" : {
 
     },
     "Debug" : {
@@ -844,10 +814,7 @@
     "First" : {
 
     },
-    "Focus" : {
-
-    },
-    "Focus Selected" : {
+    "Focus Graph on this node" : {
 
     },
     "Folder Path" : {
@@ -873,7 +840,7 @@
         }
       }
     },
-    "Forward" : {
+    "Fullscreen" : {
 
     },
     "General" : {
@@ -899,25 +866,19 @@
         }
       }
     },
-    "Graph" : {
+    "Go back in history" : {
 
     },
-    "Graph Focus" : {
+    "Go forward in history" : {
 
     },
-    "Impact detail" : {
-
-    },
-    "Impact Detail" : {
+    "Graph Explorer" : {
 
     },
     "Impact Explorer" : {
 
     },
     "Impact Summary" : {
-
-    },
-    "Impacted Code" : {
 
     },
     "L%lld-%lld" : {
@@ -981,6 +942,9 @@
           }
         }
       }
+    },
+    "Local file not readable" : {
+
     },
     "Lower-Signal Changes" : {
 
@@ -1099,7 +1063,7 @@
     "No workspaces registered" : {
 
     },
-    "None detected" : {
+    "Open in diff viewer" : {
 
     },
     "Open in Finder" : {
@@ -1134,15 +1098,6 @@
     "optional" : {
 
     },
-    "Origin" : {
-
-    },
-    "Origin: %@ changed in this PR" : {
-
-    },
-    "Outside PR" : {
-
-    },
     "Parses symbols and signatures locally using high-fidelity Tree-sitter AST parsers. No code is sent to external APIs." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1166,7 +1121,7 @@
         }
       }
     },
-    "Path: %@" : {
+    "PR" : {
 
     },
     "Previous" : {
@@ -1199,6 +1154,9 @@
 
     },
     "Read-only local context" : {
+
+    },
+    "Reading workspace file..." : {
 
     },
     "Reload" : {
@@ -1352,6 +1310,9 @@
       }
     },
     "Reset" : {
+
+    },
+    "Reset to PR Origin symbol" : {
 
     },
     "Review Debug" : {
@@ -1519,9 +1480,6 @@
         }
       }
     },
-    "Selected Symbol" : {
-
-    },
     "Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1546,6 +1504,18 @@
       }
     },
     "SETTINGS" : {
+
+    },
+    "Show All" : {
+
+    },
+    "Show Context" : {
+
+    },
+    "Source File Preview" : {
+
+    },
+    "Source Preview" : {
 
     },
     "Split" : {

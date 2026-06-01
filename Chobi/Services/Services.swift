@@ -622,16 +622,36 @@ actor ASTAnalysisService {
 
         func matches(for callee: String) -> [SymbolRef] {
             let normalized = normalizedLookupName(callee)
-            let isQualified = normalized.contains(".")
-            if isQualified {
-                return changedRefs.filter {
-                    normalizedLookupName($0.qualifiedName) == normalized
-                        || normalizedLookupName($0.qualifiedName).hasSuffix(".\(normalized)")
+
+            // 1. Try exact qualified match
+            let exactMatches = changedRefs.filter {
+                normalizedLookupName($0.qualifiedName) == normalized
+                    || normalizedLookupName($0.qualifiedName).hasSuffix(".\(normalized)")
+            }
+            if !exactMatches.isEmpty { return exactMatches }
+
+            // 2. Try prefix/instance variable matching
+            // If callee is "viewModel.addHabit" (normalized: "viewmodel.addhabit"),
+            // methodName is "addhabit" and prefix is "viewmodel".
+            let components = normalized.components(separatedBy: ".")
+            if components.count > 1 {
+                let methodName = components.last!
+                let prefix = components.dropLast().joined(separator: ".")
+
+                let candidates = refsByName[methodName] ?? []
+                let prefixMatches = candidates.filter { candidate in
+                    let qual = normalizedLookupName(candidate.qualifiedName)
+                    // Matches if "habitviewmodel" contains "viewmodel"
+                    return qual.contains(prefix)
                 }
+                if !prefixMatches.isEmpty { return prefixMatches }
+
+                // Fall back to all candidates with this method name
+                return candidates
             }
 
-            let candidates = refsByName[normalized] ?? []
-            return candidates.count == 1 ? candidates : []
+            // 3. Fall back to plain name match
+            return refsByName[normalized] ?? []
         }
 
         for relativePath in filesToScan {

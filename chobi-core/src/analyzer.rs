@@ -659,8 +659,8 @@ fn extract_callees(node: Node, source: &[u8], lang: SupportedLanguage) -> Vec<St
     let mut seen = std::collections::HashSet::new();
     callees.retain(|c| seen.insert(c.clone()));
 
-    // Cap at 20 callees to keep JSON compact
-    callees.truncate(20);
+    // Cap at 200 callees to keep JSON compact
+    callees.truncate(200);
     callees
 }
 

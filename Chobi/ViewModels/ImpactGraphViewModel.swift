@@ -214,7 +214,6 @@ class ImpactGraphViewModel {
                     filePath: path,
                     summary: makeSummary(symbol: symbol, filePath: path),
                     reason: makeReason(symbol: symbol, filePath: path),
-                    affectedDomains: affectedDomains(symbol: symbol, filePath: path),
                     topAffectedSymbols: topAffectedSymbols(symbol: symbol)
                 )
             }
@@ -584,10 +583,6 @@ class ImpactGraphViewModel {
     }
 
     private func makeReason(symbol: ChangedSymbol, filePath: String) -> String? {
-        let domains = affectedDomains(symbol: symbol, filePath: filePath)
-        if domains.count >= 2 {
-            return "Used by \(domains.prefix(2).joined(separator: " and ")) paths."
-        }
         if filePath.isTestPath && !symbol.callees.isEmpty {
             return
                 "Test behavior changes while exercising \(symbol.callees.prefix(2).joined(separator: ", "))."
@@ -603,42 +598,7 @@ class ImpactGraphViewModel {
         if symbol.callers.contains(where: { $0.isTestPath }) && symbol.callers.count > 1 {
             return "Production change has direct test references and runtime callers."
         }
-        if symbol.callers.isEmpty && symbol.callees.isEmpty {
-            return nil
-        }
-        if let domain = domains.first {
-            return "\(domain.capitalized) path affected by this changed symbol."
-        }
         return nil
-    }
-
-    private func affectedDomains(symbol: ChangedSymbol, filePath: String) -> [String] {
-        let rows = [filePath] + symbol.callers + symbol.callees
-        var domains: [String] = []
-        func append(_ value: String) {
-            if !domains.contains(value) { domains.append(value) }
-        }
-        for row in rows {
-            let lower = row.lowercased()
-            if lower.contains("view") || lower.contains("screen") || lower.contains("ui") {
-                append("UI")
-            }
-            if lower.contains("model") || lower.contains("entity") || lower.contains("schema") {
-                append("data model")
-            }
-            if lower.contains("store") || lower.contains("repository") || lower.contains("database")
-            {
-                append("persistence")
-            }
-            if lower.contains("api") || lower.contains("client") || lower.contains("controller") {
-                append("API")
-            }
-            if lower.contains("analytics") || lower.contains("report") || lower.contains("snapshot")
-            {
-                append("analytics")
-            }
-        }
-        return domains
     }
 
     private func topAffectedSymbols(symbol: ChangedSymbol) -> [String] {

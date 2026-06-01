@@ -1217,11 +1217,6 @@ struct DiffContent: View {
 
                     Divider()
 
-                    ReviewImpactSummary(impactViewModel: impactViewModel)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.bgCanvas)
-
                     if !fileImpacts.isEmpty {
                         FileImpactSummary(file: file, impacts: fileImpacts)
                             .padding(.horizontal, 14)
@@ -1273,62 +1268,6 @@ struct DiffContent: View {
             }
         }
         .background(Color.bgCanvas)
-    }
-}
-
-struct ReviewImpactSummary: View {
-    let impactViewModel: ImpactGraphViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 6) {
-                Image(systemName: "target")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.brandAccent)
-                Text("Review Next")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Spacer()
-                Text(summaryLine)
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-            }
-
-            if impactViewModel.impacts.isEmpty {
-                Text("No symbol-level impact data is available for this review.")
-                    .font(.system(size: 12))
-                    .foregroundColor(.textSecondary)
-            } else {
-                HStack(spacing: 10) {
-                    ImpactStat(text: "\(impactViewModel.highImpactCount) high impact")
-                    ImpactStat(text: "\(impactViewModel.totalImpactedReferenceCount) references")
-                    ImpactStat(text: "\(impactViewModel.impactedFileCount) files")
-                    ImpactStat(text: "\(impactViewModel.symbolsWithoutTestsCount) without tests")
-                    Spacer()
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(impactViewModel.topImpacts.enumerated()), id: \.element.id) {
-                        index, impact in
-                        Text(
-                            "\(index + 1). \(impact.symbol.name) - \(impact.summary.directCallerCount) callers"
-                        )
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(1)
-                    }
-                }
-            }
-        }
-        .padding(10)
-        .background(Color(NSColor.controlColor).opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
-    }
-
-    private var summaryLine: String {
-        let count = impactViewModel.impacts.count
-        return "\(count) changed symbol\(count == 1 ? "" : "s")"
     }
 }
 

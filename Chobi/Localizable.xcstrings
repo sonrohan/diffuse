@@ -88,16 +88,6 @@
     "%lld total" : {
 
     },
-    "%lld. %@ - %lld callers" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld. %2$@ - %3$lld callers"
-          }
-        }
-      }
-    },
     "%lld/%lld" : {
       "localizations" : {
         "en" : {
@@ -279,6 +269,9 @@
           }
         }
       }
+    },
+    "All Files" : {
+
     },
     "All Levels" : {
 
@@ -741,6 +734,9 @@
     "DEBUG" : {
 
     },
+    "Default Code Impact Filter" : {
+
+    },
     "Direction" : {
 
     },
@@ -803,6 +799,9 @@
 
     },
     "Filter changed files" : {
+
+    },
+    "Filter files by AST impact level" : {
 
     },
     "Filter files..." : {
@@ -873,6 +872,15 @@
 
     },
     "Graph Explorer" : {
+
+    },
+    "High" : {
+
+    },
+    "High Impact Only" : {
+
+    },
+    "High Only" : {
 
     },
     "Impact Explorer" : {
@@ -978,6 +986,15 @@
     "MCP" : {
 
     },
+    "Med+" : {
+
+    },
+    "Medium & High" : {
+
+    },
+    "Medium & High Impact" : {
+
+    },
     "Most affected: %@" : {
 
     },
@@ -1055,9 +1072,6 @@
 
     },
     "No source files in this view." : {
-
-    },
-    "No symbol-level impact data is available for this review." : {
 
     },
     "No workspaces registered" : {
@@ -1324,9 +1338,6 @@
     "Review Map" : {
 
     },
-    "Review Next" : {
-
-    },
     "Review the full branch diff" : {
 
     },
@@ -1477,6 +1488,9 @@
         }
       }
     },
+    "Set the default risk impact filter for files in the changed files list." : {
+
+    },
     "Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1504,6 +1518,9 @@
 
     },
     "Show All" : {
+
+    },
+    "Show All Files" : {
 
     },
     "Show Context" : {

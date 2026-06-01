@@ -5,7 +5,6 @@ import SwiftUI
 @MainActor
 class AnalysisViewModel {
     // View-specific navigation & selection states
-    var selectedBucketId: String? = nil
     var isLowerSignalViewSelected: Bool = false
     var isNeedsAttentionViewSelected: Bool = false
     var activeFileId: UUID? = nil
@@ -31,11 +30,6 @@ class AnalysisViewModel {
         state.analysisDetails
     }
 
-    var selectedBucket: ChangeBucket? {
-        guard let selectedBucketId, let details = state.analysisDetails else { return nil }
-        return details.changeBuckets.first { $0.id == selectedBucketId }
-    }
-
     var bucketFiles: [ChangedFile] {
         guard let details = state.analysisDetails else { return [] }
         if isNeedsAttentionViewSelected {
@@ -46,8 +40,7 @@ class AnalysisViewModel {
             let skimPaths = Set(details.skimTargets.map(\.filePath))
             return details.files.filter { skimPaths.contains($0.path) }
         }
-        guard let bucket = selectedBucket else { return details.files }
-        return details.files.filter { bucket.files.contains($0.path) }
+        return details.files
     }
 
     var bucketHighlights: [RiskHighlight] {
@@ -57,16 +50,14 @@ class AnalysisViewModel {
             return details.riskHighlights.filter { targetPaths.contains($0.filePath) }
         }
         if isLowerSignalViewSelected { return [] }
-        guard let bucket = selectedBucket else { return details.riskHighlights }
-        return details.riskHighlights.filter { $0.bucketId == bucket.id }
+        return details.riskHighlights
     }
 
     var bucketTargets: [ReviewTarget] {
         guard let details = state.analysisDetails else { return [] }
         if isNeedsAttentionViewSelected { return details.reviewTargets }
         if isLowerSignalViewSelected { return [] }
-        guard let bucket = selectedBucket else { return details.reviewTargets }
-        return details.reviewTargets.filter { bucket.files.contains($0.filePath) }
+        return details.reviewTargets
     }
 
     var activeTarget: ReviewTarget? {
@@ -83,9 +74,6 @@ class AnalysisViewModel {
     }
 
     func resetSelection(details: AnalysisDetails) {
-        if let id = selectedBucketId, !details.changeBuckets.contains(where: { $0.id == id }) {
-            selectedBucketId = nil
-        }
         if isLowerSignalViewSelected, details.skimTargets.isEmpty {
             isLowerSignalViewSelected = false
         }
@@ -103,7 +91,6 @@ class AnalysisViewModel {
     }
 
     func selectAllChanges() {
-        selectedBucketId = nil
         isLowerSignalViewSelected = false
         isNeedsAttentionViewSelected = false
         guard let details = state.analysisDetails else { return }
@@ -114,7 +101,6 @@ class AnalysisViewModel {
     }
 
     func selectNeedsAttentionChanges() {
-        selectedBucketId = nil
         isLowerSignalViewSelected = false
         isNeedsAttentionViewSelected = true
         guard let details = state.analysisDetails else { return }
@@ -126,22 +112,7 @@ class AnalysisViewModel {
         activeTargetId = nil
     }
 
-    func selectBucket(_ id: String) {
-        selectedBucketId = id
-        isLowerSignalViewSelected = false
-        isNeedsAttentionViewSelected = false
-        guard let details = state.analysisDetails else { return }
-        let bucket = details.changeBuckets.first { $0.id == id }
-        let files =
-            bucket.map { b in details.files.filter { b.files.contains($0.path) } } ?? details.files
-        let ordered = reorderFiles(files, highlights: details.riskHighlights)
-        activeFileId = ordered.first?.id
-        activeHunkIndex = nil
-        activeTargetId = nil
-    }
-
     func selectLowerSignalChanges() {
-        selectedBucketId = nil
         isLowerSignalViewSelected = true
         isNeedsAttentionViewSelected = false
         guard let details = state.analysisDetails else { return }
@@ -173,7 +144,6 @@ class AnalysisViewModel {
     }
 
     func jumpToImpactRoot(_ impact: SymbolImpact) {
-        selectedBucketId = nil
         isLowerSignalViewSelected = false
         isNeedsAttentionViewSelected = false
         activeFileId = impact.symbol.changedFileId
@@ -185,11 +155,8 @@ class AnalysisViewModel {
 
     func jumpToHighlight(_ highlight: RiskHighlight) {
         guard let details = state.analysisDetails else { return }
-        if let bucket = details.changeBuckets.first(where: { $0.id == highlight.bucketId }) {
-            selectedBucketId = bucket.id
-            isLowerSignalViewSelected = false
-            isNeedsAttentionViewSelected = false
-        }
+        isLowerSignalViewSelected = false
+        isNeedsAttentionViewSelected = false
         if let file = details.files.first(where: { $0.path == highlight.filePath }) {
             let hunkIdx = hunkIndexForLine(file: file, lineStart: highlight.lineStart)
             jumpToFile(file.id, hunkIndex: hunkIdx)
@@ -339,7 +306,7 @@ class AnalysisViewModel {
     var selectedReviewScopeTitle: String {
         if isNeedsAttentionViewSelected { return "Needs attention" }
         if isLowerSignalViewSelected { return "Low-signal / skim" }
-        return selectedBucket?.title ?? "All changes"
+        return "All changes"
     }
 
     var selectedReviewScopeSubtitle: String {
@@ -355,9 +322,6 @@ class AnalysisViewModel {
         }
         if isLowerSignalViewSelected {
             return "Configuration, documentation, generated, and boilerplate files."
-        }
-        if let selectedBucket {
-            return selectedBucket.summary
         }
         return "Unfiltered branch and working tree changes."
     }

@@ -901,7 +901,6 @@ struct DiffContent: View {
     let activeHunkIndex: Int?
     let activeTarget: ReviewTarget?
     let onOpenImpact: (SymbolImpact) -> Void
-    @State private var teachMessage: String?
 
     var fileImpacts: [SymbolImpact] {
         impactViewModel.visibleImpacts(for: file)
@@ -928,34 +927,6 @@ struct DiffContent: View {
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(.textPrimary)
                         Spacer()
-                        if let teachMessage {
-                            Text(teachMessage)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(.success)
-                        }
-                        Menu {
-                            Button("Treat this file as generated") {
-                                teachClassification(.generated)
-                            }
-                            Button("Treat this file as test code") {
-                                teachClassification(.test)
-                            }
-                            Button("Treat this file as config") {
-                                teachClassification(.config)
-                            }
-                            Divider()
-                            Button("Mark this path as API surface") {
-                                teachRiskPath(.api)
-                            }
-                            Button("Mark this path as sensitive") {
-                                teachRiskPath(.sensitive)
-                            }
-                        } label: {
-                            Image(systemName: "wand.and.stars")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .menuStyle(.borderlessButton)
-                        .help("Teach Chobi how to classify this path")
                         Text("+\(file.additions)")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.success)
@@ -1026,30 +997,6 @@ struct DiffContent: View {
             }
         }
         .background(Color.bgCanvas)
-    }
-
-    private func teachClassification(_ classification: ChangedFile.FileClassification) {
-        guard let repoPath = state.selectedRepo?.path else { return }
-        do {
-            try AnalysisProfileStore.teachFileClassification(
-                repoPath: repoPath,
-                path: file.path,
-                classification: classification
-            )
-            teachMessage = "Saved profile rule"
-        } catch {
-            teachMessage = "Could not save rule"
-        }
-    }
-
-    private func teachRiskPath(_ kind: EditableRiskPathKind) {
-        guard let repoPath = state.selectedRepo?.path else { return }
-        do {
-            try AnalysisProfileStore.teachRiskPath(repoPath: repoPath, path: file.path, kind: kind)
-            teachMessage = "Saved profile rule"
-        } catch {
-            teachMessage = "Could not save rule"
-        }
     }
 }
 

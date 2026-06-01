@@ -30,16 +30,6 @@
         }
       }
     },
-    "%@ · %@ · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ · %2$@ · %3$@"
-          }
-        }
-      }
-    },
     "%@ across %lld %@" : {
       "localizations" : {
         "en" : {
@@ -83,16 +73,6 @@
     "%lld" : {
 
     },
-    "%lld area%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld area%2$@"
-          }
-        }
-      }
-    },
     "%lld changed symbol%@ in %@, led by %@." : {
       "localizations" : {
         "en" : {
@@ -128,9 +108,6 @@
           }
         }
       }
-    },
-    "%lld signals" : {
-
     },
     "%lld total" : {
 
@@ -333,12 +310,6 @@
     "All Levels" : {
 
     },
-    "Analysis Profile" : {
-
-    },
-    "Analysis Profile Studio" : {
-
-    },
     "Analyze" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -503,9 +474,6 @@
         }
       }
     },
-    "Areas" : {
-
-    },
     "AST Analysis Engine" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -610,9 +578,6 @@
         }
       }
     },
-    "Bucket files with this symbol" : {
-
-    },
     "by %@" : {
 
     },
@@ -642,9 +607,6 @@
         }
       }
     },
-    "Category" : {
-
-    },
     "Change diff layout" : {
 
     },
@@ -663,19 +625,7 @@
     "Chobi exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
 
     },
-    "Chobi will copy %@ into a flat .chobi.json." : {
-
-    },
-    "Chobi will use this repo's configured rules and groupings." : {
-
-    },
-    "Choose" : {
-
-    },
     "Choose a local Git repository to analyze." : {
-
-    },
-    "Choose a preset to copy into this workspace profile" : {
 
     },
     "Choose a setup recipe" : {
@@ -705,9 +655,6 @@
       }
     },
     "Choose your preferred aesthetic style for Chobi." : {
-
-    },
-    "Choosing a preset copies its rules into .chobi.json at creation time. After that, the profile is explicit and self-contained." : {
 
     },
     "Clear" : {
@@ -837,12 +784,6 @@
     "Copy logs to clipboard" : {
 
     },
-    "Create" : {
-
-    },
-    "Create .chobi.json before first analysis" : {
-
-    },
     "Current: %@" : {
 
     },
@@ -850,9 +791,6 @@
 
     },
     "DEBUG" : {
-
-    },
-    "Detected" : {
 
     },
     "Direction" : {
@@ -881,9 +819,6 @@
         }
       }
     },
-    "Edit active analysis profile" : {
-
-    },
     "Enable Live Auto-Analysis" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -907,9 +842,6 @@
         }
       }
     },
-    "Every changed file in this PR." : {
-
-    },
     "Expand all context to previous hunk" : {
 
     },
@@ -917,9 +849,6 @@
 
     },
     "Expand context up (20 lines)" : {
-
-    },
-    "Fallback" : {
 
     },
     "File filters" : {
@@ -995,34 +924,13 @@
         }
       }
     },
-    "Generated from a preset, then edited as one file" : {
-
-    },
-    "Global Folder" : {
-
-    },
     "Graph" : {
 
     },
     "Graph Focus" : {
 
     },
-    "Group symbols like this" : {
-
-    },
     "Hide review navigation" : {
-
-    },
-    "Icon" : {
-
-    },
-    "id" : {
-
-    },
-    "Ideal for personal configurations that shouldn't be committed." : {
-
-    },
-    "Ideal for sharing configuration with the rest of the team." : {
 
     },
     "Impact detail" : {
@@ -1049,9 +957,6 @@
           }
         }
       }
-    },
-    "Label" : {
-
     },
     "Latest" : {
 
@@ -1137,19 +1042,7 @@
         }
       }
     },
-    "Mark this path as API surface" : {
-
-    },
-    "Mark this path as sensitive" : {
-
-    },
     "MCP" : {
-
-    },
-    "Message" : {
-
-    },
-    "Minimum added source lines: %lld" : {
 
     },
     "Most affected: %@" : {
@@ -1183,9 +1076,6 @@
           }
         }
       }
-    },
-    "No change buckets available." : {
-
     },
     "No console logs match filters" : {
 
@@ -1228,10 +1118,10 @@
         }
       }
     },
-    "No priority signals detected by configured rules for this view." : {
+    "No priority signals detected for this view." : {
 
     },
-    "No priority signals detected by configured rules." : {
+    "No priority signals detected." : {
 
     },
     "No source files in this view." : {
@@ -1313,9 +1203,6 @@
     "Path: %@" : {
 
     },
-    "Preset to copy" : {
-
-    },
     "Previous" : {
 
     },
@@ -1343,12 +1230,6 @@
       }
     },
     "Privacy" : {
-
-    },
-    "Profile" : {
-
-    },
-    "PROFILE" : {
 
     },
     "Read-only local context" : {
@@ -1478,9 +1359,6 @@
         }
       }
     },
-    "Repo-defined" : {
-
-    },
     "Repository" : {
 
     },
@@ -1576,24 +1454,6 @@
           }
         }
       }
-    },
-    "Save Changes" : {
-
-    },
-    "Save Location" : {
-
-    },
-    "Saved" : {
-
-    },
-    "Saving" : {
-
-    },
-    "Saving globally to ~/.chobi/repos/..." : {
-
-    },
-    "Saving to repository root (.chobi.json)" : {
-
     },
     "Search queue" : {
 
@@ -1702,12 +1562,6 @@
     "Selected Symbol" : {
 
     },
-    "Semantic area" : {
-
-    },
-    "Semantic Views" : {
-
-    },
     "Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1732,9 +1586,6 @@
       }
     },
     "SETTINGS" : {
-
-    },
-    "Severity" : {
 
     },
     "Show review navigation" : {
@@ -1766,16 +1617,7 @@
         }
       }
     },
-    "Symbol matches" : {
-
-    },
     "Tag" : {
-
-    },
-    "Teach" : {
-
-    },
-    "Teach Chobi how to classify this path" : {
 
     },
     "Theme Selection" : {
@@ -1876,19 +1718,7 @@
     "This will remove the workspace from Chobi. Your local Git repository and files will remain intact." : {
 
     },
-    "Title" : {
-
-    },
     "TOTAL ANALYSIS TIME" : {
-
-    },
-    "Treat this file as config" : {
-
-    },
-    "Treat this file as generated" : {
-
-    },
-    "Treat this file as test code" : {
 
     },
     "Trigger an analysis reload or select another commit to populate timings." : {
@@ -1939,9 +1769,6 @@
           }
         }
       }
-    },
-    "Type" : {
-
     },
     "Unfiltered" : {
 
@@ -1997,12 +1824,6 @@
     "View graph" : {
 
     },
-    "Warn when source changes do not include matching tests" : {
-
-    },
-    "Warn when this changes" : {
-
-    },
     "Welcome to chobi" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2027,9 +1848,6 @@
       }
     },
     "Welcome to Chobi" : {
-
-    },
-    "Wizard" : {
 
     },
     "Workspace Alias" : {

@@ -6,7 +6,6 @@ struct AnalysisNavigationRail: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
     @Bindable var impactViewModel: ImpactGraphViewModel
-    @State private var areAreasExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -25,13 +24,12 @@ struct AnalysisNavigationRail: View {
                 title: "Scope",
                 count: nil,
                 help:
-                    "Choose which files feed the review queue. Areas are filters, not separate review streams."
+                    "Choose which files feed the review queue."
             )
 
             AllChangesNavRow(
                 fileCount: details.files.count,
-                isSelected: viewModel.selectedBucketId == nil
-                    && !viewModel.isLowerSignalViewSelected
+                isSelected: !viewModel.isLowerSignalViewSelected
                     && !viewModel.isNeedsAttentionViewSelected
             ) {
                 viewModel.selectAllChanges()
@@ -55,11 +53,6 @@ struct AnalysisNavigationRail: View {
                     viewModel.selectLowerSignalChanges()
                 }
             }
-
-            AreaFilterSection(
-                details: details,
-                isExpanded: $areAreasExpanded
-            )
         }
     }
 }
@@ -568,129 +561,6 @@ struct SignalNavRow: View {
     }
 }
 
-struct AreaNavRow: View {
-    let bucket: ChangeBucket
-    let targetCount: Int
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 9) {
-                Image(systemName: bucket.type.icon)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? .brandAccent : .textSecondary)
-                    .frame(width: 18, height: 18)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(bucket.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(2)
-
-                    Text(areaMetadata)
-                        .font(.system(size: 10))
-                        .foregroundColor(.textTertiary)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 7)
-            .contentShape(Rectangle())
-            .background(rowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(
-                RoundedRectangle(cornerRadius: 7).stroke(
-                    isSelected ? Color.brandAccent.opacity(0.55) : Color.clear, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-    }
-
-    private var rowBackground: Color {
-        if isSelected { return Color.brandAccent.opacity(0.10) }
-        if isHovered { return Color(NSColor.controlColor).opacity(0.55) }
-        return Color.clear
-    }
-
-    private var areaMetadata: String {
-        let files = bucket.files.count == 1 ? "1 file" : "\(bucket.files.count) files"
-        guard targetCount > 0 else { return files }
-        let targets = targetCount == 1 ? "1 target" : "\(targetCount) targets"
-        return "\(files) · \(targets)"
-    }
-}
-
-struct AreaFilterSection: View {
-    @Environment(AnalysisViewModel.self) private var viewModel
-    let details: AnalysisDetails
-    @Binding var isExpanded: Bool
-
-    private var selectedBucket: ChangeBucket? {
-        guard let selectedBucketId = viewModel.selectedBucketId else { return nil }
-        return details.changeBuckets.first { $0.id == selectedBucketId }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                isExpanded.toggle()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.textTertiary)
-                        .frame(width: 12)
-                    Text("Areas")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.textTertiary)
-                        .textCase(.uppercase)
-                    Spacer()
-                    Text("\(details.changeBuckets.count)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.textTertiary)
-                }
-                .padding(.horizontal, 2)
-                .padding(.top, 2)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if details.changeBuckets.isEmpty {
-                RailEmptyRow(icon: "tray", text: "No grouped areas")
-            } else if isExpanded {
-                VStack(spacing: 2) {
-                    ForEach(details.changeBuckets) { bucket in
-                        AreaNavRow(
-                            bucket: bucket,
-                            targetCount: details.reviewTargets.filter {
-                                bucket.files.contains($0.filePath)
-                            }.count,
-                            isSelected: viewModel.selectedBucketId == bucket.id
-                        ) {
-                            viewModel.selectBucket(bucket.id)
-                        }
-                    }
-                }
-            } else if let selectedBucket {
-                AreaNavRow(
-                    bucket: selectedBucket,
-                    targetCount: details.reviewTargets.filter {
-                        selectedBucket.files.contains($0.filePath)
-                    }.count,
-                    isSelected: true
-                ) {
-                    isExpanded = true
-                }
-            } else {
-                RailMoreRow(text: "Collapsed. Expand to filter the review queue by area.")
-            }
-        }
-    }
-}
-
 struct TargetNavRow: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let target: ReviewTarget
@@ -820,7 +690,7 @@ struct ReviewMapPanel: View {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.success)
-                        Text("No priority signals detected by configured rules.")
+                        Text("No priority signals detected.")
                             .font(.system(size: 12))
                             .foregroundColor(.textSecondary)
                     }
@@ -889,206 +759,6 @@ struct SignalCard: View {
     }
 }
 
-// MARK: - Semantic Buckets Panel (Change Buckets)
-
-struct SemanticBucketsPanel: View {
-    @Environment(AnalysisViewModel.self) private var viewModel
-    let details: AnalysisDetails
-
-    var body: some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "folder.badge.gearshape")
-                        .font(.system(size: 13))
-                        .foregroundColor(.brandAccent)
-                    Text("Semantic Views")
-                        .font(.system(size: 13, weight: .semibold))
-                    Spacer()
-                    Text(
-                        "\(details.changeBuckets.count) area\(details.changeBuckets.count == 1 ? "" : "s")"
-                    )
-                    .font(.system(size: 11))
-                    .foregroundColor(.textTertiary)
-                }
-
-                VStack(spacing: 6) {
-                    AllChangesCard(
-                        fileCount: details.files.count,
-                        signalCount: details.riskHighlights.filter { $0.severity >= .medium }.count,
-                        isSelected: viewModel.selectedBucketId == nil
-                            && !viewModel.isLowerSignalViewSelected
-                            && !viewModel.isNeedsAttentionViewSelected
-                    ) {
-                        viewModel.selectAllChanges()
-                    }
-
-                    ForEach(details.changeBuckets) { bucket in
-                        BucketCard(
-                            bucket: bucket,
-                            highlights: details.riskHighlights.filter { $0.bucketId == bucket.id },
-                            isSelected: viewModel.selectedBucketId == bucket.id
-                        ) {
-                            viewModel.selectBucket(bucket.id)
-                        }
-                    }
-                }
-
-                if details.changeBuckets.isEmpty {
-                    Text("No change buckets available.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.textTertiary)
-                        .padding(12)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(NSColor.controlColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            .padding(12)
-        }
-    }
-}
-
-struct AllChangesCard: View {
-    let fileCount: Int
-    let signalCount: Int
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
-                    Label("All Changes", systemImage: "rectangle.stack")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Spacer()
-                    Text("Unfiltered")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.brandAccent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.brandAccent.opacity(0.10))
-                        .clipShape(Capsule())
-                }
-
-                Text("Every changed file in this PR.")
-                    .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(1)
-
-                HStack(spacing: 12) {
-                    Label("\(fileCount) files", systemImage: "doc.text")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                    Label("\(signalCount) signals", systemImage: "exclamationmark.shield")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .contentShape(Rectangle())
-            .background(
-                isSelected
-                    ? Color.brandAccent.opacity(0.08)
-                    : (isHovered
-                        ? Color(NSColor.controlColor).opacity(0.8)
-                        : Color(NSColor.controlColor).opacity(0.4))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isSelected ? Color.brandAccent.opacity(0.6) : Color.borderMuted,
-                        lineWidth: isSelected ? 1 : 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
-    }
-}
-
-struct BucketCard: View {
-    let bucket: ChangeBucket
-    let highlights: [RiskHighlight]
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var primarySignal: RiskHighlight? { highlights.first }
-    var prioritySignalCount: Int { highlights.filter { $0.severity >= .medium }.count }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
-                    BadgeView(
-                        text: bucket.riskLevel.displayName, variant: bucket.riskLevel.badgeColor)
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Image(systemName: bucket.type.icon)
-                            .font(.system(size: 10))
-                            .foregroundColor(.textTertiary)
-                        Text("#\(bucket.reviewOrder)")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.textTertiary)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(bucket.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Text(bucket.summary)
-                        .font(.system(size: 11))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(2)
-                }
-
-                HStack(spacing: 12) {
-                    Label("\(bucket.files.count) files", systemImage: "doc.text")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                    Label("\(prioritySignalCount) signals", systemImage: "exclamationmark.shield")
-                        .font(.system(size: 11))
-                        .foregroundColor(.textTertiary)
-                }
-
-                if let signal = primarySignal {
-                    Divider()
-                    Text(signal.title)
-                        .font(.system(size: 11))
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .contentShape(Rectangle())
-            .background(
-                isSelected
-                    ? Color.brandAccent.opacity(0.08)
-                    : (isHovered
-                        ? Color(NSColor.controlColor).opacity(0.8)
-                        : Color(NSColor.controlColor).opacity(0.4))
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isSelected ? Color.brandAccent.opacity(0.6) : Color.borderMuted,
-                        lineWidth: isSelected ? 1 : 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
-    }
-}
-
 // MARK: - Review Targets Panel
 
 struct ReviewTargetsPanel: View {
@@ -1108,7 +778,7 @@ struct ReviewTargetsPanel: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("No high-priority targets")
                                 .font(.system(size: 12, weight: .medium))
-                            Text("No priority signals detected by configured rules for this view.")
+                            Text("No priority signals detected for this view.")
                                 .font(.system(size: 11))
                                 .foregroundColor(.textSecondary)
                         }
@@ -1377,16 +1047,6 @@ struct ReviewDebugSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: ReviewDebugTab = .ast
 
-    private var profile: AnalysisProfile {
-        AnalysisProfileStore.load(repoPath: repo.path)
-    }
-
-    private var profileSource: String {
-        AnalysisProfileStore.hasRepoProfile(repoPath: repo.path)
-            ? "Repo-defined .chobi.json"
-            : "Built-in \(AnalysisProfileStore.detectBuiltInProfileId(repoPath: repo.path))"
-    }
-
     private var symbolsByPath: [(path: String, symbols: [ChangedSymbol])] {
         let filesById = Dictionary(uniqueKeysWithValues: details.files.map { ($0.id, $0.path) })
         return Dictionary(
@@ -1453,7 +1113,7 @@ struct ReviewDebugSheet: View {
                 Text("Review Debug")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.textPrimary)
-                Text("\(repo.name) · \(profile.displayName) · \(profileSource)")
+                Text(repo.name)
                     .font(.system(size: 11))
                     .foregroundColor(.textSecondary)
                     .lineLimit(1)
@@ -1482,8 +1142,6 @@ struct ReviewDebugSheet: View {
                         switch selectedTab {
                         case .ast:
                             astBreakdown
-                        case .mapping:
-                            mappingBreakdown
                         case .performance:
                             performanceBreakdown
                         case .logs:
@@ -1523,32 +1181,6 @@ struct ReviewDebugSheet: View {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    private var mappingBreakdown: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DebugSection(title: "Profile", meta: profile.id) {
-                VStack(alignment: .leading, spacing: 6) {
-                    DebugKeyValueRow(label: "Display name", value: profile.displayName)
-                    DebugKeyValueRow(label: "Source", value: profileSource)
-                    DebugKeyValueRow(
-                        label: "File rules", value: "\(profile.fileClassifications.count)")
-                    DebugKeyValueRow(label: "Bucket rules", value: "\(profile.buckets.count)")
-                    DebugKeyValueRow(label: "Symbol groups", value: "\(profile.symbolGroups.count)")
-                    DebugKeyValueRow(
-                        label: "Semantic highlights", value: "\(profile.semanticHighlights.count)")
-                    DebugKeyValueRow(
-                        label: "AST findings",
-                        value:
-                            "\(profile.rules.semanticAreaFindings.count + profile.rules.contractFindings.count)"
-                    )
-                }
-            }
-
-            ForEach(details.files.sorted { $0.path < $1.path }) { file in
-                DebugFileMappingCard(file: file, details: details, profile: profile)
             }
         }
     }
@@ -1657,7 +1289,6 @@ struct ReviewDebugSheet: View {
 
 private enum ReviewDebugTab: String, CaseIterable, Identifiable {
     case ast
-    case mapping
     case performance
     case logs
 
@@ -1666,7 +1297,6 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .ast: "Raw AST"
-        case .mapping: "Profile Mapping"
         case .performance: "Performance"
         case .logs: "Logs Console"
         }
@@ -1675,7 +1305,6 @@ private enum ReviewDebugTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .ast: "point.3.connected.trianglepath.dotted"
-        case .mapping: "person.text.rectangle"
         case .performance: "timer"
         case .logs: "terminal"
         }
@@ -1811,7 +1440,7 @@ private struct DebugSymbolCard: View {
 
             HStack(spacing: 12) {
                 DebugInlineValue(label: "semantic_type", value: symbol.semanticType)
-                DebugInlineValue(label: "area", value: symbol.metadata["semantic_area"] ?? "none")
+                DebugInlineValue(label: "domain", value: symbol.metadata["semantic_area"] ?? "none")
                 DebugInlineValue(label: "language", value: symbol.metadata["language"] ?? "unknown")
             }
 
@@ -1842,162 +1471,6 @@ private struct DebugSymbolCard: View {
         .padding(10)
         .background(Color(NSColor.controlColor).opacity(0.45))
         .clipShape(RoundedRectangle(cornerRadius: 7))
-    }
-}
-
-private struct DebugFileMappingCard: View {
-    let file: ChangedFile
-    let details: AnalysisDetails
-    let profile: AnalysisProfile
-
-    private var symbols: [ChangedSymbol] {
-        details.symbols
-            .filter { $0.changedFileId == file.id }
-            .sorted { lhs, rhs in
-                if lhs.startLine != rhs.startLine { return lhs.startLine < rhs.startLine }
-                return lhs.name < rhs.name
-            }
-    }
-
-    private var findings: [Finding] {
-        details.findings.filter { $0.changedFileId == file.id }
-    }
-
-    private var bucketRule: BucketRule? {
-        profile.bucketRule(for: file, findings: findings, symbols: symbols)
-    }
-
-    var body: some View {
-        DebugSection(
-            title: file.path, meta: "\(symbols.count) AST symbol\(symbols.count == 1 ? "" : "s")"
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                DebugKeyValueRow(
-                    label: "File classification",
-                    value: "\(file.classification.rawValue) via \(classificationRuleLabel)")
-                DebugKeyValueRow(
-                    label: "Bucket rule",
-                    value: bucketRule.map { "\($0.id) → \($0.title)" } ?? "No matching bucket rule")
-                DebugKeyValueRow(
-                    label: "Findings",
-                    value: findings.isEmpty
-                        ? "none"
-                        : findings.map { "\($0.ruleSource) (\($0.severity.rawValue))" }.joined(
-                            separator: ", "))
-
-                if symbols.isEmpty {
-                    DebugEmptyState(
-                        text: "No AST symbols for this file; profile mapping is file-only.")
-                } else {
-                    VStack(spacing: 7) {
-                        ForEach(symbols) { symbol in
-                            DebugSymbolMappingRow(symbol: symbol, file: file, profile: profile)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var classificationRuleLabel: String {
-        profile.fileClassifications.first { $0.matches(path: file.path) }
-            .map { "\($0.classification) path rule" } ?? "default source"
-    }
-}
-
-private struct DebugSymbolMappingRow: View {
-    let symbol: ChangedSymbol
-    let file: ChangedFile
-    let profile: AnalysisProfile
-
-    private var groupMatches: [String] {
-        profile.symbolGroups
-            .filter { $0.matches(symbol) }
-            .map(\.id)
-    }
-
-    private var highlightMatches: [String] {
-        profile.semanticHighlights
-            .filter { $0.debugMatches(symbol: symbol, path: file.path) }
-            .map(\.id)
-    }
-
-    private var semanticFindingMatches: [String] {
-        profile.rules.semanticAreaFindings
-            .filter { $0.debugMatches(symbol: symbol, path: file.path) }
-            .map(\.id)
-    }
-
-    private var contractFindingMatches: [String] {
-        profile.rules.contractFindings
-            .filter { rule in
-                rule.metadataEquals.allSatisfy { symbol.metadata[$0.key] == $0.value }
-            }
-            .map(\.id)
-    }
-
-    private var bucketMatches: [String] {
-        profile.buckets
-            .filter { $0.matches(file: file, findings: [], symbols: [symbol]) }
-            .map(\.id)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(symbol.name)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                Text(symbol.semanticType)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-                Spacer()
-                Text("L\(symbol.startLine)-\(symbol.endLine)")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading,
-                spacing: 6
-            ) {
-                DebugInlineValue(label: "symbol groups", value: debugList(groupMatches))
-                DebugInlineValue(label: "bucket rules", value: debugList(bucketMatches))
-                DebugInlineValue(label: "semantic highlights", value: debugList(highlightMatches))
-                DebugInlineValue(
-                    label: "semantic findings", value: debugList(semanticFindingMatches))
-                DebugInlineValue(
-                    label: "contract findings", value: debugList(contractFindingMatches))
-            }
-        }
-        .padding(9)
-        .background(Color(NSColor.controlColor).opacity(0.45))
-        .clipShape(RoundedRectangle(cornerRadius: 7))
-    }
-
-    private func debugList(_ values: [String]) -> String {
-        values.isEmpty ? "none" : values.joined(separator: ", ")
-    }
-}
-
-private struct DebugInlineValue: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundColor(.textTertiary)
-                .lineLimit(1)
-            Text(value.isEmpty ? "empty" : value)
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.textSecondary)
-                .lineLimit(2)
-                .truncationMode(.middle)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -2038,31 +1511,23 @@ private struct DebugEmptyState: View {
     }
 }
 
-extension SemanticHighlightRule {
-    fileprivate func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
-        if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
-        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) {
-            return false
-        }
-        if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
-        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
-            return false
-        }
-        return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
-    }
-}
+private struct DebugInlineValue: View {
+    let label: String
+    let value: String
 
-extension SemanticAreaFindingRule {
-    fileprivate func debugMatches(symbol: ChangedSymbol, path: String) -> Bool {
-        if let semanticArea, symbol.metadata["semantic_area"] != semanticArea { return false }
-        if let metadataEquals, !metadataEquals.allSatisfy({ symbol.metadata[$0.key] == $0.value }) {
-            return false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.textTertiary)
+                .lineLimit(1)
+            Text(value.isEmpty ? "empty" : value)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.textSecondary)
+                .lineLimit(2)
+                .truncationMode(.middle)
         }
-        if let paths, !PatternMatcher.matchesAny(path, patterns: paths) { return false }
-        if let symbolNames, !PatternMatcher.matchesAny(symbol.name, patterns: symbolNames) {
-            return false
-        }
-        return semanticArea != nil || metadataEquals != nil || paths != nil || symbolNames != nil
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

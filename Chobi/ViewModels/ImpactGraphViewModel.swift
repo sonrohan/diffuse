@@ -207,7 +207,7 @@ class ImpactGraphViewModel {
                     filePath: path,
                     summary: makeSummary(symbol: symbol, filePath: path),
                     reason: makeReason(symbol: symbol, filePath: path),
-                    affectedAreas: affectedAreas(symbol: symbol, filePath: path),
+                    affectedDomains: affectedDomains(symbol: symbol, filePath: path),
                     topAffectedSymbols: topAffectedSymbols(symbol: symbol)
                 )
             }
@@ -484,9 +484,9 @@ class ImpactGraphViewModel {
     }
 
     private func makeReason(symbol: ChangedSymbol, filePath: String) -> String? {
-        let areas = affectedAreas(symbol: symbol, filePath: filePath)
-        if areas.count >= 2 {
-            return "Used by \(areas.prefix(2).joined(separator: " and ")) paths."
+        let domains = affectedDomains(symbol: symbol, filePath: filePath)
+        if domains.count >= 2 {
+            return "Used by \(domains.prefix(2).joined(separator: " and ")) paths."
         }
         if filePath.isTestPath && !symbol.callees.isEmpty {
             return
@@ -506,17 +506,17 @@ class ImpactGraphViewModel {
         if symbol.callers.isEmpty && symbol.callees.isEmpty {
             return nil
         }
-        if let area = areas.first {
-            return "\(area.capitalized) path affected by this changed symbol."
+        if let domain = domains.first {
+            return "\(domain.capitalized) path affected by this changed symbol."
         }
         return nil
     }
 
-    private func affectedAreas(symbol: ChangedSymbol, filePath: String) -> [String] {
+    private func affectedDomains(symbol: ChangedSymbol, filePath: String) -> [String] {
         let rows = [filePath] + symbol.callers + symbol.callees
-        var areas: [String] = []
+        var domains: [String] = []
         func append(_ value: String) {
-            if !areas.contains(value) { areas.append(value) }
+            if !domains.contains(value) { domains.append(value) }
         }
         for row in rows {
             let lower = row.lowercased()
@@ -538,7 +538,7 @@ class ImpactGraphViewModel {
                 append("analytics")
             }
         }
-        return areas
+        return domains
     }
 
     private func topAffectedSymbols(symbol: ChangedSymbol) -> [String] {

@@ -327,17 +327,6 @@ final class ArchitectureTests: XCTestCase {
                 deletions: 0, classification: .documentation, hunks: []),
         ]
 
-        let buckets = [
-            ChangeBucket(
-                id: "behavior", type: .behavior, title: "Behavior Changes",
-                summary: "Production core edits", files: ["App.swift"], symbols: [],
-                riskLevel: .medium, riskReasons: [], evidence: [], reviewOrder: 1),
-            ChangeBucket(
-                id: "tests", type: .tests, title: "Tests Changes", summary: "Unit tests edits",
-                files: ["AppTests.swift"], symbols: [], riskLevel: .low, riskReasons: [],
-                evidence: [], reviewOrder: 2),
-        ]
-
         let targets = [
             ReviewTarget(
                 id: UUID(), priority: 10, severity: .medium, title: "Test Target",
@@ -352,9 +341,9 @@ final class ArchitectureTests: XCTestCase {
             symbols: [],
             findings: [],
             reviewTargets: targets,
-            changeBuckets: buckets,
+            changeBuckets: [],
             riskHighlights: [],
-            skimTargets: [],
+            skimTargets: [files[2]],
             riskFactors: [],
             symbolReviewGroups: []
         )
@@ -363,7 +352,6 @@ final class ArchitectureTests: XCTestCase {
 
         // Unfiltered All Changes
         viewModel.selectAllChanges()
-        XCTAssertNil(viewModel.selectedBucketId)
         XCTAssertFalse(viewModel.isLowerSignalViewSelected)
         XCTAssertFalse(viewModel.isNeedsAttentionViewSelected)
         XCTAssertEqual(viewModel.bucketFiles.count, 3)  // Every changed file
@@ -374,16 +362,10 @@ final class ArchitectureTests: XCTestCase {
         XCTAssertEqual(viewModel.bucketFiles.count, 1)  // Only App.swift which has the target
         XCTAssertEqual(viewModel.bucketFiles.first?.path, "App.swift")
 
-        // Select Semantic Bucket "behavior"
-        viewModel.selectBucket("behavior")
-        XCTAssertEqual(viewModel.selectedBucketId, "behavior")
-        XCTAssertEqual(viewModel.bucketFiles.count, 1)  // Only App.swift
-        XCTAssertEqual(viewModel.bucketFiles.first?.path, "App.swift")
-
-        // Select Semantic Bucket "tests"
-        viewModel.selectBucket("tests")
-        XCTAssertEqual(viewModel.selectedBucketId, "tests")
-        XCTAssertEqual(viewModel.bucketFiles.count, 1)  // Only AppTests.swift
-        XCTAssertEqual(viewModel.bucketFiles.first?.path, "AppTests.swift")
+        // Select low-signal skim scope
+        viewModel.selectLowerSignalChanges()
+        XCTAssertTrue(viewModel.isLowerSignalViewSelected)
+        XCTAssertEqual(viewModel.bucketFiles.count, 1)
+        XCTAssertEqual(viewModel.bucketFiles.first?.path, "README.md")
     }
 }

@@ -100,7 +100,7 @@ struct SymbolImpact: Identifiable, Hashable {
     let filePath: String
     let summary: ImpactSummary
     let reason: String?
-    let affectedAreas: [String]
+    let affectedDomains: [String]
     let topAffectedSymbols: [String]
 
     var qualifiedName: String {

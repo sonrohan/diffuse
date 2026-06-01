@@ -63,8 +63,6 @@ struct AppHeaderView: View {
     @State private var isCommitPickerPresented = false
     @State private var commitVM: CommitScopeViewModel? = nil
 
-    @State private var isProfileRulesPresented = false
-    @State private var isProfileRulesHovered = false
     @State private var isReloadHovered = false
 
     var body: some View {
@@ -318,32 +316,8 @@ struct AppHeaderView: View {
                     LoadingSpinner(size: 12)
                 }
 
-                if let repo = state.selectedRepo {
+                if state.selectedRepo != nil {
                     HStack(spacing: 0) {
-                        Button {
-                            isProfileRulesPresented = true
-                        } label: {
-                            Label("Profile", systemImage: "person.text.rectangle")
-                                .font(.system(size: 11))
-                                .foregroundColor(.textSecondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    isProfileRulesHovered
-                                        ? Color.textPrimary.opacity(0.08) : Color.clear
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { isProfileRulesHovered = $0 }
-                        .help("Edit active analysis profile")
-                        .sheet(isPresented: $isProfileRulesPresented) {
-                            AnalysisProfileRulesSheet(repoName: repo.name, repoPath: repo.path)
-                        }
-
-                        Rectangle()
-                            .fill(Color.borderMuted)
-                            .frame(width: 0.5, height: 14)
-
                         Button {
                             Task { await state.reRunAnalysis() }
                         } label: {
@@ -1401,26 +1375,9 @@ struct AnalyzeRepoSheet: View {
     @State private var selectedPath: String = ""
     @State private var baseRef: String = ""
     @State private var autoAnalyzeEnabled = true
-    @State private var createProfileIfMissing = true
-    @State private var selectedPresetId = "generic"
-    @State private var isProfileWizardPresented = false
-    @State private var isProfileRulesPresented = false
-    @State private var profileMessage: String?
 
     private var resolvedPath: String {
         selectedPath.isEmpty ? FileManager.default.currentDirectoryPath : selectedPath
-    }
-
-    private var repoName: String {
-        URL(fileURLWithPath: resolvedPath).lastPathComponent
-    }
-
-    private var hasProfile: Bool {
-        AnalysisProfileStore.hasRepoProfile(repoPath: resolvedPath)
-    }
-
-    private var detectedPresetId: String {
-        AnalysisProfileStore.detectBuiltInProfileId(repoPath: resolvedPath)
     }
 
     var body: some View {
@@ -1441,7 +1398,6 @@ struct AnalyzeRepoSheet: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 workspacePathSection
-                profileSetupSection
                 analysisOptionsSection
             }
 
@@ -1473,15 +1429,6 @@ struct AnalyzeRepoSheet: View {
                 Spacer()
                 Button("Analyze") {
                     Task {
-                        if createProfileIfMissing && !hasProfile {
-                            do {
-                                try AnalysisProfileStore.writeProfile(
-                                    repoPath: resolvedPath, presetId: selectedPresetId)
-                            } catch {
-                                profileMessage =
-                                    "Could not create .chobi.json: \(error.localizedDescription)"
-                            }
-                        }
                         await state.analyzeRepo(
                             path: resolvedPath,
                             baseRef: baseRef.isEmpty ? nil : baseRef,
@@ -1500,23 +1447,6 @@ struct AnalyzeRepoSheet: View {
         }
         .padding(24)
         .frame(width: 560)
-        .onAppear {
-            selectedPresetId = detectedPresetId
-        }
-        .onChange(of: selectedPath) { _, _ in
-            selectedPresetId = detectedPresetId
-            profileMessage = nil
-        }
-        .sheet(isPresented: $isProfileWizardPresented) {
-            AnalysisProfileWizard(repoName: repoName, repoPath: resolvedPath) { presetId in
-                selectedPresetId = presetId
-                createProfileIfMissing = false
-                profileMessage = "Created .chobi.json using \(presetId)"
-            }
-        }
-        .sheet(isPresented: $isProfileRulesPresented) {
-            AnalysisProfileRulesSheet(repoName: repoName, repoPath: resolvedPath)
-        }
     }
 
     private var workspacePathSection: some View {
@@ -1550,80 +1480,6 @@ struct AnalyzeRepoSheet: View {
         }
     }
 
-    private var profileSetupSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Analysis Profile")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.textSecondary)
-                Spacer()
-                Text(hasProfile ? "Repo-defined" : "Preset to copy")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(hasProfile ? .success : .brandAccent)
-            }
-
-            HStack(spacing: 10) {
-                Image(systemName: hasProfile ? "checkmark.seal.fill" : "wand.and.stars")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(hasProfile ? .success : .brandAccent)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(hasProfile ? ".chobi.json found" : presetDisplayName(selectedPresetId))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    Text(
-                        hasProfile
-                            ? "Chobi will use this repo's configured rules and groupings."
-                            : "Chobi will copy \(selectedPresetId) into a flat .chobi.json."
-                    )
-                    .font(.system(size: 10.5))
-                    .foregroundColor(.textSecondary)
-                }
-
-                Spacer()
-
-                Button {
-                    isProfileRulesPresented = true
-                } label: {
-                    Image(systemName: "list.bullet.rectangle")
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.bordered)
-                .help("Edit active analysis profile")
-
-                if !hasProfile {
-                    Button {
-                        isProfileWizardPresented = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "wand.and.stars")
-                            Text("Choose")
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-            .padding(10)
-            .background(Color.bgSidebarPanel)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
-
-            if !hasProfile {
-                Toggle("Create .chobi.json before first analysis", isOn: $createProfileIfMissing)
-                    .font(.system(size: 11))
-                    .toggleStyle(.checkbox)
-            }
-
-            if let profileMessage {
-                Text(profileMessage)
-                    .font(.system(size: 10.5))
-                    .foregroundColor(
-                        profileMessage.hasPrefix("Could not") ? .danger : .textSecondary)
-            }
-        }
-    }
-
     private var analysisOptionsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 8) {
@@ -1645,10 +1501,6 @@ struct AnalyzeRepoSheet: View {
                 .toggleStyle(.checkbox)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private func presetDisplayName(_ id: String) -> String {
-        AnalysisProfileStore.builtInPresets.first { $0.id == id }?.displayName ?? id
     }
 }
 

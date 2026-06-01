@@ -1231,8 +1231,6 @@ struct AnalysisDetailView: View {
         Group {
             if let viewModel {
                 VStack(spacing: 0) {
-                    SelectedContextBar(details: details)
-                    Divider()
                     DiffViewerPanel(details: details, impactViewModel: impactViewModel)
                 }
                 .environment(viewModel)

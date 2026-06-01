@@ -237,18 +237,6 @@ class AnalysisViewModel {
 
         state.analysisDetails = details
     }
-
-    var selectedReviewScopeTitle: String {
-        "All changes"
-    }
-
-    var selectedReviewScopeSubtitle: String {
-        "Unfiltered branch and working tree changes."
-    }
-
-    var selectedScopeSignalCount: Int {
-        bucketHighlights.filter { $0.severity >= .medium }.count
-    }
 }
 
 extension Array where Element == ReviewTarget {

@@ -1327,9 +1327,6 @@
     "Review Next" : {
 
     },
-    "REVIEW OVERVIEW" : {
-
-    },
     "Review the full branch diff" : {
 
     },
@@ -1696,9 +1693,6 @@
           }
         }
       }
-    },
-    "Unfiltered branch and working tree changes." : {
-
     },
     "Unified" : {
 

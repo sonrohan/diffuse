@@ -346,50 +346,6 @@ struct SafeToSkimPanel: View {
     }
 }
 
-// MARK: - Selected Context Bar
-
-struct SelectedContextBar: View {
-    @Environment(AnalysisViewModel.self) private var viewModel
-    let details: AnalysisDetails
-
-    var body: some View {
-        HStack(spacing: 10) {
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("REVIEW OVERVIEW")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.textTertiary)
-                    .kerning(0.5)
-                Text("All Changes")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                Text("Unfiltered branch and working tree changes.")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-                    .lineLimit(1)
-            }
-            Spacer()
-
-            HStack(spacing: 7) {
-                ContextStatChip(icon: "doc.text.fill", text: "\(viewModel.bucketFiles.count) files")
-                if viewModel.selectedScopeSignalCount > 0 {
-                    ContextStatChip(
-                        icon: "exclamationmark.shield.fill",
-                        text: "\(viewModel.selectedScopeSignalCount) signals")
-                }
-                if viewModel.bucketTargets.count > 0 {
-                    ContextStatChip(
-                        icon: "target", text: "\(viewModel.bucketTargets.count) targets")
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color.bgSubtle)
-    }
-}
-
 // MARK: - Review Debug Sheet
 
 struct ReviewDebugSheet: View {
@@ -898,23 +854,6 @@ extension Array where Element == ReviewTarget {
         }
         if parts.isEmpty { return "0 targets" }
         return parts.joined(separator: ", ") + " target\(count == 1 ? "" : "s")"
-    }
-}
-
-struct ContextStatChip: View {
-    let icon: String
-    let text: String
-
-    var body: some View {
-        Label(text, systemImage: icon)
-            .font(.system(size: 11))
-            .foregroundColor(.textSecondary)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(Color(NSColor.controlColor).opacity(0.55))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
 

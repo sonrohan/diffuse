@@ -6,6 +6,7 @@ struct SettingsSheet: View {
     @Environment(AppState.self) private var state
     @AppStorage("appTheme") private var appTheme = "System"
     @AppStorage("defaultLanguage") private var defaultLanguage = "Auto Detect"
+    @AppStorage("minImpactFilter") private var minImpactFilter = "all"
 
     @State private var selectedTab: SettingsTab
     @State private var hoveredTab: SettingsTab? = nil
@@ -297,6 +298,35 @@ struct SettingsSheet: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 120)
+                }
+            }
+            .padding(12)
+            .background(Color.bgSidebarPanel)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+            .padding(.horizontal, 24)
+
+            // Code Impact Filter Card
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Default Code Impact Filter")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+
+                HStack(spacing: 12) {
+                    Text(
+                        "Set the default risk impact filter for files in the changed files list."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Picker("", selection: $minImpactFilter) {
+                        Text("Show All Files").tag("all")
+                        Text("Medium & High").tag("medium")
+                        Text("High Only").tag("high")
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
                 }
             }
             .padding(12)

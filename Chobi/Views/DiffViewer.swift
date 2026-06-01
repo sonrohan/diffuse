@@ -18,6 +18,7 @@ struct DiffViewerPanel: View {
     @State private var showUnviewedOnly = false
     @State private var viewedFileIds: Set<UUID> = []
     @State private var isFilterPopoverPresented = false
+    @AppStorage("minImpactFilter") private var minImpactFilter = "all"
 
     var activeFile: ChangedFile? {
         guard let id = viewModel.activeFileId else { return filteredFiles.first }
@@ -38,6 +39,20 @@ struct DiffViewerPanel: View {
             if excludedExtensions.contains(file.filterExtension) { return false }
             if excludedStatuses.contains(file.status) { return false }
             if excludedClassifications.contains(file.classification) { return false }
+
+            // Filter by minimum impact level
+            if minImpactFilter != "all" {
+                guard let ind = impactViewModel.fileImpactIndicators[file.id] else {
+                    return false
+                }
+                if minImpactFilter == "high" && ind.highCount == 0 {
+                    return false
+                }
+                if minImpactFilter == "medium" && ind.highCount == 0 && ind.mediumCount == 0 {
+                    return false
+                }
+            }
+
             return file.matchesSearch(fileSearchText)
         }
     }
@@ -63,6 +78,64 @@ struct DiffViewerPanel: View {
 
                 FileSearchField(text: $fileSearchText)
                     .frame(maxWidth: 340)
+
+                Menu {
+                    Button {
+                        minImpactFilter = "all"
+                    } label: {
+                        HStack {
+                            Text("All Files")
+                            if minImpactFilter == "all" { Image(systemName: "checkmark") }
+                        }
+                    }
+                    Button {
+                        minImpactFilter = "medium"
+                    } label: {
+                        HStack {
+                            Text("Medium & High Impact")
+                            if minImpactFilter == "medium" { Image(systemName: "checkmark") }
+                        }
+                    }
+                    Button {
+                        minImpactFilter = "high"
+                    } label: {
+                        HStack {
+                            Text("High Impact Only")
+                            if minImpactFilter == "high" { Image(systemName: "checkmark") }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.shield")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(
+                            minImpactFilter == "all"
+                                ? "All" : (minImpactFilter == "medium" ? "Med+" : "High")
+                        )
+                        .font(.system(size: 11, weight: .medium))
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundColor(.textTertiary)
+                    }
+                    .foregroundColor(minImpactFilter != "all" ? .brandAccent : .textSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        minImpactFilter != "all"
+                            ? Color.brandAccent.opacity(0.10)
+                            : Color(NSColor.controlColor).opacity(0.45)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(
+                                minImpactFilter != "all"
+                                    ? Color.brandAccent.opacity(0.35) : Color.borderMuted,
+                                lineWidth: 0.5)
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .help("Filter files by AST impact level")
 
                 Button {
                     isFilterPopoverPresented.toggle()
@@ -275,6 +348,7 @@ struct DiffViewerPanel: View {
         excludedStatuses = []
         excludedClassifications = []
         showUnviewedOnly = false
+        minImpactFilter = "all"
     }
 
     private func jumpToGraphNode(_ node: ImpactGraphNode, details: AnalysisDetails) {

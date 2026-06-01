@@ -563,6 +563,9 @@
     "Change diff layout" : {
 
     },
+    "Changed" : {
+
+    },
     "Changed Files" : {
 
     },
@@ -779,6 +782,9 @@
     "Expand context up (20 lines)" : {
 
     },
+    "Failed to load context" : {
+
+    },
     "File filters" : {
 
     },
@@ -861,6 +867,9 @@
     "Impact Summary" : {
 
     },
+    "L%lld" : {
+
+    },
     "L%lld-%lld" : {
       "localizations" : {
         "en" : {
@@ -922,6 +931,9 @@
           }
         }
       }
+    },
+    "Loading source context..." : {
+
     },
     "Lower-Signal Changes" : {
 
@@ -1119,6 +1131,9 @@
       }
     },
     "Privacy" : {
+
+    },
+    "Read-only" : {
 
     },
     "Read-only local context" : {
@@ -1370,6 +1385,9 @@
         }
       }
     },
+    "Select a node to preview source context." : {
+
+    },
     "Select a workspace or branch to load analysis." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1472,6 +1490,9 @@
 
     },
     "Show every folder level" : {
+
+    },
+    "Source Context" : {
 
     },
     "Split" : {

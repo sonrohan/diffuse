@@ -311,6 +311,45 @@ struct DiffViewerPanel: View {
         guard node.isChangedInPR,
             let file = details.files.first(where: { $0.path == node.filePath })
         else { return }
+
+        // If the file is currently filtered out of the file tree, dynamically clear active filters
+        // that would exclude it, so it becomes visible and selected.
+        if !filteredFiles.contains(where: { $0.id == file.id }) {
+            // 1. Reset min impact level filter if the file doesn't satisfy it
+            if minImpactFilter != "all" {
+                if let ind = impactViewModel.fileImpactIndicators[file.id] {
+                    if minImpactFilter == "high" && ind.highCount == 0 {
+                        minImpactFilter = "all"
+                    } else if minImpactFilter == "medium" && ind.highCount == 0
+                        && ind.mediumCount == 0
+                    {
+                        minImpactFilter = "all"
+                    }
+                } else {
+                    minImpactFilter = "all"
+                }
+            }
+
+            // 2. Clear any file extension, status, or classification exclusions matching this file
+            if excludedExtensions.contains(file.filterExtension) {
+                excludedExtensions.remove(file.filterExtension)
+            }
+            if excludedStatuses.contains(file.status) {
+                excludedStatuses.remove(file.status)
+            }
+            if excludedClassifications.contains(file.classification) {
+                excludedClassifications.remove(file.classification)
+            }
+            if showUnviewedOnly && viewedFileIds.contains(file.id) {
+                showUnviewedOnly = false
+            }
+
+            // 3. Clear file search query if it filters this file out
+            if !fileSearchText.isEmpty && !file.matchesSearch(fileSearchText) {
+                fileSearchText = ""
+            }
+        }
+
         viewModel.jumpToFile(file.id, hunkIndex: hunkIndexForLine(file: file, line: node.line))
     }
 
@@ -1539,6 +1578,10 @@ struct ImpactExplorerSidebar: View {
                             onOpenNode: onOpenNode
                         )
 
+                        Divider()
+                            .opacity(0.6)
+
+                        ImpactSourcePreviewPanel(viewModel: impactViewModel)
                     }
                     .padding(12)
                 }
@@ -1562,6 +1605,123 @@ struct ImpactExplorerSidebar: View {
         let callersCount = impactViewModel.visibleGraphNodes.filter { $0.role == .caller }.count
         let calleesCount = impactViewModel.visibleGraphNodes.filter { $0.role == .callee }.count
         return "\(filename) • \(callersCount) callers, \(calleesCount) callees"
+    }
+}
+
+struct ImpactSourcePreviewPanel: View {
+    @Bindable var viewModel: ImpactGraphViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header
+            HStack {
+                Label("Source Context", systemImage: "doc.text.magnifyingglass")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.textSecondary)
+
+                Spacer()
+
+                if let node = viewModel.selectedGraphNode {
+                    Text(node.isChangedInPR ? "Changed" : "Read-only")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(node.isChangedInPR ? .success : .textTertiary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 0.5)
+                        .background(
+                            node.isChangedInPR ? Color.success.opacity(0.12) : Color.bgSidebarPanel
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                }
+            }
+            .padding(.horizontal, 2)
+
+            if viewModel.isLoadingSourceCode {
+                HStack(spacing: 8) {
+                    LoadingSpinner(size: 12)
+                    Text("Loading source context...")
+                        .font(.system(size: 11))
+                        .foregroundColor(.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 20)
+                .background(Color.bgSidebarPanel.opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+            } else if let error = viewModel.sourceCodeError {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Failed to load context")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.danger)
+                    Text(error)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.dangerBg.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6).stroke(
+                        Color.danger.opacity(0.3), lineWidth: 0.5))
+            } else if !viewModel.selectedSourceLines.isEmpty {
+                VStack(spacing: 0) {
+                    // Code viewer box
+                    VStack(alignment: .leading, spacing: 1) {
+                        ForEach(viewModel.selectedSourceLines) { line in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                // Line Number
+                                Text("\(line.lineNumber)")
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundColor(.textTertiary)
+                                    .frame(width: 24, alignment: .trailing)
+                                    .padding(.trailing, 2)
+
+                                // Line Content
+                                Text(line.text)
+                                    .font(.appMonospaced(10))
+                                    .foregroundColor(
+                                        line.isHighlighted ? .textPrimary : .textSecondary
+                                    )
+                                    .lineLimit(1)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 1)
+                            .padding(.horizontal, 4)
+                            .background(
+                                line.isHighlighted ? Color.brandAccent.opacity(0.12) : Color.clear)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .background(Color(NSColor.underPageBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+
+                    if let node = viewModel.selectedGraphNode {
+                        Text(node.filePath)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .padding(.top, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .help(node.filePath)
+                    }
+                }
+            } else {
+                Text("Select a node to preview source context.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
+                    .background(Color.bgSidebarPanel.opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6).stroke(Color.borderMuted, lineWidth: 0.5))
+            }
+        }
     }
 }
 
@@ -1748,6 +1908,18 @@ struct ImpactGraphMap: View {
     }
 }
 
+struct GroupedFileNodes: Identifiable {
+    let id: String  // filePath
+    let filePath: String
+    var filename: String {
+        (filePath as NSString).lastPathComponent
+    }
+    var isTest: Bool {
+        nodes.first?.isTest ?? false
+    }
+    let nodes: [ImpactGraphNode]
+}
+
 struct ImpactGraphColumn: View {
     let title: String
     let emptyText: String
@@ -1755,28 +1927,185 @@ struct ImpactGraphColumn: View {
     @Bindable var viewModel: ImpactGraphViewModel
     let onOpenNode: (ImpactGraphNode) -> Void
 
+    @State private var collapsedFiles: Set<String> = []
+
+    var groupedFiles: [GroupedFileNodes] {
+        let dict = Dictionary(grouping: nodes, by: \.filePath)
+        return dict.map { GroupedFileNodes(id: $0.key, filePath: $0.key, nodes: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.isTest != rhs.isTest {
+                    return !lhs.isTest  // non-tests first
+                }
+                return lhs.filename.localizedCaseInsensitiveCompare(rhs.filename)
+                    == .orderedAscending
+            }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.textTertiary)
+                .padding(.horizontal, 2)
+
             if nodes.isEmpty {
                 Text(emptyText)
                     .font(.system(size: 11))
                     .foregroundColor(.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
+                    .background(Color.bgSidebarPanel.opacity(0.2))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                ForEach(nodes) { node in
-                    ImpactExplorerNodeCard(
-                        node: node,
-                        isFocused: node.id == viewModel.currentFocusedNodeId,
-                        isSelected: node.id == viewModel.selectedGraphNode?.id,
-                        viewModel: viewModel,
-                        onOpenNode: onOpenNode
-                    )
+                VStack(spacing: 8) {
+                    ForEach(groupedFiles) { group in
+                        let isCollapsed = collapsedFiles.contains(group.filePath)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            // File Group Header Button
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    if isCollapsed {
+                                        collapsedFiles.remove(group.filePath)
+                                    } else {
+                                        collapsedFiles.insert(group.filePath)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.textTertiary)
+                                        .rotationEffect(.degrees(isCollapsed ? -90 : 0))
+
+                                    Image(systemName: group.isTest ? "flask" : "doc.text")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(
+                                            group.isTest ? .textTertiary : .brandAccent)
+
+                                    Text(group.filename)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.textPrimary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+
+                                    Spacer()
+
+                                    // Count Badge
+                                    Text("\(group.nodes.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.textSecondary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(Color.bgSidebarPanel)
+                                        .clipShape(Capsule())
+                                        .overlay(
+                                            Capsule().stroke(Color.borderMuted, lineWidth: 0.5))
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+
+                            // File Group Node Rows (if expanded)
+                            if !isCollapsed {
+                                VStack(spacing: 2) {
+                                    ForEach(group.nodes) { node in
+                                        ImpactExplorerCompactNodeRow(
+                                            node: node,
+                                            isFocused: node.id == viewModel.currentFocusedNodeId,
+                                            isSelected: node.id == viewModel.selectedGraphNode?.id,
+                                            viewModel: viewModel,
+                                            onOpenNode: onOpenNode
+                                        )
+                                    }
+                                }
+                                .padding(.leading, 12)
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+struct ImpactExplorerCompactNodeRow: View {
+    let node: ImpactGraphNode
+    let isFocused: Bool
+    let isSelected: Bool
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        Button {
+            viewModel.selectGraphNode(node)
+            viewModel.focusSelectedGraphNode()
+            onOpenNode(node)
+        } label: {
+            HStack(spacing: 6) {
+                // Bullet / role icon
+                Image(systemName: iconName)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(
+                        isFocused ? .white : (node.isTest ? .textTertiary : .brandAccent)
+                    )
+                    .frame(width: 10)
+
+                Text(node.title)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(isFocused ? .white : .textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer(minLength: 4)
+
+                HStack(spacing: 4) {
+                    if node.isChangedInPR {
+                        Text("PR")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundColor(isFocused ? .white : .success)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 0.5)
+                            .background(
+                                isFocused ? Color.white.opacity(0.2) : Color.success.opacity(0.12)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 2))
+                    }
+
+                    if let line = node.line {
+                        Text("L\(line)")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(isFocused ? .white.opacity(0.8) : .textTertiary)
+                    }
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3.5)
+            .background(
+                isFocused
+                    ? Color.brandAccent
+                    : (isSelected ? Color.brandAccent.opacity(0.08) : Color.clear)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4).stroke(
+                    isSelected ? Color.brandAccent.opacity(0.4) : Color.clear,
+                    lineWidth: 0.5
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .help("\(node.filePath)\(node.line.map { ":L\($0)" } ?? "")")
+    }
+
+    private var iconName: String {
+        if node.isTest { return "flask" }
+        return switch node.role {
+        case .origin: "dot.circle"
+        case .caller: "arrow.down.left"
+        case .callee: "arrow.down.right"
         }
     }
 }

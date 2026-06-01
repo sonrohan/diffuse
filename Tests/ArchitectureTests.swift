@@ -77,6 +77,87 @@ final class ArchitectureTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredImpacts.map(\.symbol.name), ["formatLabel"])
     }
 
+    func testInlineImpactMarkersPreferSpecificSymbolsOverContainers() async {
+        let run = AnalysisRun(pullRequestId: UUID(), baseSha: "base", headSha: "head")
+        let file = ChangedFile(
+            analysisRunId: run.id,
+            path: "app/src/main/java/app/ummi/myapplication/ui/viewmodels/HabitViewModel.kt",
+            status: .modified,
+            additions: 8,
+            deletions: 2,
+            classification: .source,
+            hunks: [
+                DiffHunk(
+                    oldStart: 57,
+                    oldLines: 10,
+                    newStart: 61,
+                    newLines: 18,
+                    lines: [
+                        "     }",
+                        " ",
+                        "     // Add a new habit",
+                        "-    fun addHabit(name: String, description: String) {",
+                        "+    fun addHabit(",
+                        "+        name: String,",
+                        "+        description: String,",
+                        "+        weeklyTarget: Int = 5,",
+                        "+    ) {",
+                        "         if (name.isBlank()) return",
+                    ])
+            ])
+        let container = ChangedSymbol(
+            analysisRunId: run.id,
+            changedFileId: file.id,
+            name: "HabitViewModel",
+            kind: .class,
+            startLine: 14,
+            endLine: 140,
+            callers: ["app/src/main/java/app/ummi/myapplication/MainActivity.kt:HabitViewModel"]
+        )
+        let method = ChangedSymbol(
+            analysisRunId: run.id,
+            changedFileId: file.id,
+            name: "addHabit",
+            kind: .method,
+            startLine: 64,
+            endLine: 80,
+            callers: [
+                "app/src/main/java/app/ummi/myapplication/ui/screens/HabitManagerScreen.kt:addHabit"
+            ],
+            metadata: ["qualified_name": "HabitViewModel.addHabit"]
+        )
+        let details = AnalysisDetails(
+            run: run,
+            pr: PullRequest(
+                prNumber: 9,
+                title: "Habit target",
+                baseSha: "base",
+                headSha: "head",
+                author: "Rohan",
+                repository: "test"),
+            files: [file],
+            symbols: [container, method],
+            findings: [],
+            reviewTargets: [],
+            changeBuckets: [],
+            riskHighlights: [],
+            skimTargets: [],
+            riskFactors: [],
+            symbolReviewGroups: []
+        )
+
+        let viewModel = ImpactGraphViewModel()
+        viewModel.load(details: details)
+
+        let markers = viewModel.inlineMarkers(for: file.hunks[0], file: file, hunkIndex: 0)
+
+        XCTAssertEqual(markers.count, 1)
+        XCTAssertEqual(markers.first?.rootSymbolId, method.id)
+        XCTAssertEqual(markers.first?.anchorLine, 64)
+        XCTAssertEqual(viewModel.visibleImpacts(for: file).map(\.id), [method.id])
+        XCTAssertEqual(viewModel.fileImpactIndicators[file.id]?.count, 1)
+    }
+
     // MARK: - WorkspacePickerViewModel Tests
 
     func testWorkspacePickerViewModelFiltering() async {

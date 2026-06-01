@@ -1292,6 +1292,7 @@ struct AnalysisDetailView: View {
     let details: AnalysisDetails
     @Binding var isNavigationRailCollapsed: Bool
     @State private var viewModel: AnalysisViewModel? = nil
+    @State private var impactViewModel = ImpactGraphViewModel()
 
     var body: some View {
         Group {
@@ -1302,7 +1303,8 @@ struct AnalysisDetailView: View {
                         VStack(spacing: 0) {
                             ScrollView {
                                 VStack(spacing: 12) {
-                                    AnalysisNavigationRail(details: details)
+                                    AnalysisNavigationRail(
+                                        details: details, impactViewModel: impactViewModel)
                                 }
                                 .padding(12)
                             }
@@ -1316,7 +1318,7 @@ struct AnalysisDetailView: View {
                     VStack(spacing: 0) {
                         SelectedContextBar(details: details)
                         Divider()
-                        DiffViewerPanel(details: details)
+                        DiffViewerPanel(details: details, impactViewModel: impactViewModel)
                     }
                 }
                 .environment(viewModel)
@@ -1334,8 +1336,14 @@ struct AnalysisDetailView: View {
             }
         }
         .background(Color.bgCanvas)
+        .onAppear {
+            impactViewModel.load(details: details)
+        }
         .onChange(of: state.analysisDetails?.run.id) { _, _ in
             viewModel?.refreshIfNecessary()
+        }
+        .onChange(of: details.run.id) { _, _ in
+            impactViewModel.load(details: details)
         }
     }
 }

@@ -5,15 +5,27 @@ import SwiftUI
 struct AnalysisNavigationRail: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
-    @State private var impactViewModel = ImpactGraphViewModel()
+    @Bindable var impactViewModel: ImpactGraphViewModel
+    @State private var areAreasExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             RailSectionHeader(
-                title: "Review Scope",
+                title: "Review Next",
+                count: impactViewModel.reviewQueue.isEmpty
+                    ? viewModel.bucketTargets.count : impactViewModel.reviewQueue.count,
+                help:
+                    "Prioritized review entry points. Selecting one moves the diff and impact inspector together."
+            )
+
+            ReviewNextRailSection(
+                viewModel: impactViewModel, reviewTargets: viewModel.bucketTargets)
+
+            RailSectionHeader(
+                title: "Scope",
                 count: nil,
                 help:
-                    "Choose the set of files shown in the review. Areas are focused scopes; targets below are jumps inside the selected scope."
+                    "Choose which files feed the review queue. Areas are filters, not separate review streams."
             )
 
             AllChangesNavRow(
@@ -44,46 +56,10 @@ struct AnalysisNavigationRail: View {
                 }
             }
 
-            RailSectionHeader(
-                title: "Areas",
-                count: details.changeBuckets.count,
-                help:
-                    "Files grouped by the kind of work they represent, so you can review related changes together."
+            AreaFilterSection(
+                details: details,
+                isExpanded: $areAreasExpanded
             )
-
-            if details.changeBuckets.isEmpty {
-                RailEmptyRow(icon: "tray", text: "No grouped areas")
-            } else {
-                VStack(spacing: 2) {
-                    ForEach(details.changeBuckets) { bucket in
-                        AreaNavRow(
-                            bucket: bucket,
-                            targetCount: details.reviewTargets.filter {
-                                bucket.files.contains($0.filePath)
-                            }.count,
-                            isSelected: viewModel.selectedBucketId == bucket.id
-                        ) {
-                            viewModel.selectBucket(bucket.id)
-                        }
-                    }
-                }
-            }
-
-            RailSectionHeader(
-                title: "Review Next",
-                count: impactViewModel.filteredImpacts.count + viewModel.bucketTargets.count,
-                help:
-                    "Prioritized review entry points. Impact metrics explain why changed symbols are worth reviewing next."
-            )
-
-            ReviewNextRailSection(
-                viewModel: impactViewModel, reviewTargets: viewModel.bucketTargets)
-        }
-        .onAppear {
-            impactViewModel.load(details: details)
-        }
-        .onChange(of: details.run.id) { _, _ in
-            impactViewModel.load(details: details)
         }
     }
 }
@@ -91,39 +67,81 @@ struct AnalysisNavigationRail: View {
 struct ReviewNextRailSection: View {
     @Bindable var viewModel: ImpactGraphViewModel
     let reviewTargets: [ReviewTarget]
+    @State private var isSearchVisible = false
 
     private var visibleImpacts: [SymbolImpact] {
-        Array(viewModel.filteredImpacts.prefix(5))
+        Array(viewModel.reviewQueue.prefix(viewModel.hasSearchQuery ? 8 : 3))
     }
 
     private var visibleTargets: [ReviewTarget] {
-        Array(reviewTargets.prefix(max(3, 8 - visibleImpacts.count)))
+        Array(reviewTargets.prefix(viewModel.hasSearchQuery ? 8 : 3))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 10))
-                    .foregroundColor(.textTertiary)
-                TextField("Search review targets", text: $viewModel.searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 11))
+            if isSearchVisible || viewModel.hasSearchQuery {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                    TextField("Search review targets", text: $viewModel.searchText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11))
+                    if viewModel.hasSearchQuery {
+                        Button {
+                            viewModel.searchText = ""
+                            isSearchVisible = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.textTertiary)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(Color(NSColor.controlColor).opacity(0.55))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7).stroke(
+                        Color.borderMuted, lineWidth: 0.5))
+            } else {
+                Button {
+                    isSearchVisible = true
+                } label: {
+                    Label("Search queue", systemImage: "magnifyingglass")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(Color(NSColor.controlColor).opacity(0.25))
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(Color(NSColor.controlColor).opacity(0.55))
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
 
-            if viewModel.filteredImpacts.isEmpty {
-                ImpactEmptyState(
-                    text: viewModel.emptyStateText, reviewTargetCount: reviewTargets.count)
+            if viewModel.reviewQueue.isEmpty {
+                if visibleTargets.isEmpty {
+                    ImpactEmptyState(
+                        text: viewModel.emptyStateText, reviewTargetCount: reviewTargets.count)
+                } else {
+                    VStack(spacing: 2) {
+                        ForEach(Array(visibleTargets.enumerated()), id: \.element.id) {
+                            index, target in
+                            TargetNavRow(target: target, index: index)
+                        }
+                        if reviewTargets.count > visibleTargets.count {
+                            RailMoreRow(
+                                text:
+                                    "\(reviewTargets.count - visibleTargets.count) analyzer signals hidden"
+                            )
+                        }
+                    }
+                }
             } else {
                 VStack(spacing: 2) {
-                    if let selected = viewModel.selectedImpact {
-                        ImpactSummaryCard(impact: selected)
-                    }
                     ForEach(Array(visibleImpacts.enumerated()), id: \.element.id) { index, impact in
                         ImpactSymbolRow(
                             impact: impact,
@@ -133,22 +151,11 @@ struct ReviewNextRailSection: View {
                             viewModel.select(impact)
                         }
                     }
-                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
-                        TargetNavRow(target: target, index: visibleImpacts.count + index)
-                    }
-                    if viewModel.filteredImpacts.count > visibleImpacts.count {
+                    if viewModel.reviewQueue.count > visibleImpacts.count {
                         RailMoreRow(
                             text:
-                                "\(viewModel.filteredImpacts.count - visibleImpacts.count) more symbols match"
+                                "\(viewModel.reviewQueue.count - visibleImpacts.count) lower-priority symbols hidden"
                         )
-                    }
-                }
-            }
-
-            if viewModel.filteredImpacts.isEmpty && !visibleTargets.isEmpty {
-                VStack(spacing: 2) {
-                    ForEach(Array(visibleTargets.enumerated()), id: \.element.id) { index, target in
-                        TargetNavRow(target: target, index: index)
                     }
                 }
             }
@@ -226,16 +233,8 @@ struct ImpactSummaryCard: View {
     }
 
     private var summaryText: String {
-        let callerPart =
-            impact.summary.directCallerCount == 1
-            ? "1 direct caller"
-            : "\(impact.summary.directCallerCount) direct callers"
-        let calleePart =
-            impact.summary.directCalleeCount == 1
-            ? "1 direct callee"
-            : "\(impact.summary.directCalleeCount) direct callees"
-        return
-            "\(impact.symbol.name) has \(callerPart), \(calleePart), and touches \(impact.summary.fileCount) file\(impact.summary.fileCount == 1 ? "" : "s")."
+        impact.reason
+            ?? "\(impact.summary.directCallerCount) callers · \(impact.summary.directCalleeCount) callees · \(impact.summary.fileCount) files"
     }
 }
 
@@ -267,16 +266,29 @@ struct ImpactSymbolRow: View {
                         variant: impact.summary.impactLevel.badgeVariant)
                 }
 
-                Text(impact.location)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                if let reason = impact.reason {
+                    Text(reason)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                }
 
                 HStack(spacing: 8) {
                     ImpactStat(text: "\(impact.summary.directCallerCount) callers")
-                    ImpactStat(text: "\(impact.summary.directCalleeCount) callees")
                     ImpactStat(text: "\(impact.summary.fileCount) files")
+                    if impact.summary.testReferenceCount == 0 && impact.hasImpactData {
+                        ImpactStat(text: "weak tests")
+                    } else if impact.summary.testReferenceCount > 0 {
+                        ImpactStat(text: "\(impact.summary.testReferenceCount) tests")
+                    }
+                }
+
+                if isSelected {
+                    Text(impact.location)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -611,6 +623,74 @@ struct AreaNavRow: View {
     }
 }
 
+struct AreaFilterSection: View {
+    @Environment(AnalysisViewModel.self) private var viewModel
+    let details: AnalysisDetails
+    @Binding var isExpanded: Bool
+
+    private var selectedBucket: ChangeBucket? {
+        guard let selectedBucketId = viewModel.selectedBucketId else { return nil }
+        return details.changeBuckets.first { $0.id == selectedBucketId }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .frame(width: 12)
+                    Text("Areas")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.textTertiary)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Text("\(details.changeBuckets.count)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                }
+                .padding(.horizontal, 2)
+                .padding(.top, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if details.changeBuckets.isEmpty {
+                RailEmptyRow(icon: "tray", text: "No grouped areas")
+            } else if isExpanded {
+                VStack(spacing: 2) {
+                    ForEach(details.changeBuckets) { bucket in
+                        AreaNavRow(
+                            bucket: bucket,
+                            targetCount: details.reviewTargets.filter {
+                                bucket.files.contains($0.filePath)
+                            }.count,
+                            isSelected: viewModel.selectedBucketId == bucket.id
+                        ) {
+                            viewModel.selectBucket(bucket.id)
+                        }
+                    }
+                }
+            } else if let selectedBucket {
+                AreaNavRow(
+                    bucket: selectedBucket,
+                    targetCount: details.reviewTargets.filter {
+                        selectedBucket.files.contains($0.filePath)
+                    }.count,
+                    isSelected: true
+                ) {
+                    isExpanded = true
+                }
+            } else {
+                RailMoreRow(text: "Collapsed. Expand to filter the review queue by area.")
+            }
+        }
+    }
+}
+
 struct TargetNavRow: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let target: ReviewTarget
@@ -621,28 +701,30 @@ struct TargetNavRow: View {
         Button {
             viewModel.toggleTarget(target)
         } label: {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    target.severity.badgeView
                     Text("#\(index + 1)")
                         .font(.system(size: 10))
                         .foregroundColor(.textTertiary)
+                    Text(target.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
                     Spacer()
+                    target.severity.badgeView
                 }
-                Text(target.title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(2)
-                Text(target.filePath + (target.lineStart.map { ":L\($0)" } ?? ""))
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.textTertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
                 if !target.evidence.isEmpty {
                     Text(target.evidence)
                         .font(.system(size: 10))
                         .foregroundColor(.textSecondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
+                }
+                if isSelected {
+                    Text(target.filePath + (target.lineStart.map { ":L\($0)" } ?? ""))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

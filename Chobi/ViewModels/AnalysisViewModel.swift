@@ -11,6 +11,7 @@ class AnalysisViewModel {
     var activeFileId: UUID? = nil
     var activeHunkIndex: Int? = nil
     var activeTargetId: UUID? = nil
+    var isImpactInspectorVisible = false
 
     // Tracking active run to handle transitions cleanly
     private var lastRunId: UUID? = nil
@@ -179,6 +180,7 @@ class AnalysisViewModel {
         activeHunkIndex = hunkIndexForLine(
             fileId: impact.symbol.changedFileId, lineStart: impact.symbol.startLine)
         activeTargetId = nil
+        isImpactInspectorVisible = true
     }
 
     func jumpToHighlight(_ highlight: RiskHighlight) {

@@ -99,6 +99,9 @@ struct SymbolImpact: Identifiable, Hashable {
     let symbol: ChangedSymbol
     let filePath: String
     let summary: ImpactSummary
+    let reason: String?
+    let affectedAreas: [String]
+    let topAffectedSymbols: [String]
 
     var qualifiedName: String {
         symbol.metadata["qualified_name"] ?? symbol.name
@@ -115,4 +118,63 @@ struct SymbolImpact: Identifiable, Hashable {
     var hasImpactData: Bool {
         !symbol.callers.isEmpty || !symbol.callees.isEmpty
     }
+
+    var hasUsefulReason: Bool {
+        reason?.isEmpty == false
+    }
+}
+
+enum ImpactGraphDirection: String, CaseIterable, Identifiable {
+    case callers
+    case callees
+    case both
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .callers: "Callers"
+        case .callees: "Callees"
+        case .both: "Both"
+        }
+    }
+}
+
+struct ImpactGraphNode: Identifiable, Hashable {
+    enum Role: Hashable {
+        case origin
+        case caller
+        case callee
+    }
+
+    let id: String
+    let title: String
+    let filePath: String
+    let line: Int?
+    let role: Role
+    let isChangedInPR: Bool
+    let isTest: Bool
+}
+
+struct SymbolSourceContext: Hashable {
+    let symbolName: String
+    let filePath: String
+    let startLine: Int
+    let endLine: Int
+    let excerptStartLine: Int
+    let excerpt: String
+    let isChangedInCurrentPR: Bool
+    let changedLineNumbers: Set<Int>
+    let callSiteLine: Int?
+}
+
+struct InlineImpactMarker: Identifiable, Hashable {
+    let id: UUID
+    let rootSymbolId: UUID
+    let filePath: String
+    let anchorLine: Int
+    let hunkIndex: Int
+    let summary: String
+    let metrics: ImpactSummary
+    let isContinuation: Bool
 }

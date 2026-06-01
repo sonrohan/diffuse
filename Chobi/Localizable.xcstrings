@@ -4,6 +4,9 @@
     "" : {
 
     },
+    " " : {
+
+    },
     "@@ -%lld,%lld +%lld,%lld @@" : {
       "localizations" : {
         "en" : {
@@ -57,6 +60,26 @@
         }
       }
     },
+    "%@:L%lld-L%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@:L%2$lld-L%3$lld"
+          }
+        }
+      }
+    },
+    "%@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
@@ -66,16 +89,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld area%2$@"
-          }
-        }
-      }
-    },
-    "%lld callers · %lld callees · %lld files · %lld tests" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld callers · %2$lld callees · %3$lld files · %4$lld tests"
           }
         }
       }
@@ -490,6 +503,9 @@
         }
       }
     },
+    "Areas" : {
+
+    },
     "AST Analysis Engine" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -535,6 +551,9 @@
           }
         }
       }
+    },
+    "Back" : {
+
     },
     "Base Ref" : {
 
@@ -632,7 +651,13 @@
     "Changed Files" : {
 
     },
+    "Changed in PR" : {
+
+    },
     "Changed root" : {
+
+    },
+    "Changed symbols were found, but no caller or callee relationships were detected." : {
 
     },
     "Chobi exposes analysis summaries, review plans, symbols, findings, and bounded file ranges. No mutation tools or network listener are registered." : {
@@ -772,6 +797,9 @@
     "Cleared!" : {
 
     },
+    "Collapse impact explorer" : {
+
+    },
     "Commit filter" : {
 
     },
@@ -785,6 +813,9 @@
 
     },
     "Connect AI tools to Chobi through a local stdio Model Context Protocol process." : {
+
+    },
+    "Connection to PR change: call site around L%lld" : {
 
     },
     "Connection: %@ %@" : {
@@ -812,6 +843,9 @@
     "Create .chobi.json before first analysis" : {
 
     },
+    "Current: %@" : {
+
+    },
     "Debug" : {
 
     },
@@ -819,6 +853,9 @@
 
     },
     "Detected" : {
+
+    },
+    "Direction" : {
 
     },
     "Done" : {
@@ -903,6 +940,12 @@
     "First" : {
 
     },
+    "Focus" : {
+
+    },
+    "Focus Selected" : {
+
+    },
     "Folder Path" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -925,6 +968,9 @@
           }
         }
       }
+    },
+    "Forward" : {
+
     },
     "General" : {
       "extractionState" : "manual",
@@ -955,6 +1001,12 @@
     "Global Folder" : {
 
     },
+    "Graph" : {
+
+    },
+    "Graph Focus" : {
+
+    },
     "Group symbols like this" : {
 
     },
@@ -979,7 +1031,13 @@
     "Impact Detail" : {
 
     },
+    "Impact Explorer" : {
+
+    },
     "Impact Summary" : {
+
+    },
+    "Impacted Code" : {
 
     },
     "L%lld-%lld" : {
@@ -1100,6 +1158,9 @@
     "Needs Attention" : {
 
     },
+    "Next" : {
+
+    },
     "Next Commit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1136,6 +1197,9 @@
 
     },
     "No high-priority targets" : {
+
+    },
+    "No impact graph available" : {
 
     },
     "No Performance Data" : {
@@ -1205,7 +1269,22 @@
         }
       }
     },
+    "Open Root" : {
+
+    },
+    "Open selected symbol in diff" : {
+
+    },
     "optional" : {
+
+    },
+    "Origin" : {
+
+    },
+    "Origin: %@ changed in this PR" : {
+
+    },
+    "Outside PR" : {
 
     },
     "Parses symbols and signatures locally using high-fidelity Tree-sitter AST parsers. No code is sent to external APIs." : {
@@ -1231,7 +1310,13 @@
         }
       }
     },
+    "Path: %@" : {
+
+    },
     "Preset to copy" : {
+
+    },
+    "Previous" : {
 
     },
     "Previous Commit" : {
@@ -1510,6 +1595,9 @@
     "Saving to repository root (.chobi.json)" : {
 
     },
+    "Search queue" : {
+
+    },
     "Search review targets" : {
 
     },
@@ -1610,6 +1698,9 @@
           }
         }
       }
+    },
+    "Selected Symbol" : {
+
     },
     "Semantic area" : {
 

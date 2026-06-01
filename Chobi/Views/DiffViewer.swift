@@ -6,6 +6,7 @@ struct DiffViewerPanel: View {
     @Environment(AppState.self) private var state
     @Environment(AnalysisViewModel.self) private var viewModel
     let details: AnalysisDetails
+    @Bindable var impactViewModel: ImpactGraphViewModel
 
     @State private var hideBoilerplate = false
     @State private var compactFileTree = true
@@ -17,7 +18,6 @@ struct DiffViewerPanel: View {
     @State private var showUnviewedOnly = false
     @State private var viewedFileIds: Set<UUID> = []
     @State private var isFilterPopoverPresented = false
-    @State private var impactViewModel = ImpactGraphViewModel()
 
     var activeFile: ChangedFile? {
         guard let id = viewModel.activeFileId else { return filteredFiles.first }
@@ -157,6 +157,15 @@ struct DiffViewerPanel: View {
                 .help("Change diff layout")
 
                 DiffToolbarButton(
+                    systemImage: "sidebar.right",
+                    isActive: viewModel.isImpactInspectorVisible,
+                    help: viewModel.isImpactInspectorVisible
+                        ? "Hide impact explorer" : "Show impact explorer"
+                ) {
+                    viewModel.isImpactInspectorVisible.toggle()
+                }
+
+                DiffToolbarButton(
                     systemImage: hideBoilerplate ? "eye.slash.fill" : "eye",
                     isActive: hideBoilerplate,
                     help: hideBoilerplate ? "Show boilerplate files" : "Hide boilerplate files"
@@ -183,7 +192,10 @@ struct DiffViewerPanel: View {
             HSplitView {
                 // File list sidebar
                 FileListSidebar(
-                    files: filteredFiles, activeFile: activeFile, compactTree: compactFileTree
+                    files: filteredFiles,
+                    activeFile: activeFile,
+                    compactTree: compactFileTree,
+                    impactIndicators: impactViewModel.fileImpactIndicators
                 )
                 .frame(minWidth: 140, idealWidth: 220, maxWidth: 420)
 
@@ -196,7 +208,26 @@ struct DiffViewerPanel: View {
                         activeHunkIndex: viewModel.activeHunkIndex,
                         activeTarget: viewModel.activeTarget?.filePath == file.path
                             ? viewModel.activeTarget : nil
-                    )
+                    ) { impact in
+                        impactViewModel.select(impact)
+                        viewModel.jumpToImpactRoot(impact)
+                    }
+
+                    if viewModel.isImpactInspectorVisible {
+                        ImpactExplorerSidebar(
+                            impactViewModel: impactViewModel,
+                            details: details,
+                            onClose: { viewModel.isImpactInspectorVisible = false },
+                            onOpenImpact: { impact in
+                                impactViewModel.select(impact)
+                                viewModel.jumpToImpactRoot(impact)
+                            },
+                            onOpenNode: { node in
+                                jumpToGraphNode(node, details: details)
+                            }
+                        )
+                        .frame(minWidth: 320, idealWidth: 380, maxWidth: 520)
+                    }
                 } else {
                     VStack {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -224,13 +255,9 @@ struct DiffViewerPanel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            impactViewModel.load(details: details)
             if let id = activeFile?.id {
                 viewedFileIds.insert(id)
             }
-        }
-        .onChange(of: details.run.id) { _, _ in
-            impactViewModel.load(details: details)
         }
         .onChange(of: activeFile?.id) { _, id in
             if let id { viewedFileIds.insert(id) }
@@ -248,6 +275,20 @@ struct DiffViewerPanel: View {
         excludedStatuses = []
         excludedClassifications = []
         showUnviewedOnly = false
+    }
+
+    private func jumpToGraphNode(_ node: ImpactGraphNode, details: AnalysisDetails) {
+        guard node.isChangedInPR,
+            let file = details.files.first(where: { $0.path == node.filePath })
+        else { return }
+        viewModel.jumpToFile(file.id, hunkIndex: hunkIndexForLine(file: file, line: node.line))
+    }
+
+    private func hunkIndexForLine(file: ChangedFile, line: Int?) -> Int? {
+        guard let line else { return nil }
+        return file.hunks.firstIndex { hunk in
+            line >= hunk.newStart && line <= hunk.newStart + max(hunk.newLines - 1, 0)
+        }
     }
 }
 
@@ -548,6 +589,7 @@ struct FileListSidebar: View {
     let files: [ChangedFile]
     let activeFile: ChangedFile?
     let compactTree: Bool
+    let impactIndicators: [UUID: FileImpactIndicator]
     var width: CGFloat = 220
     @State private var collapsedFolders: Set<String> = []
 
@@ -564,7 +606,8 @@ struct FileListSidebar: View {
                         depth: 0,
                         activeFile: activeFile,
                         collapsedFolders: $collapsedFolders,
-                        compactTree: compactTree
+                        compactTree: compactTree,
+                        impactIndicators: impactIndicators
                     ) { file in
                         viewModel.jumpToFile(file.id)
                     }
@@ -655,6 +698,7 @@ struct FileTreeNodeView: View {
     let activeFile: ChangedFile?
     @Binding var collapsedFolders: Set<String>
     let compactTree: Bool
+    let impactIndicators: [UUID: FileImpactIndicator]
     let onSelectFile: (ChangedFile) -> Void
 
     var displayedNode: FileTreeNode {
@@ -718,10 +762,15 @@ struct FileTreeNodeView: View {
 
             if !isCollapsed {
                 ForEach(node.files) { file in
-                    FileListItem(file: file, isActive: activeFile?.id == file.id, depth: depth + 1)
-                        .onTapGesture {
-                            onSelectFile(file)
-                        }
+                    FileListItem(
+                        file: file,
+                        isActive: activeFile?.id == file.id,
+                        depth: depth + 1,
+                        impactIndicator: impactIndicators[file.id]
+                    )
+                    .onTapGesture {
+                        onSelectFile(file)
+                    }
                 }
 
                 ForEach(node.children) { child in
@@ -731,6 +780,7 @@ struct FileTreeNodeView: View {
                         activeFile: activeFile,
                         collapsedFolders: $collapsedFolders,
                         compactTree: compactTree,
+                        impactIndicators: impactIndicators,
                         onSelectFile: onSelectFile
                     )
                 }
@@ -744,6 +794,7 @@ struct FileListItem: View {
     let file: ChangedFile
     let isActive: Bool
     var depth: Int = 0
+    let impactIndicator: FileImpactIndicator?
 
     var fileTargets: [ReviewTarget] {
         viewModel.bucketTargets.filter { $0.filePath == file.path }
@@ -790,11 +841,9 @@ struct FileListItem: View {
 
             Spacer()
 
-            if !fileTargets.isEmpty {
-                targetIndicator
+            if let impactIndicator {
+                impactBadge(impactIndicator)
             }
-
-            classificationBadge(file.classification)
         }
         .padding(.leading, CGFloat(min(depth, 4)) * 12 + 10)
         .padding(.trailing, 8)
@@ -809,18 +858,15 @@ struct FileListItem: View {
         .help(fileHelpText)
     }
 
-    var targetIndicator: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "target")
-                .font(.system(size: 8, weight: .bold))
-            Text("\(fileTargets.count)")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-        }
-        .foregroundColor(targetColor)
-        .padding(.horizontal, 5)
-        .padding(.vertical, 1)
-        .background(targetColor.opacity(0.10))
-        .clipShape(Capsule())
+    func impactBadge(_ indicator: FileImpactIndicator) -> some View {
+        Text("\(indicator.count)")
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundColor(indicator.color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(indicator.color.opacity(0.10))
+            .clipShape(Capsule())
+            .help(indicator.helpText)
     }
 
     var targetColor: Color {
@@ -843,19 +889,6 @@ struct FileListItem: View {
         return "\(file.path)\nNeeds attention: \(severity) - \(firstTarget.title)"
     }
 
-    @ViewBuilder
-    func classificationBadge(_ cls: ChangedFile.FileClassification) -> some View {
-        switch cls {
-        case .test:
-            BadgeView(text: "test", variant: .info)
-        case .config:
-            BadgeView(text: "cfg", variant: .neutral)
-        case .generated:
-            BadgeView(text: "gen", variant: .neutral)
-        default:
-            EmptyView()
-        }
-    }
 }
 
 // MARK: - Diff Content
@@ -867,10 +900,19 @@ struct DiffContent: View {
     let impactViewModel: ImpactGraphViewModel
     let activeHunkIndex: Int?
     let activeTarget: ReviewTarget?
+    let onOpenImpact: (SymbolImpact) -> Void
     @State private var teachMessage: String?
 
     var fileImpacts: [SymbolImpact] {
-        impactViewModel.impacts(for: file)
+        impactViewModel.visibleImpacts(for: file)
+    }
+
+    var activeImpactRange: ClosedRange<Int>? {
+        guard let context = impactViewModel.selectedSourceContext,
+            context.isChangedInCurrentPR,
+            context.filePath == file.path
+        else { return nil }
+        return context.startLine...max(context.startLine, context.endLine)
     }
 
     var body: some View {
@@ -945,10 +987,15 @@ struct DiffContent: View {
                         HunkView(
                             hunk: hunk,
                             hunkIndex: idx,
-                            fileId: file.id,
+                            file: file,
                             impacts: impactViewModel.impacts(for: hunk, fileId: file.id),
+                            markers: impactViewModel.inlineMarkers(
+                                for: hunk, file: file, hunkIndex: idx),
+                            impactViewModel: impactViewModel,
                             isHighlighted: activeHunkIndex == idx,
-                            activeTarget: activeTarget
+                            activeTarget: activeTarget,
+                            activeImpactRange: activeImpactRange,
+                            onOpenImpact: onOpenImpact
                         )
                         .id("hunk-\(file.id)-\(idx)")
                     }
@@ -1088,9 +1135,10 @@ struct FileImpactSummary: View {
 }
 
 struct InlineImpactSummaryCard: View {
-    @Environment(AnalysisViewModel.self) private var viewModel
     let impact: SymbolImpact
-    @State private var isShowingDetail = false
+    let marker: InlineImpactMarker?
+    let impactViewModel: ImpactGraphViewModel?
+    let onOpenImpact: (SymbolImpact) -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -1102,29 +1150,25 @@ struct InlineImpactSummaryCard: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     BadgeView(
-                        text: "\(impact.summary.impactLevel.displayName) impact",
+                        text: marker?.isContinuation == true
+                            ? "Impact continued"
+                            : "\(impact.summary.impactLevel.displayName) impact",
                         variant: impact.summary.impactLevel.badgeVariant)
                     Text(impact.symbol.name)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundColor(.textPrimary)
                     Spacer()
                     Button("View graph") {
-                        viewModel.jumpToImpactRoot(impact)
-                        isShowingDetail.toggle()
+                        onOpenImpact(impact)
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .buttonStyle(.plain)
                     .foregroundColor(.brandAccent)
-                    .popover(isPresented: $isShowingDetail, arrowEdge: .trailing) {
-                        ImpactDetailPopover(impact: impact)
-                    }
                 }
 
-                Text(
-                    "\(impact.summary.directCallerCount) callers · \(impact.summary.directCalleeCount) callees · \(impact.summary.fileCount) files · \(impact.summary.testReferenceCount) tests"
-                )
-                .font(.system(size: 11))
-                .foregroundColor(.textSecondary)
+                Text(marker?.summary ?? fallbackSummary)
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
 
                 if !mostAffected.isEmpty {
                     Text("Most affected: \(mostAffected)")
@@ -1140,6 +1184,21 @@ struct InlineImpactSummaryCard: View {
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.borderMuted, lineWidth: 0.5))
     }
 
+    init(
+        impact: SymbolImpact, marker: InlineImpactMarker? = nil,
+        impactViewModel: ImpactGraphViewModel? = nil,
+        onOpenImpact: @escaping (SymbolImpact) -> Void = { _ in }
+    ) {
+        self.impact = impact
+        self.marker = marker
+        self.impactViewModel = impactViewModel
+        self.onOpenImpact = onOpenImpact
+    }
+
+    private var fallbackSummary: String {
+        "\(impact.summary.directCallerCount) callers · \(impact.summary.directCalleeCount) callees · \(impact.summary.fileCount) files · View graph"
+    }
+
     private var mostAffected: String {
         impact.symbol.callers.prefix(3).map { caller in
             caller.components(separatedBy: ":").last ?? caller
@@ -1150,6 +1209,7 @@ struct InlineImpactSummaryCard: View {
 
 struct ImpactDetailPopover: View {
     let impact: SymbolImpact
+    let impactViewModel: ImpactGraphViewModel?
     @State private var activeTab: ImpactDetailTab = .overview
 
     var body: some View {
@@ -1194,7 +1254,11 @@ struct ImpactDetailPopover: View {
                         rows: impact.symbol.callees,
                         connectionSuffix: "is called by \(impact.symbol.name)")
                 case .graph:
-                    ImpactMiniGraph(impact: impact)
+                    if let impactViewModel {
+                        ImpactGraphExplorer(impact: impact, viewModel: impactViewModel)
+                    } else {
+                        ImpactMiniGraph(impact: impact)
+                    }
                 case .tests:
                     ImpactTestsTab(impact: impact)
                 }
@@ -1296,6 +1360,153 @@ struct ImpactListTab: View {
     }
 }
 
+struct ImpactGraphExplorer: View {
+    let impact: SymbolImpact
+    @Bindable var viewModel: ImpactGraphViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Graph Focus")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
+                Text("Current: \(viewModel.focusedNode?.title ?? impact.symbol.name)")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                Text("Origin: \(impact.symbol.name) changed in this PR")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                Text("Path: \(viewModel.graphPathText)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                Button("Back") { viewModel.focusBack() }
+                    .disabled(!viewModel.canGoBack)
+                Button("Forward") { viewModel.focusForward() }
+                    .disabled(!viewModel.canGoForward)
+                Button("Origin") { viewModel.focusOrigin() }
+                Button("Focus Selected") { viewModel.focusSelectedGraphNode() }
+                    .disabled(viewModel.selectedGraphNode == nil)
+                Picker("Direction", selection: $viewModel.graphDirection) {
+                    ForEach(ImpactGraphDirection.allCases) { direction in
+                        Text(direction.title).tag(direction)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 92)
+            }
+            .font(.system(size: 11))
+
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(alignment: .center, spacing: 8) {
+                    ForEach(viewModel.visibleGraphNodes) { node in
+                        ImpactGraphNodeButton(
+                            node: node,
+                            isFocused: node.id == viewModel.currentFocusedNodeId,
+                            isSelected: node.id == viewModel.selectedGraphNode?.id
+                        ) {
+                            viewModel.selectGraphNode(node)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            if let context = viewModel.selectedSourceContext {
+                SymbolSourceContextPreview(context: context)
+            }
+        }
+        .onAppear {
+            viewModel.select(impact)
+        }
+    }
+}
+
+struct ImpactGraphNodeButton: View {
+    let node: ImpactGraphNode
+    let isFocused: Bool
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
+                    if node.role == .caller {
+                        Image(systemName: "arrow.down.left")
+                    } else if node.role == .callee {
+                        Image(systemName: "arrow.down.right")
+                    }
+                    Text(node.title)
+                        .lineLimit(1)
+                }
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+
+                Text(node.isChangedInPR ? "Changed in PR" : "Outside PR")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textTertiary)
+            }
+            .foregroundColor(isFocused ? .white : .textPrimary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .frame(width: 150, alignment: .leading)
+            .background(isFocused ? Color.brandAccent : Color(NSColor.controlColor).opacity(0.35))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.brandAccent.opacity(0.8) : Color.borderMuted,
+                    lineWidth: isSelected ? 1.2 : 0.5))
+        }
+        .buttonStyle(.plain)
+        .help("\(node.filePath)\(node.line.map { ":L\($0)" } ?? "")")
+    }
+}
+
+struct SymbolSourceContextPreview: View {
+    let context: SymbolSourceContext
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("Selected Symbol")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
+                Spacer()
+                BadgeView(
+                    text: context.isChangedInCurrentPR ? "Diff mode" : "Outside this PR",
+                    variant: context.isChangedInCurrentPR ? .success : .neutral)
+            }
+            Text(context.symbolName)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(.textPrimary)
+            Text("\(context.filePath):L\(context.startLine)-L\(context.endLine)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.brandAccent)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if let callSiteLine = context.callSiteLine {
+                Text("Connection to PR change: call site around L\(callSiteLine)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textSecondary)
+            }
+            Text(context.excerpt)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.textSecondary)
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(NSColor.controlColor).opacity(0.30))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
 struct ImpactMiniGraph: View {
     let impact: SymbolImpact
 
@@ -1394,6 +1605,460 @@ struct ImpactDetailLine: View {
     }
 }
 
+struct ImpactExplorerSidebar: View {
+    @Bindable var impactViewModel: ImpactGraphViewModel
+    let details: AnalysisDetails
+    let onClose: () -> Void
+    let onOpenImpact: (SymbolImpact) -> Void
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.brandAccent)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Impact Explorer")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Text(headerSubtitle)
+                        .font(.system(size: 10))
+                        .foregroundColor(.textTertiary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "sidebar.right")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.textSecondary)
+                .help("Collapse impact explorer")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.bgSubtle)
+
+            Divider()
+
+            if impactViewModel.reviewQueue.isEmpty {
+                ImpactExplorerEmptyState()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ImpactExplorerRootCard(
+                            impact: impactViewModel.originImpact ?? impactViewModel.reviewQueue[0],
+                            viewModel: impactViewModel,
+                            onOpenRoot: {
+                                if let impact = impactViewModel.originImpact {
+                                    onOpenImpact(impact)
+                                }
+                            }
+                        )
+
+                        ImpactGraphMap(
+                            viewModel: impactViewModel,
+                            onOpenNode: onOpenNode
+                        )
+
+                        if let impact = impactViewModel.originImpact {
+                            ImpactRelationshipSection(
+                                impact: impact,
+                                viewModel: impactViewModel,
+                                onOpenNode: onOpenNode
+                            )
+                        }
+
+                        if let context = impactViewModel.selectedSourceContext {
+                            SymbolSourceContextPreview(context: context)
+                            Button {
+                                if let node = impactViewModel.selectedGraphNode {
+                                    onOpenNode(node)
+                                }
+                            } label: {
+                                Label(
+                                    "Open selected symbol in diff",
+                                    systemImage: "arrow.turn.down.right"
+                                )
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(!(impactViewModel.selectedGraphNode?.isChangedInPR ?? false))
+                        }
+                    }
+                    .padding(12)
+                }
+                .background(Color.bgCanvas)
+            }
+        }
+        .background(Color.bgCanvas)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.borderMuted)
+                .frame(width: 1)
+        }
+    }
+
+    private var headerSubtitle: String {
+        let count = impactViewModel.reviewQueue.count
+        return "\(count) impacted changed symbol\(count == 1 ? "" : "s")"
+    }
+}
+
+struct ImpactExplorerEmptyState: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .font(.system(size: 24))
+                .foregroundColor(.textTertiary)
+            Text("No impact graph available")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            Text("Changed symbols were found, but no caller or callee relationships were detected.")
+                .font(.system(size: 12))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.bgCanvas)
+    }
+}
+
+struct ImpactExplorerRootCard: View {
+    let impact: SymbolImpact
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenRoot: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                BadgeView(
+                    text: "\(impact.summary.impactLevel.displayName) impact",
+                    variant: impact.summary.impactLevel.badgeVariant)
+                Text(impact.symbol.name)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+            }
+
+            Text(impact.reason ?? "Review caller and callee relationships for this changed symbol.")
+                .font(.system(size: 12))
+                .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                ImpactStat(text: "\(impact.summary.directCallerCount) callers")
+                ImpactStat(text: "\(impact.summary.directCalleeCount) callees")
+                ImpactStat(text: "\(impact.summary.fileCount) files")
+            }
+
+            HStack(spacing: 6) {
+                Button("Previous") {
+                    viewModel.selectPreviousImpact()
+                    onOpenRoot()
+                }
+                Button("Next") {
+                    viewModel.selectNextImpact()
+                    onOpenRoot()
+                }
+                Button("Open Root") { onOpenRoot() }
+                Spacer()
+                Picker("Direction", selection: $viewModel.graphDirection) {
+                    ForEach(ImpactGraphDirection.allCases) { direction in
+                        Text(direction.title).tag(direction)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 98)
+            }
+            .font(.system(size: 11))
+        }
+        .padding(10)
+        .background(Color(NSColor.controlColor).opacity(0.30))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.borderMuted, lineWidth: 0.5))
+    }
+}
+
+struct ImpactGraphMap: View {
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var callers: [ImpactGraphNode] {
+        viewModel.visibleGraphNodes.filter { $0.role == .caller }
+    }
+
+    var callees: [ImpactGraphNode] {
+        viewModel.visibleGraphNodes.filter { $0.role == .callee }
+    }
+
+    var origin: ImpactGraphNode? {
+        viewModel.visibleGraphNodes.first { $0.role == .origin }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Graph")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.textTertiary)
+                    .textCase(.uppercase)
+                Spacer()
+                Button("Back") { viewModel.focusBack() }
+                    .disabled(!viewModel.canGoBack)
+                Button("Forward") { viewModel.focusForward() }
+                    .disabled(!viewModel.canGoForward)
+                Button("Origin") { viewModel.focusOrigin() }
+            }
+            .font(.system(size: 11))
+
+            VStack(spacing: 8) {
+                ImpactGraphColumn(
+                    title: "Callers",
+                    emptyText: "No callers detected",
+                    nodes: callers,
+                    viewModel: viewModel,
+                    onOpenNode: onOpenNode
+                )
+
+                if let origin {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                    ImpactExplorerNodeCard(
+                        node: origin,
+                        isFocused: origin.id == viewModel.currentFocusedNodeId,
+                        isSelected: origin.id == viewModel.selectedGraphNode?.id,
+                        viewModel: viewModel,
+                        onOpenNode: onOpenNode
+                    )
+                }
+
+                if !callees.isEmpty {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.textTertiary)
+                }
+
+                ImpactGraphColumn(
+                    title: "Callees",
+                    emptyText: "No callees detected",
+                    nodes: callees,
+                    viewModel: viewModel,
+                    onOpenNode: onOpenNode
+                )
+            }
+            .padding(10)
+            .background(Color(NSColor.controlColor).opacity(0.22))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+struct ImpactGraphColumn: View {
+    let title: String
+    let emptyText: String
+    let nodes: [ImpactGraphNode]
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+            if nodes.isEmpty {
+                Text(emptyText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            } else {
+                ForEach(nodes) { node in
+                    ImpactExplorerNodeCard(
+                        node: node,
+                        isFocused: node.id == viewModel.currentFocusedNodeId,
+                        isSelected: node.id == viewModel.selectedGraphNode?.id,
+                        viewModel: viewModel,
+                        onOpenNode: onOpenNode
+                    )
+                }
+            }
+        }
+    }
+}
+
+struct ImpactExplorerNodeCard: View {
+    let node: ImpactGraphNode
+    let isFocused: Bool
+    let isSelected: Bool
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        Button {
+            viewModel.selectGraphNode(node)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: iconName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(isFocused ? .white : .brandAccent)
+                    .frame(width: 16)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(node.title)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(isFocused ? .white : .textPrimary)
+                        .lineLimit(1)
+                    Text(
+                        "\(node.isChangedInPR ? "Changed in PR" : "Outside PR") · \(node.filePath)"
+                    )
+                    .font(.system(size: 10))
+                    .foregroundColor(isFocused ? .white.opacity(0.8) : .textTertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                }
+                Spacer()
+                Button("Focus") {
+                    viewModel.selectGraphNode(node)
+                    viewModel.focusSelectedGraphNode()
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .buttonStyle(.plain)
+                .foregroundColor(isFocused ? .white : .brandAccent)
+                Button {
+                    viewModel.selectGraphNode(node)
+                    onOpenNode(node)
+                } label: {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(isFocused ? .white : .textSecondary)
+                .disabled(!node.isChangedInPR)
+            }
+            .padding(8)
+            .background(isFocused ? Color.brandAccent : Color.bgCanvas)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7).stroke(
+                    isSelected ? Color.brandAccent.opacity(0.85) : Color.borderMuted,
+                    lineWidth: isSelected ? 1.2 : 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var iconName: String {
+        switch node.role {
+        case .origin: "dot.circle.fill"
+        case .caller: "arrow.down.left"
+        case .callee: "arrow.down.right"
+        }
+    }
+}
+
+struct ImpactRelationshipSection: View {
+    let impact: SymbolImpact
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Impacted Code")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.textTertiary)
+                .textCase(.uppercase)
+
+            ImpactRelationshipList(
+                title: "Callers",
+                rows: impact.symbol.callers,
+                role: .caller,
+                viewModel: viewModel,
+                onOpenNode: onOpenNode
+            )
+            ImpactRelationshipList(
+                title: "Callees",
+                rows: impact.symbol.callees,
+                role: .callee,
+                viewModel: viewModel,
+                onOpenNode: onOpenNode
+            )
+        }
+    }
+}
+
+struct ImpactRelationshipList: View {
+    let title: String
+    let rows: [String]
+    let role: ImpactGraphNode.Role
+    @Bindable var viewModel: ImpactGraphViewModel
+    let onOpenNode: (ImpactGraphNode) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            if rows.isEmpty {
+                Text("None detected")
+                    .font(.system(size: 11))
+                    .foregroundColor(.textTertiary)
+                    .padding(.vertical, 4)
+            } else {
+                ForEach(Array(rows.prefix(8).enumerated()), id: \.offset) { _, row in
+                    let node = nodeFromRow(row)
+                    Button {
+                        viewModel.selectGraphNode(node)
+                        onOpenNode(node)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(node.title)
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.textPrimary)
+                                .lineLimit(1)
+                            Text(node.filePath)
+                                .font(.system(size: 10))
+                                .foregroundColor(.textTertiary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .padding(7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(NSColor.controlColor).opacity(0.24))
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func nodeFromRow(_ row: String) -> ImpactGraphNode {
+        let parts = row.components(separatedBy: ":")
+        let filePath = parts.first ?? row
+        let title = parts.last ?? row
+        let line = parts.compactMap(Int.init).first
+        if let existing = viewModel.visibleGraphNodes.first(where: {
+            $0.filePath == filePath && $0.title == title && $0.role == role
+        }) {
+            return existing
+        }
+        return ImpactGraphNode(
+            id: "\(filePath)#\(title)",
+            title: title,
+            filePath: filePath,
+            line: line,
+            role: role,
+            isChangedInPR: false,
+            isTest: row.localizedCaseInsensitiveContains("test")
+                || row.localizedCaseInsensitiveContains("spec"))
+    }
+}
+
 extension ImpactLevel {
     var tintColor: Color {
         switch self {
@@ -1417,10 +2082,14 @@ struct HunkView: View {
     @Environment(AnalysisViewModel.self) private var viewModel
     let hunk: DiffHunk
     let hunkIndex: Int
-    let fileId: UUID
+    let file: ChangedFile
     let impacts: [SymbolImpact]
+    let markers: [InlineImpactMarker]
+    let impactViewModel: ImpactGraphViewModel
     let isHighlighted: Bool
     let activeTarget: ReviewTarget?
+    let activeImpactRange: ClosedRange<Int>?
+    let onOpenImpact: (SymbolImpact) -> Void
     @State private var isCollapsed = false
 
     var diffLines: [NumberedDiffLine] {
@@ -1639,12 +2308,17 @@ struct HunkView: View {
     }
 
     private func isTargeted(_ line: NumberedDiffLine) -> Bool {
-        guard let activeTarget,
-            let start = activeTarget.lineStart
-        else { return false }
-        let end = activeTarget.lineEnd ?? start
         guard let newLineNumber = line.newLineNumber else { return false }
-        return newLineNumber >= start && newLineNumber <= end
+        if let activeTarget,
+            let start = activeTarget.lineStart
+        {
+            let end = activeTarget.lineEnd ?? start
+            if newLineNumber >= start && newLineNumber <= end { return true }
+        }
+        if let activeImpactRange, activeImpactRange.contains(newLineNumber) {
+            return true
+        }
+        return false
     }
 
     private func lineNumberText(_ text: String, isTargeted: Bool) -> AttributedString {
@@ -1664,7 +2338,7 @@ struct HunkView: View {
                     Button {
                         Task {
                             await viewModel.expandHunk(
-                                fileId: fileId, hunkIndex: hunkIndex, direction: .up)
+                                fileId: file.id, hunkIndex: hunkIndex, direction: .up)
                         }
                     } label: {
                         Image(systemName: "arrow.up.to.line")
@@ -1681,7 +2355,7 @@ struct HunkView: View {
                         Button {
                             Task {
                                 await viewModel.expandHunk(
-                                    fileId: fileId, hunkIndex: hunkIndex, direction: .all)
+                                    fileId: file.id, hunkIndex: hunkIndex, direction: .all)
                             }
                         } label: {
                             Image(systemName: "arrow.up.and.down")
@@ -1698,7 +2372,7 @@ struct HunkView: View {
                     Button {
                         Task {
                             await viewModel.expandHunk(
-                                fileId: fileId, hunkIndex: hunkIndex, direction: .down)
+                                fileId: file.id, hunkIndex: hunkIndex, direction: .down)
                         }
                     } label: {
                         Image(systemName: "arrow.down.to.line")
@@ -1746,109 +2420,20 @@ struct HunkView: View {
 
             Divider()
 
-            if !impacts.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(impacts.prefix(3)) { impact in
-                        InlineImpactSummaryCard(impact: impact)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.bgCanvas)
-            }
-
             // Hunk lines
             if !isCollapsed {
                 if state.diffLayout == .split {
-                    HStack(spacing: 0) {
-                        // Left Pane
-                        HStack(spacing: 0) {
-                            Text(splitLineNumbers(isLeft: true))
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(.textTertiary)
-                                .frame(width: 44, alignment: .trailing)
-                                .padding(.trailing, 6)
-                                .background(Color.bgSubtle.opacity(0.65))
-                                .textSelection(.disabled)
-
-                            Text(splitPrefixes(isLeft: true))
-                                .font(.system(size: 12, design: .monospaced))
-                                .frame(width: 18, alignment: .center)
-                                .background(Color.bgSubtle.opacity(0.65))
-                                .textSelection(.disabled)
-
-                            ScrollView(.horizontal, showsIndicators: true) {
-                                Text(splitCode(isLeft: true))
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .padding(.leading, 8)
-                                    .padding(.trailing, 12)
-                            }
+                    VStack(spacing: 0) {
+                        ForEach(alignedDiffLines) { alignedLine in
+                            inlineMarkerCards(for: alignedLine.newLine?.newLineNumber)
+                            splitLineRow(alignedLine)
                         }
-                        .frame(maxWidth: .infinity)
-                        .background(Color.bgCanvas)
-
-                        Rectangle()
-                            .fill(Color.borderMuted)
-                            .frame(width: 1)
-
-                        // Right Pane
-                        HStack(spacing: 0) {
-                            Text(splitLineNumbers(isLeft: false))
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(.textTertiary)
-                                .frame(width: 44, alignment: .trailing)
-                                .padding(.trailing, 6)
-                                .background(Color.bgSubtle.opacity(0.65))
-                                .textSelection(.disabled)
-
-                            Text(splitPrefixes(isLeft: false))
-                                .font(.system(size: 12, design: .monospaced))
-                                .frame(width: 18, alignment: .center)
-                                .background(Color.bgSubtle.opacity(0.65))
-                                .textSelection(.disabled)
-
-                            ScrollView(.horizontal, showsIndicators: true) {
-                                Text(splitCode(isLeft: false))
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .padding(.leading, 8)
-                                    .padding(.trailing, 12)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .background(Color.bgCanvas)
                     }
                 } else {
-                    HStack(spacing: 0) {
-                        Text(unifiedLineNumbers)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.textTertiary)
-                            .frame(width: 44, alignment: .trailing)
-                            .padding(.trailing, 6)
-                            .background(Color.bgSubtle.opacity(0.65))
-                            .textSelection(.disabled)
-
-                        Text(unifiedNewLineNumbers)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.textTertiary)
-                            .frame(width: 44, alignment: .trailing)
-                            .padding(.trailing, 6)
-                            .background(Color.bgSubtle.opacity(0.65))
-                            .textSelection(.disabled)
-
-                        Text(unifiedPrefixes)
-                            .font(.system(size: 12, design: .monospaced))
-                            .frame(width: 18, alignment: .center)
-                            .background(Color.bgSubtle.opacity(0.65))
-                            .textSelection(.disabled)
-
-                        ScrollView(.horizontal, showsIndicators: true) {
-                            Text(unifiedCode)
-                                .font(.system(size: 12, design: .monospaced))
-                                .textSelection(.enabled)
-                                .padding(.leading, 8)
-                                .padding(.trailing, 12)
+                    VStack(spacing: 0) {
+                        ForEach(diffLines) { line in
+                            inlineMarkerCards(for: line.newLineNumber)
+                            unifiedLineRow(line)
                         }
                     }
                     .background(Color.bgCanvas)
@@ -1867,11 +2452,170 @@ struct HunkView: View {
                 isHighlighted ? Color.warning.opacity(0.3) : Color.clear, lineWidth: 1
             ))
     }
+
+    @ViewBuilder
+    private func inlineMarkerCards(for lineNumber: Int?) -> some View {
+        if let lineNumber {
+            let lineMarkers = markers.filter { $0.anchorLine == lineNumber }
+            if !lineMarkers.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(lineMarkers.prefix(3)) { marker in
+                        if let impact = impacts.first(where: { $0.id == marker.rootSymbolId }) {
+                            InlineImpactSummaryCard(
+                                impact: impact,
+                                marker: marker,
+                                impactViewModel: impactViewModel,
+                                onOpenImpact: onOpenImpact)
+                        }
+                    }
+                }
+                .padding(.leading, state.diffLayout == .split ? 72 : 118)
+                .padding(.trailing, 12)
+                .padding(.vertical, 8)
+                .background(Color.bgCanvas)
+            }
+        }
+    }
+
+    private func unifiedLineRow(_ line: NumberedDiffLine) -> some View {
+        HStack(spacing: 0) {
+            lineNumberColumn(
+                line.oldLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)
+            )
+            .frame(width: 44, alignment: .trailing)
+            lineNumberColumn(
+                line.newLineNumber.map(String.init) ?? "", isTargeted: isTargeted(line)
+            )
+            .frame(width: 44, alignment: .trailing)
+            prefixColumn(
+                prefix(for: line), color: prefixColor(for: line), isTargeted: isTargeted(line))
+            codeColumn(lineContent(for: line), line: line)
+        }
+        .background(Color.bgCanvas)
+    }
+
+    private func splitLineRow(_ alignedLine: AlignedDiffLine) -> some View {
+        HStack(spacing: 0) {
+            splitPaneLine(alignedLine.oldLine, isLeft: true)
+                .frame(maxWidth: .infinity)
+            Rectangle()
+                .fill(Color.borderMuted)
+                .frame(width: 1)
+            splitPaneLine(alignedLine.newLine, isLeft: false)
+                .frame(maxWidth: .infinity)
+        }
+        .background(Color.bgCanvas)
+    }
+
+    @ViewBuilder
+    private func splitPaneLine(_ line: NumberedDiffLine?, isLeft: Bool) -> some View {
+        HStack(spacing: 0) {
+            if let line {
+                let lineNumber = isLeft ? line.oldLineNumber : line.newLineNumber
+                let targeted = isTargeted(line)
+                lineNumberColumn(lineNumber.map(String.init) ?? "", isTargeted: targeted)
+                    .frame(width: 44, alignment: .trailing)
+                prefixColumn(prefix(for: line), color: prefixColor(for: line), isTargeted: targeted)
+                codeColumn(lineContent(for: line), line: line)
+            } else {
+                lineNumberColumn("", isTargeted: false)
+                    .frame(width: 44, alignment: .trailing)
+                prefixColumn(" ", color: .textTertiary, isTargeted: false)
+                Text(" ")
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(maxWidth: .infinity, minHeight: 17, alignment: .leading)
+                    .background(Color.bgSubtle.opacity(0.15))
+            }
+        }
+    }
+
+    private func lineNumberColumn(_ text: String, isTargeted: Bool) -> some View {
+        Text(text)
+            .font(.system(size: 12, design: .monospaced))
+            .foregroundColor(isTargeted ? Color.warning : Color.textTertiary)
+            .frame(minHeight: 17, alignment: .trailing)
+            .padding(.trailing, 6)
+            .background(
+                isTargeted ? Color.warning.opacity(0.22) : Color.bgSubtle.opacity(0.65)
+            )
+            .textSelection(.disabled)
+    }
+
+    private func prefixColumn(_ text: String, color: Color, isTargeted: Bool) -> some View {
+        Text(text)
+            .font(.system(size: 12, design: .monospaced))
+            .foregroundColor(color)
+            .frame(width: 18, alignment: .center)
+            .frame(minHeight: 17)
+            .background(
+                isTargeted ? Color.warning.opacity(0.22) : Color.bgSubtle.opacity(0.65)
+            )
+            .textSelection(.disabled)
+    }
+
+    private func codeColumn(_ text: String, line: NumberedDiffLine) -> some View {
+        Text(text.isEmpty ? " " : text)
+            .font(.system(size: 12, design: .monospaced))
+            .foregroundColor(codeForeground(for: line))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .textSelection(.enabled)
+            .padding(.leading, 8)
+            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity, minHeight: 17, alignment: .leading)
+            .background(codeBackground(for: line))
+    }
+
+    private func lineContent(for line: NumberedDiffLine) -> String {
+        line.rawLine.isEmpty ? "" : String(line.rawLine.dropFirst())
+    }
+
+    private func prefix(for line: NumberedDiffLine) -> String {
+        switch line.type {
+        case .added: "+"
+        case .deleted: "−"
+        case .context: " "
+        case .metadata: "\\"
+        }
+    }
+
+    private func prefixColor(for line: NumberedDiffLine) -> Color {
+        switch line.type {
+        case .added: Color.diffAddedFg
+        case .deleted: Color.danger
+        case .context, .metadata: Color.textTertiary
+        }
+    }
+
+    private func codeForeground(for line: NumberedDiffLine) -> Color {
+        if isTargeted(line) { return Color.textPrimary }
+        switch line.type {
+        case .metadata:
+            return Color.textTertiary
+        case .context:
+            return Color.textPrimary.opacity(0.75)
+        case .added, .deleted:
+            return Color.textPrimary
+        }
+    }
+
+    private func codeBackground(for line: NumberedDiffLine) -> Color {
+        if isTargeted(line) { return Color.warning.opacity(0.28) }
+        switch line.type {
+        case .added:
+            return Color.diffAddedBg
+        case .deleted:
+            return Color.diffDeletedBg
+        case .context, .metadata:
+            return Color.clear
+        }
+    }
 }
 
 // MARK: - Diff Line Data Model
 
-struct NumberedDiffLine {
+struct NumberedDiffLine: Identifiable {
+    let id = UUID()
     enum LineType {
         case added, deleted, context, metadata
 
